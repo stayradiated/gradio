@@ -1,4 +1,4 @@
-*.sublime-
+*.sublime-*
 /node_modules
 /lib
 /cache/*
