@@ -1,5 +1,5 @@
 
-App = require './app'
+App = require './core'
 request = require 'request'
 http = require 'http'
 promise = require 'when'
@@ -205,17 +205,25 @@ module.exports =
       headers:
         'Content-Type': 'application/x-www-form-urlencoded'
         'Content-Length': contents.length
-        'Referer': 'http://grooveshark.com/JSQueue.swf?20121003.33'
+        'Referer': 'http://' + App.domain + '/JSQueue.swf?' + App.versionSwf
 
     req = http.request options, (res) ->
-      console.log 'STATUS:', res.statusCode
-      console.log 'HEADERS:', res.headers
+      length = parseInt res.headers['content-length'], 10
+      progress = 0
+
+      notify = ->
+        now = Math.floor(body.length / length * 100)
+        if now > progress
+          progress = now
+          deferred.notify(progress)
+
       body = ""
       res.on 'data', (chunk) ->
         body += chunk.toString('binary')
+        notify()
+
       res.on 'end', ->
-        fs.writeFile('music.mp3', body, encoding: 'binary')
-        deferred.resolve()
+        deferred.resolve(body)
 
     req.write(contents)
 

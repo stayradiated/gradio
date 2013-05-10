@@ -1,8 +1,17 @@
 
-App = require './app'
+###*
+ * @fileoverview Generates the POST headers used for talking to GrooveShark.
+*###
+
+# Dependencies
+App = require './core'
 TokenKey = require './TokenKey'
+assert = require 'assert'
 
 module.exports = (parameters, method) ->
+
+  # SessionID is required
+  assert.notEqual(App.session, '')
 
   header =
     'uuid': App.uuid
@@ -27,9 +36,9 @@ module.exports = (parameters, method) ->
 
   header.session = App.sessionid
 
-  if header.session is ''
-    console.error 'Error: Session ID is not set!'
+  return {
+    header: header
+    parameters: parameters
+    method: method
+  }
 
-  header: header
-  parameters: parameters
-  method: method

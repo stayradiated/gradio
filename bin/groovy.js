@@ -2,7 +2,7 @@
 (function() {
   var App, fs, http, promise, request;
 
-  App = require('./app');
+  App = require('./core');
 
   request = require('request');
 
@@ -225,23 +225,30 @@
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Content-Length': contents.length,
-          'Referer': 'http://grooveshark.com/JSQueue.swf?20121003.33'
+          'Referer': 'http://' + App.domain + '/JSQueue.swf?' + App.versionSwf
         }
       };
       req = http.request(options, function(res) {
-        var body;
+        var body, length, notify, progress;
 
-        console.log('STATUS:', res.statusCode);
-        console.log('HEADERS:', res.headers);
+        length = parseInt(res.headers['content-length'], 10);
+        progress = 0;
+        notify = function() {
+          var now;
+
+          now = Math.floor(body.length / length * 100);
+          if (now > progress) {
+            progress = now;
+            return deferred.notify(progress);
+          }
+        };
         body = "";
         res.on('data', function(chunk) {
-          return body += chunk.toString('binary');
+          body += chunk.toString('binary');
+          return notify();
         });
         return res.on('end', function() {
-          fs.writeFile('music.mp3', body, {
-            encoding: 'binary'
-          });
-          return deferred.resolve();
+          return deferred.resolve(body);
         });
       });
       req.write(contents);
