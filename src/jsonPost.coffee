@@ -1,7 +1,7 @@
 
 ###*
  * @fileoverview Generates the POST headers used for talking to GrooveShark.
-*###
+###
 
 # Dependencies
 Token = require './token'
@@ -9,7 +9,7 @@ promise = require 'when'
 
 ###*
  * @class JsonPost
-*###
+###
 class JsonPost
 
   ###*
@@ -18,7 +18,7 @@ class JsonPost
    * @params {object} parameters - An object with the parameters you want to send
    * @params {string} method - The service to use
    * @promises {object} The data to send to GrooveShark's APIs
-  *###
+  ###
   constructor: (core, @parameters, @method) ->
 
     deferred = promise.defer()

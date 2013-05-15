@@ -7,6 +7,7 @@
 
 (function() {
   var JsonPost, Token, promise,
+    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
 
   Token = require('./token');
@@ -34,6 +35,7 @@
 
       this.parameters = parameters;
       this.method = method;
+      this.toString = __bind(this.toString, this);
       deferred = promise.defer();
       sessionID = null;
       core.getSessionID().then(function(id) {
@@ -57,7 +59,6 @@
           _this.header.clientRevision = Token.htmlVersion;
           _this.referer = core.htmlReferer;
         }
-        console.log(_this.toString());
         return deferred.resolve(_this);
       });
       return deferred.promise;
