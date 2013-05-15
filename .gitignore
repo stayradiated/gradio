@@ -2,5 +2,4 @@
 /node_modules
 /lib
 /cache/*.mp3
-/bin/*.js
-/bin/*/*.js
+/bin
