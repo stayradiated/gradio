@@ -1,6 +1,6 @@
 ###*
  * @fileOverview Used to make requests to the internal Grooveshark API
-*###
+###
 
 # Dependencies
 request = require 'request'
@@ -14,7 +14,7 @@ Country = require './country'
 
 ###*
  * @class Core
-*###
+###
 
 class Core
 
@@ -74,7 +74,26 @@ class Core
     @newTokenTime = 16 * 60 * 1000
     @lastTokenTime = 0
     @sessionID = ''
+    @secretKey = ''
     @token = ''
+
+
+  ###*
+   * Make all the necessary calls to get the session ID and Token
+   * Completely optional
+   * @promises {null} can be used to do stuff when everything is ready
+  ###
+  init: =>
+
+    ready = promise.all([
+      @getToken()
+      @country.fetch()
+    ])
+
+    ready.then ->
+      console.log '> We are online!'
+
+    return ready
 
 
   ###*
@@ -90,6 +109,8 @@ class Core
     if @sessionID.length > 0
       deferred.resolve(@sessionID)
       return deferred.promise
+
+    console.log '> Getting session id'
 
     # Else request a new ID from GrooveShark
     request @homeurl, (err, res, body) =>
@@ -112,13 +133,19 @@ class Core
 
     deferred = promise.defer()
 
+    # If we have already calculated the secret key
+    if @secretKey.length > 0
+      deferred.resolve(@secretKey)
+      return deferred.promise
+
     # Get the session ID
     @getSessionID().then(
       (sessionID) =>
+        console.log '> Getting secret key'
         md5 = crypto.createHash('md5')
         md5.update(sessionID, 'utf-8')
-        secretKey = md5.digest('hex')
-        deferred.resolve(secretKey)
+        @secretKey = md5.digest('hex')
+        deferred.resolve(@secretKey)
     ,
       (err) ->
         throw new Error(err)
@@ -144,6 +171,7 @@ class Core
 
     @getSecretKey().then(
       (secretKey) =>
+        console.log '> Getting token'
         parameters = secretKey: secretKey
         return @callMethod(parameters, 'getCommunicationToken', 'https')
     ).then(
@@ -167,6 +195,8 @@ class Core
     deferred = promise.defer()
 
     @getToken().then (token) =>
+
+      console.log '> Getting token key'
 
       randomhex = ''
       while 6 > randomhex.length
@@ -197,18 +227,20 @@ class Core
    * @param {string} method - The service to call
    * @param {string} protocol - The protocol to use
    * @promises {object} The JSON data returned from the request
-  *###
+  ###
   callMethod: (parameters, method, protocol='http') =>
 
     deferred = promise.defer()
 
-    console.log 'calling', method
+    start = Date.now()
 
     # Assemble URL
     url = protocol + '://' + @methodurl + '?' + method
 
     # Run the request
     makeRequest = (json) ->
+
+      console.log "> Calling '#{method}'"
 
       options =
         url: url
@@ -219,6 +251,8 @@ class Core
 
       request options, (err, res, body) ->
         if err then return deferred.reject(err)
+        end = Date.now()
+        console.log '> ', (end - start) / 1000, 'seconds'
         deferred.resolve JSON.parse(body)
 
     # Transform parameters and method into a JsonPost object

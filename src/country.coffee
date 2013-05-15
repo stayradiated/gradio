@@ -1,6 +1,6 @@
 ###*
  * @fileOverview Scrapes the GrooveShark homepage HTML to get the Country ID.
-*###
+###
 
 # Dependencies
 http = require 'http'
@@ -8,7 +8,7 @@ promise = require 'when'
 
 ###*
  * @class Country
-*###
+###
 
 class Country
 

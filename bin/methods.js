@@ -10,7 +10,6 @@
   Methods = (function() {
     /**
      * @params {Core} core - Instance of Core class
-    *
     */
     function Methods(core) {
       this.core = core;
@@ -104,7 +103,25 @@
       return this.core.callMethod(parameters, 'playlistGetSongs');
     };
 
-    Methods.prototype.userGetSongsInLibrary = function(userID, page) {};
+    /**
+     * Get the songs in a users library
+     * @param {int} userID - ID of the user
+     * @param {int} page - The page number, use result.hasMore to check for more
+    */
+
+
+    Methods.prototype.userGetSongsInLibrary = function(userID, page) {
+      var parameters;
+
+      if (page == null) {
+        page = 0;
+      }
+      parameters = {
+        userID: userID,
+        page: page
+      };
+      return this.core.callMethod(parameters, 'userGetSongsInLibrary');
+    };
 
     /**
      * Get the users favorites
@@ -194,7 +211,6 @@
       * @params {string} username - The username
       * @params {string} password - The password
       * @promises {object} Some data in a JSON object
-    *
     */
 
 
@@ -219,7 +235,6 @@
     /**
      * I don't think this is used...
      * I imagine it would start the queue
-    *
     */
 
 
@@ -237,7 +252,6 @@
      * @params {string} playlistName - The name of the playlist
      * @params {string} playlistAbout - The description
      * @params {array} ids - An array of song IDs to put in the playlist. Can be empty.
-    *
     */
 
 
@@ -256,7 +270,6 @@
      * Add a song to a playlist.
      * @params {int} listID - The ID of the playlist to add a song to
      * @params {int} songID - The id of the song you want to add
-    *
     */
 
 
@@ -272,7 +285,6 @@
 
     /**
      * Add a song to the users library collection
-    *
     */
 
 
@@ -297,7 +309,6 @@
 
     /**
      * Add a song to the users favorites
-    *
     */
 
 
@@ -325,7 +336,6 @@
     /**
       * Fetch a users playlists
       * @params {int} userID - The ID of the user
-    *
     */
 
 

@@ -2,7 +2,6 @@
 /**
  * @fileOverview Handle downloading multiple files, such as a playlist of
  * songs.
-*
 */
 
 
@@ -13,7 +12,6 @@
 
   /**
    * @class Queue
-  *
   */
 
 

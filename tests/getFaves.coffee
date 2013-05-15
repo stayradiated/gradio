@@ -1,6 +1,6 @@
 Core = require '../src/core'
 Methods = require '../src/methods'
-Song = require '../src/types/song'
+Song = require '../src/models/song'
 
 core = new Core()
 app = new Methods(core)
