@@ -39,6 +39,7 @@ class Core
       'getResultsFromSearch'
       'authenticateUser'
       'logoutUser'
+      'getPlaylistByID'
       'playlistAddSongToExisting'
       'playlistAddSongToExisting'
       'popularGetSongs'
@@ -51,6 +52,7 @@ class Core
       'favorite'
       'getCountry'
       'albumGetSongs'
+      'getSongsInfo'
     ]
     @htmlName = 'htmlshark'
     @jsName = 'jsqueue'
@@ -111,12 +113,16 @@ class Core
       return deferred.promise
 
     console.log '> Getting session id'
+    start = Date.now()
 
     # Else request a new ID from GrooveShark
     request @homeurl, (err, res, body) =>
+      end = Date.now()
+      console.log (end - start) / 1000, 'seconds'
       if (err) then return deferred.reject(err)
       cookies = res.headers['set-cookie']
       @sessionID = cookies[0].split('=')[1].split(';')[0]
+      console.log @sessionID
       deferred.resolve(@sessionID)
 
     return deferred.promise
@@ -176,7 +182,7 @@ class Core
         return @callMethod(parameters, 'getCommunicationToken', 'https')
     ).then(
       (response) =>
-        @token = response.result
+        @token = response
         @lastTokenTime = timeNow
         deferred.resolve(@token)
     )
@@ -249,11 +255,19 @@ class Core
         headers:
           'Referer': 'http://grooveshark.com/'
 
+      console.log options
+
       request options, (err, res, body) ->
         if err then return deferred.reject(err)
+        console.log err, body
         end = Date.now()
         console.log '> ', (end - start) / 1000, 'seconds'
-        deferred.resolve JSON.parse(body)
+        try
+          json = JSON.parse(body)
+          if json.result? then json = json.result
+        catch e
+          json = body
+        deferred.resolve(json)
 
     # Transform parameters and method into a JsonPost object
     new JsonPost(this, parameters, method).then (json) =>
@@ -310,6 +324,7 @@ class Core
         notify()
 
       res.on 'end', ->
+        console.log 'finished download'
         deferred.resolve(body)
 
     req.write(contents)

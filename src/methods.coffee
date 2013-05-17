@@ -1,6 +1,6 @@
 
 request = require 'request'
-promise = require 'when'
+Promise = require 'when'
 
 class Methods
 
@@ -8,7 +8,6 @@ class Methods
    * @params {Core} core - Instance of Core class
   ###
   constructor: (@core) ->
-
 
   ###*
    * Returns the results of a search from the result of calling Grooveshark's
@@ -67,7 +66,7 @@ class Methods
    * @param {string} listID - ID of the playlist
    * @param {int} offset - Displacement of the songs (Starting song)
    * @param {boolean} isVerified - Songs verified or not
-   * @return {object} Json object with all info the response
+   * @return {object} Contains playlist song list
   ###
   getPlaylistSongs: (listID, offset=0, isVerified=false) ->
 
@@ -137,6 +136,19 @@ class Methods
       songID: songID
 
     @core.callMethod(parameters, 'markSongDownloadedEx')
+
+
+  markStreamKeyOver30Seconds: (ip, streamKey, songID, artistID) ->
+
+    parameters =
+      songQueueID: 0
+      songQueueSongID: 0
+      streamServerID: ip
+      streamKey: streamKey
+      artistID: artistID,
+      songID: songID
+
+    @core.callMethod(parameters, 'markStreamKeyOver30Seconds')
 
 
   ###*
@@ -282,13 +294,13 @@ class Methods
    * @param {int} songID - The ID of the song
    * @promises {object} cotains streamKey and server IP
   ###
-  getSongUrl: (songID) ->
+  getSongUrl: (songID) =>
 
-    deferred = promise.defer()
+    deferred = Promise.defer()
 
     @core.country.fetch()
 
-      .then (country) ->
+      .then (country) =>
 
         parameters =
           country: country
@@ -312,20 +324,26 @@ class Methods
   ###
   getSongStream: (songID) =>
 
-    deferred = promise.defer()
+    deferred = Promise.defer()
 
     ip = null
     streamKey = null
+    timer = null
 
     @getSongUrl(songID)
       .then (response) =>
-        ip = response.result.ip
-        streamKey = response.result.streamKey
+        ip = response.ip
+        streamKey = response.streamKey
+        timer = setTimeout(->
+          @markStreamKeyOver30Seconds(ip, streamKey, songID).then (response) ->
+            console.log '\n', response, '\n'
+        , 30  * 60 * 1000)
         @markSongAsDownloaded(ip, streamKey, songID)
         @core.getSongStream(ip, streamKey)
       .then(
         (fileData) =>
-          deferred.response(fileData)
+          deferred.resolve(fileData)
+          clearTimeout(timer)
           @markSongComplete(ip, streamKey, songID)
         , null, deferred.notify
       )

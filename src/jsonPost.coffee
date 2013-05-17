@@ -54,6 +54,9 @@ class JsonPost
           @header.clientRevision = Token.htmlVersion
           @referer = core.htmlReferer
 
+        else
+          console.log '> ERROR: Could not find method for', @method
+
         deferred.resolve(this)
 
     return deferred.promise

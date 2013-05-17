@@ -1,6 +1,7 @@
 
 var Core = require('./bin/core');
 var Methods = require('./bin/methods');
+var SongList = require('./bin/models/songList');
 var fs = require('fs');
 
 var core = new Core();
@@ -14,13 +15,20 @@ function log() {
   console.log.apply(console, args);
 }
 
-app.getPlaylistSongs(83455835).then(
+core.init().then(
+  function() {
+    console.log('Ready');
+    return app.getPlaylistSongs(40354457);
+  }
+).then(
   function(response) {
-    _.song = response.result.Songs[29];
+    var songs = new SongList(response.Songs);
+    _.song = songs[347];
     _.songId = _.song.SongID;
     _.songName = _.song.Name;
     _.songArtist = _.song.ArtistName;
     _.songAlbum = _.song.AlbumName;
+    log('ID:', _.songId);
     log('Name:', _.songName);
     log('Artist:', _.songArtist);
     log('Album:', _.songAlbum);
@@ -28,8 +36,10 @@ app.getPlaylistSongs(83455835).then(
   }
 ).then(
   function(fileData) {
-    log('Downloaded song');
-    fs.writeFile('cache/' + _.songArtist  + ' - ' + _.songName +'.mp3', fileData, { encoding: 'binary' });
+    log('\n\nDownload has finished');
+    var fileName = './cache/' + _.songArtist + ' - ' + _.songName +'.mp3';
+    console.log('Saving ' + fileName);
+    fs.writeFile(fileName, fileData, { encoding: 'binary' });
   },
   null,
   function(pos) {
