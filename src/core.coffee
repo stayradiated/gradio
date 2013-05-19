@@ -122,7 +122,6 @@ class Core
       if (err) then return deferred.reject(err)
       cookies = res.headers['set-cookie']
       @sessionID = cookies[0].split('=')[1].split(';')[0]
-      console.log @sessionID
       deferred.resolve(@sessionID)
 
     return deferred.promise
@@ -255,13 +254,10 @@ class Core
         headers:
           'Referer': 'http://grooveshark.com/'
 
-      console.log options
-
       request options, (err, res, body) ->
         if err then return deferred.reject(err)
-        console.log err, body
         end = Date.now()
-        console.log '> ', (end - start) / 1000, 'seconds'
+        console.log '> ' + (end - start) / 1000 + ' seconds'
         try
           json = JSON.parse(body)
           if json.result? then json = json.result
@@ -308,24 +304,27 @@ class Core
         'Referer': 'http://' + @domain + '/JSQueue.swf?' + @versionSwf
 
     req = http.request options, (res) ->
-      length = parseInt res.headers['content-length'], 10
-      progress = 0
-      console.log Math.round(length / 1024 / 1024) + 'mb'
 
-      notify = ->
-        now = Math.floor(body.length / length * 100)
-        if now > progress
-          progress = now
-          deferred.notify(progress)
+      deferred.resolve(res)
 
-      body = ""
-      res.on 'data', (chunk) ->
-        body += chunk.toString('binary')
-        notify()
+      # length = parseInt res.headers['content-length'], 10
+      # progress = 0
+      # console.log Math.round(length / 1024 / 1024) + 'mb'
 
-      res.on 'end', ->
-        console.log 'finished download'
-        deferred.resolve(body)
+      # notify = ->
+      #   now = Math.floor(body.length / length * 100)
+      #   if now > progress
+      #     progress = now
+      #     deferred.notify(progress)
+
+      # body = ""
+      # res.on 'data', (chunk) ->
+      #   body += chunk.toString('binary')
+      #   notify()
+
+      # res.on 'end', ->
+      #   console.log 'finished download'
+      #   deferred.resolve(body)
 
     req.write(contents)
 

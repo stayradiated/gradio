@@ -335,14 +335,15 @@ class Methods
         ip = response.ip
         streamKey = response.streamKey
         timer = setTimeout(->
+          console.log '> It has been 30 seconds...'
           @markStreamKeyOver30Seconds(ip, streamKey, songID).then (response) ->
             console.log '\n', response, '\n'
         , 30  * 60 * 1000)
         @markSongAsDownloaded(ip, streamKey, songID)
         @core.getSongStream(ip, streamKey)
       .then(
-        (fileData) =>
-          deferred.resolve(fileData)
+        (stream) =>
+          deferred.resolve(stream)
           clearTimeout(timer)
           @markSongComplete(ip, streamKey, songID)
         , null, deferred.notify
