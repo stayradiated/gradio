@@ -65,6 +65,8 @@ class Server
     # Check if we have the song in cache ...
     fs.exists path, (exists) =>
 
+      console.log path, exists
+
       if exists
         console.log '> Loading from disk'
 
