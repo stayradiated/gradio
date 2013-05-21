@@ -1,9 +1,6 @@
 
-# Easy element selector
-$ = (parent, child) ->
-  return parent.querySelector(child)
+$ = require './dom'
 
-# Player class
 class Player
 
   events:
@@ -32,8 +29,8 @@ class Player
     document.body.appendChild(@context)
 
     @range =
-      track: $(@el, '.track')
-      buffer: $(@el, '.buffer')
+      track: $.find(@el, '.track')
+      buffer: $.find(@el, '.buffer')
 
     # Bind audio events
     for event, method of @events.audio
@@ -42,7 +39,7 @@ class Player
     # Bind html events
     for str, method of @events.dom
       [str, ev, el] = str.match(/^(\w+) (.+)$/)
-      $(@el, el).addEventListener(ev, @[method])
+      $.find(@el, el).addEventListener(ev, @[method])
 
     # Bind key events
     document.addEventListener 'keydown', (e) =>
@@ -85,12 +82,4 @@ class Player
     console.log '> Setting duration'
     @duration = @context.duration
 
-# Create a new audio player instance and set the source
-window.audio = audio = new Player $(document, '.audio-controls')
-audio.setSource('http://localhost:8080/song/The String Quartet - Trouble.mp3')
-
-
-# getTime = (time) ->
-#   minutes = Math.floor(time / 60)
-#   seconds = Math.floor(time % 60)
-#   minutes + ":" + seconds
+module.exports = Player

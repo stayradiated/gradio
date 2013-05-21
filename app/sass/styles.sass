@@ -1,31 +1,62 @@
+
+body
+  font-family: 'Open Sans'
+
+.playlist
+
+  table
+    border: 1px solid #ccc
+    cursor: pointer
+
+  td, th
+    padding: 5px
+    font-size: 12px
+
+  tbody tr:hover
+    background: #eee
+
 .audio-controls
+  position: absolute
+  left: 0
+  bottom: 0
+  right: 0
+  background: #333
+
   .prev
     width: 20px
     height: 20px
     background: green
+
   .play-pause
     width: 20px
     height: 20px
     background: blue
+
   .next
     width: 20px
     height: 20px
     background: red
+
   .range
-    position: relative
-    width: 600px
+    position: absolute
+    left: 20px
+    right: 20px
+    bottom: 20px
     height: 10px
     background: #ECF0F1
     margin: 20px
+
   .track
     position: absolute
     left: 0
     width: 0%
     height: 100%
-    background: #F1C40F
+    background: #2980B9
+
   .buffer
     position: absolute
     left: 0
     width: 0%
     height: 100%
     background: #BDC3C7
+

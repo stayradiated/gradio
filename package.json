@@ -2,7 +2,7 @@
   "name": "Groovy",
   "version": "0.0.1",
   "description": "A javascript implementation of JGroove and GrooveJaar",
-  "main": "app.js",
+  "main": "app/index.html",
   "scripts": {
     "test": "mocha tests"
   },
