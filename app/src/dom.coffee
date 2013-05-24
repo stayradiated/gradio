@@ -12,11 +12,17 @@ class $
   @create: (tag) ->
     document.createElement(tag)
 
-  @append: (el) ->
-    document.body.appendChild(el)
+  @append: (el, parent=document.body) ->
+    parent.appendChild(el)
 
   @prepend: (el) ->
     document.body.insertBefore(el, document.body.firstChild)
+
+  @tag: (tag) ->
+    document.getElementsByTagName(tag)
+
+  @id: (id) ->
+    document.getElementById(id)
 
   @class: (className) ->
     document.getElementsByClassName(className)
@@ -24,8 +30,8 @@ class $
   @all: (query) ->
     document.querySelectorAll(query)
 
-  @addClass: (el, className) ->
-    el.classList.add(className)
+  @addClass: (el, className...) ->
+    el.classList.add(className...)
 
   @removeClass: (el, className) ->
     el.classList.remove(className)

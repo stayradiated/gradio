@@ -43,6 +43,7 @@ class Player
 
     # Bind key events
     document.addEventListener 'keydown', (e) =>
+      if global.focus then return true
       for keyCode, method of @events.keydown
         if e.keyCode.toString() is keyCode
           @[method]()

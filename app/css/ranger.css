@@ -1,0 +1,48 @@
+* {
+  margin: 0;
+  padding: 0;
+}
+
+.group:after, .ranger:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+.ranger {
+  font-family: "Open Sans";
+  background: #eeeeee;
+}
+.ranger .pane {
+  overflow-y: auto;
+  float: left;
+  width: 300px;
+  border-right: 1px solid #cccccc;
+}
+.ranger .item {
+  position: relative;
+  line-height: 50px;
+  padding-left: 10px;
+  background: white;
+  border-bottom: 1px solid #cccccc;
+}
+.ranger .active.item {
+  background: #cccccc;
+}
+.ranger .active.item:after {
+  content: "";
+  position: absolute;
+  display: block;
+  right: 10px;
+  top: 18px;
+  height: 0;
+  width: 0;
+  border-left: 7px solid white;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+}
+.ranger .active.pane .active.item {
+  background: #00afd8;
+  color: white;
+  font-weight: bold;
+}

@@ -15,10 +15,16 @@ global.App = new Methods(core)
 core.init()
 
 # Create a new audio player instance and set the source
-global.Player = new Player $('.audio-controls')
+global.Player = new Player $.class('audio-controls')[0]
 
 # Initiate the playlist
-window.playlist = new Playlist $('.playlist')
+window.playlist = new Playlist $.class('playlist')[0]
+
+# Track input focus - for keyboard shortcuts
+global.focus = false
+for input in $.tag('input')
+  input.addEventListener 'focus', -> global.focus = true
+  input.addEventListener 'blur', -> global.focus = false
 
 
 # getTime = (time) ->

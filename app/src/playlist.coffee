@@ -21,18 +21,20 @@ class Playlist
       $.find(@el, el).addEventListener(ev, @[method])
 
   search: (e) =>
-    console.log e.srcElement
     return true unless e.which is 13
     query = @input.value
     App.getSearchResults(query, 'Songs').then (response) =>
       @display(response.result)
+
+    App.getSearchResults(query, ['Songs', 'Artists', 'Albums']).then (response) =>
+      console.log response
+
     return true
 
   display: (songs) =>
     html = ''
     for song, i in songs
       break if i > 10
-      console.log song
       html += """
         <tr data-id="#{ song.SongID }">
           <td>#{ song.SongName }</td>

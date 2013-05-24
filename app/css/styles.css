@@ -1,50 +1,61 @@
 body {
-  font-family: "Open Sans"; }
+  font-family: "Open Sans";
+}
 
 .playlist table {
   border: 1px solid #cccccc;
-  cursor: pointer; }
+  cursor: pointer;
+}
 .playlist td, .playlist th {
   padding: 5px;
-  font-size: 12px; }
+  font-size: 12px;
+}
 .playlist tbody tr:hover {
-  background: #eeeeee; }
+  background: #eeeeee;
+}
 
 .audio-controls {
   position: absolute;
   left: 0;
   bottom: 0;
   right: 0;
-  background: #333333; }
-  .audio-controls .prev {
-    width: 20px;
-    height: 20px;
-    background: green; }
-  .audio-controls .play-pause {
-    width: 20px;
-    height: 20px;
-    background: blue; }
-  .audio-controls .next {
-    width: 20px;
-    height: 20px;
-    background: red; }
-  .audio-controls .range {
-    position: absolute;
-    left: 20px;
-    right: 20px;
-    bottom: 20px;
-    height: 10px;
-    background: #ecf0f1;
-    margin: 20px; }
-  .audio-controls .track {
-    position: absolute;
-    left: 0;
-    width: 0%;
-    height: 100%;
-    background: #2980b9; }
-  .audio-controls .buffer {
-    position: absolute;
-    left: 0;
-    width: 0%;
-    height: 100%;
-    background: #bdc3c7; }
+  background: #333333;
+}
+.audio-controls .prev {
+  width: 20px;
+  height: 20px;
+  background: green;
+}
+.audio-controls .play-pause {
+  width: 20px;
+  height: 20px;
+  background: blue;
+}
+.audio-controls .next {
+  width: 20px;
+  height: 20px;
+  background: red;
+}
+.audio-controls .range {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
+  height: 10px;
+  background: #ecf0f1;
+  margin: 20px;
+}
+.audio-controls .track {
+  position: absolute;
+  left: 0;
+  width: 0%;
+  height: 100%;
+  background: #2980b9;
+}
+.audio-controls .buffer {
+  position: absolute;
+  left: 0;
+  width: 0%;
+  height: 100%;
+  background: #bdc3c7;
+}
