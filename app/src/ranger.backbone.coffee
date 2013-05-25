@@ -28,7 +28,12 @@ class Pane extends Backbone.Model
 
   defaults:
     title: 'Pane Title'
-    items: new Items()
+
+  initialize: (data, options) ->
+    @items = new Items()
+    if data.contents?
+      for name in data.contents
+        @items.add( name: name )
 
   up: ->
     @move(-1)
@@ -38,8 +43,8 @@ class Pane extends Backbone.Model
 
   # Moves the active selection towards `direction`
   move: (direction) ->
-    active = @get('items').active
-    length = @get('items').length
+    active = @items.active
+    length = @items.length
     # Don't do anything if we have no items
     if length < 0 then return false
     else if active is false then active = 0
@@ -55,7 +60,6 @@ class Panes extends Backbone.Collection
 
   active: false
 
-
 ###*
  * VIEWS
 ###
@@ -67,30 +71,35 @@ class ItemView extends Backbone.View
   template: _.template $.id('item-template').innerHTML
 
   initialize: ->
+    console.log '> Creating new ItemView'
     _.bindAll(this)
     @model.bind('update', @render)
+    @render()
 
   render: ->
-    @el.innerHTML = @template(this)
-    return el
+    console.log '> Rending item'
+    @el.innerHTML = @template @model.toJSON()
+    return @el
 
 
 class PaneView extends Backbone.View
 
   tagName: 'section'
   className: 'pane'
-
   template: _.template $.id('pane-template').innerHTML
 
   initialize: ->
+    console.log '> Creating a new PaneView'
     _.bindAll(this)
-    @model.get('items').bind('add', @addItem)
+    @model.items.bind('add', @addItem)
 
   render: ->
-    @el.innerHTML = @template(this)
+    console.log '> Rendering pane view'
+    @el.innerHTML = @template @model.toJSON()
     return @el
 
   addItem: (item) ->
+    console.log '> Adding item to Panes collection', item.get('name')
     itemView = new ItemView(model: item)
     @$el.append itemView.render()
 
@@ -105,7 +114,17 @@ class Ranger extends Backbone.View
     @panes.bind('add', @addPane)
 
   addPane: (pane) ->
+    console.log '> A pane has been added'
     paneView = new PaneView(model: pane)
     @$el.append paneView.render()
 
+
 window.ranger = new Ranger()
+ranger.panes.add
+  title: 'First pane'
+  contents: [
+    '1.1 item'
+    '1.2 item'
+    '1.3 item'
+    '1.4 item'
+  ]
