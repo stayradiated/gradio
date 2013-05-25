@@ -3,3 +3,7 @@
 /lib
 /cache/*.mp3
 /bin
+
+
+.sass-cache
+/app/js/*.js
