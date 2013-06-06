@@ -341,13 +341,11 @@ class Methods
         , 30  * 60 * 1000)
         @markSongAsDownloaded(ip, streamKey, songID)
         @core.getSongStream(ip, streamKey)
-      .then(
-        (stream) =>
-          deferred.resolve(stream)
+      .then (stream) =>
+        deferred.resolve(stream)
+        stream.on 'end', =>
           clearTimeout(timer)
           @markSongComplete(ip, streamKey, songID)
-        , null, deferred.notify
-      )
 
     return deferred.promise
 
