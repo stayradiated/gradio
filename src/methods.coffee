@@ -51,7 +51,7 @@ class Methods
    * @param {boolean} isVerified - Songs verified or not
    * @return {object} Json object with all info the response
   ###
-  getAlbumSongs: (albumID, offset, isVerified) ->
+  getAlbumSongs: (albumID, offset=0, isVerified=false) ->
 
     parameters =
       offset: offset
