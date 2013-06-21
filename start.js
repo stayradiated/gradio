@@ -11,15 +11,12 @@ var app = new Methods(core);
 
 var _ = {};
 
-function log() {
-  var args = 1 <= arguments.length ? [].slice.call(arguments, 0) : [];
-  args.unshift('>');
-  console.log.apply(console, args);
-}
+// Map console.log to log
+function log = console.log.bind(console);
 
+// Connect to Grooveshark
 core.init().then(
   function() {
-    console.log('Ready');
     return app.getPlaylistSongs(40354457);
   }
 ).then(

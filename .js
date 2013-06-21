@@ -16,6 +16,7 @@ task('build', 'Build project to ./bin', function(opts) {
   var command;
 
   command = cmd('coffee', '--compile --output ./bin ./src', opts);
+  console.log(command);
   return exec(command, function(err, stdout, stderr) {
     if (err) {
       throw err;

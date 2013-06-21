@@ -6,9 +6,9 @@ cmd = (name, args, options) ->
   name += ' --watch' if options.watch
   return name + ' ' + args
 
-
 task 'build', 'Build project to ./bin', (opts) ->
   command = cmd('coffee', '--compile --output ./bin ./src', opts)
+  console.log command
   exec command, (err, stdout, stderr) ->
     throw err if err
     console.log stdout + stderr
