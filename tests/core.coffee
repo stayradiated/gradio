@@ -14,7 +14,6 @@ describe 'core', ->
     core.init().then ->
       done()
 
-
   it 'should get favorites', (done) ->
 
     app.userGetSongsInLibrary(20910233).then (response) ->

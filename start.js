@@ -10,8 +10,6 @@ var when = require('when');
 var core = new Core();
 var app = new Methods(core);
 
-var _ = {};
-
 var config = {
   id: 87558723,
   type: 'playlist'
@@ -36,12 +34,7 @@ var queue = new Queue(1, function(song) {
   log('Artist:', songArtist);
   log('Album:', songAlbum);
 
-  if (songId === undefined) {
-    console.log(song);
-  }
-
   app.getSongStream(songId).then(function(stream) {
-    console.log('Got stream');
     var path = 'dl/' + songArtist + ' - ' + songName + '.mp3';
     var file = fs.createWriteStream(path);
     stream.on('data', function(chunk) {
@@ -58,9 +51,9 @@ var queue = new Queue(1, function(song) {
   return deferred.promise;
 });
 
+// Connect to Grooveshark
 core.init().then(
   function() {
-    console.log('> Groovy is ready!');
     switch ( config.type ){
       case 'playlist':
         return app.getPlaylistSongs( config.id );

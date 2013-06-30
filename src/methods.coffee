@@ -334,8 +334,10 @@ class Methods
       .then (response) =>
         ip = response.ip
         streamKey = response.streamKey
+        past30seconds = false
         timer = setTimeout(->
           console.log '> It has been 30 seconds...'
+          past30seconds = true
           @markStreamKeyOver30Seconds(ip, streamKey, songID).then (response) ->
             console.log '\n', response, '\n'
         , 30  * 60 * 1000)
@@ -345,7 +347,7 @@ class Methods
         deferred.resolve(stream)
         stream.on 'end', =>
           clearTimeout(timer)
-          @markSongComplete(ip, streamKey, songID)
+          if past30seconds then @markSongComplete(ip, streamKey, songID)
 
     return deferred.promise
 
