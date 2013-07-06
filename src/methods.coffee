@@ -79,6 +79,17 @@ class Methods
 
 
   ###*
+   * Returns all the songs in an album
+  ###
+  albumGetAllSongs: (albumID) ->
+
+    parameters =
+      albumID: albumID
+
+    @core.callMethod(parameters, 'albumGetAllSongs')
+
+
+  ###*
    * Get the songs in a users library
    * @param {int} userID - ID of the user
    * @param {int} page - The page number, use result.hasMore to check for more
