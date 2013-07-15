@@ -2,16 +2,12 @@ body {
   font-family: "Open Sans";
 }
 
-.playlist table {
-  border: 1px solid #cccccc;
-  cursor: pointer;
-}
-.playlist td, .playlist th {
-  padding: 5px;
-  font-size: 12px;
-}
-.playlist tbody tr:hover {
-  background: #eeeeee;
+.search-form {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
 }
 
 .audio-controls {

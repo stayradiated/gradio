@@ -7,9 +7,15 @@
     "test": "mocha tests"
   },
   "dependencies": {
+
+    "jqueryify": "*",
+    "base": "git://github.com/stayradiated/Base.git#master",
+    "ranger": "git://github.com/stayradiated/Ranger.git#master",
+
     "request": "*",
     "when": "*",
     "uuid": "*"
+
   },
   "repository": "",
   "author": "George Czabania",
