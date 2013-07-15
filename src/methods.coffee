@@ -79,6 +79,17 @@ class Methods
 
 
   ###*
+   * Returns all the songs in an album
+  ###
+  albumGetAllSongs: (albumID) ->
+
+    parameters =
+      albumID: albumID
+
+    @core.callMethod(parameters, 'albumGetAllSongs')
+
+
+  ###*
    * Get the songs in a users library
    * @param {int} userID - ID of the user
    * @param {int} page - The page number, use result.hasMore to check for more
@@ -329,12 +340,12 @@ class Methods
     ip = null
     streamKey = null
     timer = null
+    past30seconds = false
 
     @getSongUrl(songID)
       .then (response) =>
         ip = response.ip
         streamKey = response.streamKey
-        past30seconds = false
         timer = setTimeout(->
           console.log '> It has been 30 seconds...'
           past30seconds = true
