@@ -133,6 +133,8 @@ class Server
             now = Math.round(current/total * 100)
             if now > last
               last = now
+
+              # trigger some kind of event
               console.log now
 
           stream.on 'end', ->

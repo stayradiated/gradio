@@ -30,14 +30,22 @@ module.exports.init = ->
   player = new Player
     el: $('.audio-controls')
 
-  ranger = new Ranger
+  global.ranger = ranger = new Ranger
     el: $('.ranger')
 
-  search.on 'search', (query) =>
+  search.on 'playlist', (id) ->
+    app.getPlaylistSongs(id).then (response) =>
+      console.log response.Songs
+      ranger.loadRaw response.Songs, [
+        ['Artist', 'ArtistName']
+        ['Songs', 'Name']
+      ]
+
+  search.on 'search', (query) ->
     app.getSearchResults(query, 'Songs').then (response) =>
       ranger.loadRaw response.result, [
         ['Artist', 'ArtistName']
-        ['Album', 'AlbumName']
+        # ['Album', 'AlbumName']
         ['Songs', 'SongName']
       ]
 
@@ -53,6 +61,7 @@ module.exports.init = ->
 
     switch e.which
       when 13
+        console.log global.focus
         return if global.focus
         openItem()
       when 32
@@ -70,5 +79,9 @@ module.exports.init = ->
   # Track input focus - for keyboard shortcuts
   global.focus = false
   $('input').each ->
-    @addEventListener 'focus', -> global.focus = true
-    @addEventListener 'blur', -> global.focus = false
+    @addEventListener 'focus', ->
+      console.log 'focus'
+      global.focus = true
+    @addEventListener 'blur', ->
+      console.log 'blur'
+      global.focus = false

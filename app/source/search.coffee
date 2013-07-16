@@ -7,17 +7,19 @@ class Search extends Base.Controller
     '.search': 'input'
 
   events:
-    'keydown .search': 'search'
+    'keydown .search': 'open'
 
   constructor: ->
     super
 
-  search: (e) =>
+  open: (e) =>
     
     return true unless e.which is 13
     query = @input.val()
-    @input.blur()
-    @trigger 'search', query
+    if not isNaN parseInt(query)
+      @trigger 'playlist', query
+    else
+      @trigger 'search', query
 
     return true
 
