@@ -1,0 +1,61 @@
+header.panel {
+
+  $button_height: 35px;
+  $row_height: 60px;
+  $button_margin: ($row_height - $button_height) / 2;
+
+  padding: 0 20px;
+  
+  .container {
+    float: right;
+  }
+
+  button {
+    float: left;
+    display: block;
+    background: $yay_threadless;
+    color: $white;
+    padding: 0 20px;
+    line-height: $button_height;
+    margin-top: $button_margin;
+    border: 0;
+    border-radius: 4px;
+    margin-right: 20px;
+    @include transition(background 0.3s);
+
+    &:hover {
+      background: lighten($yay_threadless, 10);
+    }
+  }
+
+  .dropdown {
+    float: left;
+    ul {
+      display: none;
+    }
+    li {
+      color: $white;
+      line-height: $row_height;
+    }
+  }
+
+  input {
+    float: left;
+    width: 250px;
+    height: $button_height;
+    margin: $button_margin 0;
+    border: 0;
+    border-radius: 4px;
+    padding: 0 10px;
+    background: lighten($threadless, 15);
+    outline: 0;
+    @include transition(background 0.3s);
+    color: $white;
+
+    &:focus {
+      background: $white;
+      color: $threadless;
+    }
+  }
+
+}

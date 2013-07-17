@@ -1,0 +1,27 @@
+@import "compass/css3";
+@import "compass/reset";
+@import "colors";
+@import "mixins";
+@import "type";
+@import "panel";
+@import "columns";
+
+$header_height: 60px;
+$controls_height: 150px;
+
+header.panel {
+  @include pos(0, 0, auto, 0);
+  height: $header_height;
+  background: $threadless; 
+}
+
+section.columns {
+  @include pos($header_height, 0, $controls_height, 0);
+  background: $threadless_box;
+}
+
+nav.controls {
+  @include pos(auto, 0, 0, 0);
+  height: $controls_height;
+  background: $yay_threadless;
+}

@@ -25,13 +25,13 @@ module.exports.init = ->
   server.listen(port)
 
   search = new Search
-    el: $('.search-form')
+    el: $('header.panel')
 
   player = new Player
-    el: $('.audio-controls')
+    el: $('nav.controls')
 
   global.ranger = ranger = new Ranger
-    el: $('.ranger')
+    el: $('section.columns')
 
   search.on 'playlist', (id) ->
     app.getPlaylistSongs(id).then (response) =>

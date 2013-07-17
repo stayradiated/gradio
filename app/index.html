@@ -1,31 +1,27 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Groovy</title>
-  <link rel="stylesheet" href="css/styles.css">
-  <link rel="stylesheet" href="css/ranger.css">
-</head>
-<body>
+<html>
+  <head>
+    <title>Groovy</title>
+    <link rel="stylesheet" href="css/screen.css" />
+  </head>
+  <body>
+    <header class="panel">
+      <div class="container">
+        <button>Login</button>
+        <div class="dropdown">
+          <button>Songs</button>
+          <ul>
+            <li>Songs</li>
+            <li>Playlist</li>
+            <li>Artists</li>
+            <li>Albums</li>
+          </ul>
+        </div>
+      <input class="search" type="search" placeholder="Search"/>
+      </div>
+    </header>
+    <section class="columns"></section>
+    <nav class="controls"></nav>
 
-  <div class="search-form">
-    <input type="search" class="search">
-  </div>
-
-  <div class="ranger"></div>
-
-  <div class="audio-controls">
-    <div class="prev"></div>
-    <div class="play-pause"></div>
-    <div class="next"></div>
-    <div class="current-time"></div>
-    <div class="duration-time"></div>
-    <div class="range">
-      <div class="buffer"></div>
-      <div class="track"></div>
-    </div>
-  </div>
-
-  <script src="js/init.js"></script>
-</body>
+    <script src="js/init.js"></script>
+  </body>
 </html>
