@@ -4,6 +4,6 @@
 /cache/*.mp3
 /bin
 
-
 .sass-cache
 /app/js/*.js
+/app/node_modules

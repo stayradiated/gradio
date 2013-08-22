@@ -3,26 +3,36 @@ Base = require 'base'
 Ranger = require 'ranger'
 
 # Groovy
-Core = require '../../bin/core'
-Methods = require '../../bin/methods'
-Server = require '../../bin/server'
+if NODEJS
+  Core = require '../../bin/core'
+  Methods = require '../../bin/methods'
+  Server = require '../../bin/server'
+else
+  Client = require './client.coffee'
 
 # Groovy App
-Player = require './player'
-Search = require './search'
+Player = require './player.coffee'
+Search = require './search.coffee'
 
 module.exports.init = ->
 
-  core = new Core()
-  app = new Methods(core)
 
-  # Start Groovy and connect to Grooveshark
-  core.init()
+  # Running as a standalone app starts it's own server
+  if NODEJS
 
-  # Start the audio server
-  port = 8080
-  server = new Server(core)
-  server.listen(port)
+    core = new Core()
+    app = new Methods(core)
+
+    # Start Groovy and connect to Grooveshark
+    core.init()
+
+    # Start the audio server
+    server = new Server(core)
+    server.listen(port)
+
+  # Running in a webbrowser connects to a server
+  else
+    app = new Client()
 
   search = new Search
     el: $('header.panel')
@@ -50,10 +60,9 @@ module.exports.init = ->
       ]
 
   openItem = ->
-    console.log 'Opening item'
     song = ranger.open()
     return unless song
-    url = "http://localhost:#{ port }/song/#{ song.SongID }.mp3"
+    url = "http://#{ server}:#{ port }/song/#{ song.SongID }.mp3"
     player.setSource(url)
 
   # Enable keyboard shortcuts

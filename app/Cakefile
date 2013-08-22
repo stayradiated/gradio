@@ -1,0 +1,73 @@
+{spawn, exec} = require 'child_process'
+node_static = require 'node-static'
+http = require 'http'
+fs = require 'fs'
+
+# Modules
+WATCHIFY   = './node_modules/watchify/bin/cmd.js'
+BROWSERIFY = './node_modules/browserify/bin/cmd.js'
+COFFEEIFY  = './node_modules/caching-coffeeify/index.js'
+COMPASS    = 'compass'
+
+# Configuration
+INPUT   = 'source/init.coffee'
+OUTPUT  = 'js/application.js'
+IGNORED = './js/app nw.gui ../../bin/core ../../bin/methods ../../bin/server'
+SASS    = __dirname + '/sass/screen.scss'
+SASS_PROJECT     = __dirname
+
+# Options
+option '-p', '--port [port]', 'Set port for cake server'
+option '-w', '--watch', 'Watch the folder for changes'
+
+# Functions
+run = (cmd, args) ->
+  terminal = spawn(cmd, args)
+  terminal.stdout.on 'data', (data) -> console.log(data.toString())
+  terminal.stderr.on 'data', (data) -> console.log(data.toString())
+  terminal.on 'error', (data) -> console.log(data.toString())
+
+compileCoffee = (options={}) ->
+  args = ['-t', COFFEEIFY, INPUT, '-o', OUTPUT]
+
+  if IGNORED.length > 0
+    paths = IGNORED.split(' ')
+    for path in paths
+      args.unshift path
+      args.unshift '-i'
+
+  if options.watch
+    args.unshift('-v')
+    run(WATCHIFY, args)
+  else
+    run(BROWSERIFY, args)
+
+compileSass = (options={}) ->
+  args = [SASS_PROJECT, SASS]
+  if options.watch
+    args.unshift 'watch'
+  else
+    args.unshift 'compile'
+  run(COMPASS, args)
+
+# Tasks
+task 'server', 'Start server', (options) ->
+
+  # Compile files
+  compileCoffee(options)
+  compileSass(options)
+
+  # Start Server
+  port = options.port or 9294
+  file= new(node_static.Server)('./public')
+  server = http.createServer (req, res) ->
+    req.addListener( 'end', ->
+      file.serve(req, res)
+    ).resume()
+  server.listen(port)
+
+  console.log 'Server started on ' + port
+
+task 'build', 'Compile CoffeeScript and SASS', (options) ->
+  compileCoffee(options)
+  compileSass(options)

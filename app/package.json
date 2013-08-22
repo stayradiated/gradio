@@ -1,0 +1,11 @@
+{
+  "name": "GroovyApp",
+  "version": "0.0.1",
+  "description": "Web app for the Groovy lib",
+  "devDependencies": {
+    "browserify": "*",
+    "caching-coffeeify": "*",
+    "watchify": "*",
+    "node-static": "*"
+  }
+}
