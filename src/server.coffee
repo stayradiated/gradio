@@ -18,18 +18,36 @@ class Server
 
     @app = new Methods(@core)
 
+    # Extend all methods as POST requests
+    for method of Methods.prototype
+      @events[method] = new RegExp("\\/#{method}")
+      do (method) =>
+        @[method] = (req, res) =>
+          req.setEncoding('utf8')
+          data = ''
+          req.on 'data', (chunk) ->
+            data += chunk
+          req.on 'end', =>
+            args = JSON.parse data
+            @app[method](args...).then (results) ->
+              res.write JSON.stringify(results)
+              res.end()
+
     @server = http.createServer (req, res) =>
 
+      res.setHeader 'Access-Control-Allow-Origin', '*'
+      res.setHeader 'Access-Control-Allow-Headers', 'X-Requested-With'
+
       uri = url.parse(req.url).pathname
-      missing = true
+      found = false
 
       for method, regex of @events
         match = uri.match(regex)
         if match?
-          missing = false
+          found = true
           @[method](req, res, match)
 
-      if missing
+      if not found
         res.writeHead(404, 'Content-Type': 'text/plain')
         res.write('404. Page not found.')
         res.end()

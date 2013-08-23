@@ -4,21 +4,22 @@
 # And in a web browser as a web app.
 
 # Are we running in node?
-NODEJS = global.process?
+NODEJS = global?.process?
 
 $ = require 'jqueryify'
 
-if not NODEJS
+if NODEJS
 
   # Expose globals
   global.document = document
   global.$ = $
-
+  global.NODEJS = NODEJS
   app = require './js/app'
 
 # Running in webkit
 else
-  window.global = {}
+  global = window.global = window
+  global.NODEJS = NODEJS
   app = require './app.coffee'
 
 # Server configuration
@@ -30,17 +31,18 @@ app.init()
 
 # Make debugging with Node-Webkit easier
 
-win = require('nw.gui').Window.get()
+if NODEJS
+  win = require('nw.gui').Window.get()
 
-$(document).on 'keydown', (e) ->
-  switch e.keyCode
+  $(document).on 'keydown', (e) ->
+    switch e.keyCode
 
-    when 82 # r
-      if e.ctrlKey
-        win.reloadDev()
+      when 82 # r
+        if e.ctrlKey
+          win.reloadDev()
 
-    when 68 # d
-      if e.ctrlKey
-        win.showDevTools()
+      when 68 # d
+        if e.ctrlKey
+          win.showDevTools()
 
 

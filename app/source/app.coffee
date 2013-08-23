@@ -8,14 +8,13 @@ if NODEJS
   Methods = require '../../bin/methods'
   Server = require '../../bin/server'
 else
-  Client = require './client.coffee'
+  global.Client = require './client.coffee'
 
 # Groovy App
 Player = require './player.coffee'
 Search = require './search.coffee'
 
 module.exports.init = ->
-
 
   # Running as a standalone app starts it's own server
   if NODEJS
