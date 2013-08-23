@@ -12,7 +12,7 @@ COMPASS    = 'compass'
 # Configuration
 INPUT   = 'source/init.coffee'
 OUTPUT  = 'js/application.js'
-IGNORED = './js/app nw.gui ../../bin/core ../../bin/methods ../../bin/server'
+IGNORED = './js/app ./player ./search nw.gui ../../bin/core ../../bin/methods ../../bin/server'
 SASS    = __dirname + '/sass/screen.scss'
 SASS_PROJECT     = __dirname
 
@@ -59,7 +59,7 @@ task 'server', 'Start server', (options) ->
 
   # Start Server
   port = options.port or 9294
-  file= new(node_static.Server)('./public')
+  file= new(node_static.Server)(__dirname)
   server = http.createServer (req, res) ->
     req.addListener( 'end', ->
       file.serve(req, res)

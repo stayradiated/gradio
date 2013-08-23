@@ -1,23 +1,23 @@
-
 Base = require 'base'
 Ranger = require 'ranger'
+$ = require 'jqueryify'
 
 # Groovy
-if NODEJS
+if global.NODEJS
   Core = require '../../bin/core'
   Methods = require '../../bin/methods'
   Server = require '../../bin/server'
+  Player = require './player'
+  Search = require './search'
 else
   global.Client = require './client.coffee'
-
-# Groovy App
-Player = require './player.coffee'
-Search = require './search.coffee'
+  Player = require './player.coffee'
+  Search = require './search.coffee'
 
 module.exports.init = ->
 
   # Running as a standalone app starts it's own server
-  if NODEJS
+  if global.NODEJS
 
     core = new Core()
     app = new Methods(core)
@@ -27,7 +27,7 @@ module.exports.init = ->
 
     # Start the audio server
     server = new Server(core)
-    server.listen(port)
+    server.listen(global.port)
 
   # Running in a webbrowser connects to a server
   else
@@ -61,7 +61,7 @@ module.exports.init = ->
   openItem = ->
     song = ranger.open()
     return unless song
-    url = "http://#{ server}:#{ port }/song/#{ song.SongID }.mp3"
+    url = "http://#{ global.server}:#{ global.port }/song/#{ song.SongID }.mp3"
     player.setSource(url)
 
   # Enable keyboard shortcuts
