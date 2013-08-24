@@ -30,7 +30,7 @@ class Methods
   ###*
    * Should return the information for a song
   ###
-  getQueueSongListFromSongIDs: (songIDs) ->
+  getSongInfo: (songIDs) ->
 
     parameters =
       songIDs: songIDs

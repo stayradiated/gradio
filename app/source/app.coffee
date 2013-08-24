@@ -58,6 +58,20 @@ module.exports.init = ->
         ['Songs', 'SongName']
       ]
 
+  # Load offline files
+  global.parseOffline = ->
+    fs = require('fs')
+    songIDs = []
+    fs.readdir "#{ __dirname }/../../../cache", (err, files) ->
+      for file in files
+        id = file.match(/(\d+)\.mp3/)
+        if id? then songIDs.push(id[1])
+      app.getSongInfo(songIDs).then (results) ->
+        ranger.loadRaw results, [
+          ['Artist', 'ArtistName']
+          ['Songs', 'Name']
+        ]
+
   openItem = ->
     song = ranger.open()
     return unless song

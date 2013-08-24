@@ -35,6 +35,7 @@ class Core
       'markStreamKeyOver30Seconds'
     ]
     @htmlMethod = [
+      'getQueueSongListFromSongIDs',
       'getCommunicationToken'
       'getResultsFromSearch'
       'authenticateUser'

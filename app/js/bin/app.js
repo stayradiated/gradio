@@ -53,6 +53,24 @@
         return ranger.loadRaw(response.result, [['Artist', 'ArtistName'], ['Songs', 'SongName']]);
       });
     });
+    global.parseOffline = function() {
+      var fs, songIDs;
+      fs = require('fs');
+      songIDs = [];
+      return fs.readdir("" + __dirname + "/../../../cache", function(err, files) {
+        var file, id, _i, _len;
+        for (_i = 0, _len = files.length; _i < _len; _i++) {
+          file = files[_i];
+          id = file.match(/(\d+)\.mp3/);
+          if (id != null) {
+            songIDs.push(id[1]);
+          }
+        }
+        return app.getSongInfo(songIDs).then(function(results) {
+          return ranger.loadRaw(results, [['Artist', 'ArtistName'], ['Songs', 'Name']]);
+        });
+      });
+    };
     openItem = function() {
       var song, url;
       song = ranger.open();
