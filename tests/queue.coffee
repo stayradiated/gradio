@@ -1,7 +1,7 @@
 
-Queue = require '../src/queue'
-Methods = require '../src/methods'
-Core = require '../src/core'
+Queue = require '../source/queue'
+Methods = require '../source/methods'
+Core = require '../source/core'
 Promise = require 'when'
 Delay = require 'when/delay'
 

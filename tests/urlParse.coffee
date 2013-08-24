@@ -1,5 +1,5 @@
 
-urlParse = require '../src/urlParse'
+urlParse = require '../source/urlParse'
 assert = require 'assert'
 
 describe 'urlParse', ->

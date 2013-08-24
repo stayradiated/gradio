@@ -1,6 +1,7 @@
 Promise = require 'when'
 
 METHODS = [
+  'getSongInfo',
   'getSearchResults',
   'getArtistsSongs',
   'getAlbumSongs',

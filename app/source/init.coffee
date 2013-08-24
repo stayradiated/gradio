@@ -22,7 +22,7 @@ if NODEJS
 # Running in webkit
 else
   global.NODEJS = NODEJS
-  app = require './app.coffee'
+  app = global.app = require './app.coffee'
 
 # Server configuration
 global.server = 'localhost'

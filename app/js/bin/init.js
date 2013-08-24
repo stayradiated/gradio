@@ -19,7 +19,7 @@
     app = require('./js/bin/app');
   } else {
     global.NODEJS = NODEJS;
-    app = require('./app.coffee');
+    app = global.app = require('./app.coffee');
   }
 
   global.server = 'localhost';

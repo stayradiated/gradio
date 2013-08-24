@@ -7,7 +7,7 @@ cmd = (name, args, options) ->
   return name + ' ' + args
 
 task 'compile', 'Compile coffeescript to javascript', (opts) ->
-  command = cmd('coffee', '--compile --output ./bin ./src', opts)
+  command = cmd('coffee', '--compile --output ./bin ./source', opts)
   console.log command
   exec command, (err, stdout, stderr) ->
     throw err if err

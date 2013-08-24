@@ -1,5 +1,5 @@
 
-SongList = require '../src/models/songList'
+SongList = require '../source/models/songList'
 
 list = new SongList([{
   SongID: 0

@@ -17,7 +17,6 @@ SASS    = __dirname + '/sass/screen.scss'
 SASS_PROJECT     = __dirname
 
 # Options
-option '-p', '--port [port]', 'Set port for cake server'
 option '-w', '--watch', 'Watch the folder for changes'
 
 # Functions

@@ -1,7 +1,7 @@
 
-Core = require '../src/core'
-Methods = require '../src/methods'
-Song = require '../src/models/song'
+Core = require '../source/core'
+Methods = require '../source/methods'
+Song = require '../source/models/song'
 assert = require 'assert'
 
 core = new Core()

@@ -31,7 +31,7 @@ module.exports.init = ->
 
   # Running in a webbrowser connects to a server
   else
-    app = new Client()
+    global.client = app = new Client()
 
   search = new Search
     el: $('header.panel')

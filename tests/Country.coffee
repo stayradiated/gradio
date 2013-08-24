@@ -1,4 +1,4 @@
-Core = require '../src/core'
+Core = require '../source/core'
 
 core = new Core()
 

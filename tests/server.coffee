@@ -1,6 +1,6 @@
 
-Core = require '../src/core'
-Server = require '../src/server'
+Core = require '../source/core'
+Server = require '../source/server'
 
 core = new Core()
 server = new Server(core)

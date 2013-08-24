@@ -29,7 +29,7 @@
       server = new Server(core);
       server.listen(global.port);
     } else {
-      app = new Client();
+      global.client = app = new Client();
     }
     search = new Search({
       el: $('header.panel')

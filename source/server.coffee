@@ -7,7 +7,19 @@
 http = require 'http'
 url = require 'url'
 fs = require 'fs'
+formatPath = require 'path'
 Methods = require './methods'
+
+APP_FOLDER = __dirname + '/../app'
+MIME_TYPES =
+  'html': 'text/html'
+  'css': 'text/css'
+  'js': 'text/javascript'
+
+notFound = (res) ->
+  res.writeHead(404, 'Content-Type': 'text/plain')
+  res.write('404. Page not found.')
+  res.end()
 
 class Server
 
@@ -39,6 +51,19 @@ class Server
       res.setHeader 'Access-Control-Allow-Headers', 'X-Requested-With'
 
       uri = url.parse(req.url).pathname
+
+      # STATIC FILE SERVER
+      
+      if uri.match(/\.(js|css|html)$/)
+        filename = APP_FOLDER + unescape(uri)
+        fs.exists filename, (exists) ->
+          if not exists then return notFound(res)
+          res.writeHead 200, 'Content-Type': MIME_TYPES[formatPath.extname(filename).split('.')[1]]
+          fs.createReadStream(filename).pipe(res)
+        return
+
+      # EVENTS
+
       found = false
 
       for method, regex of @events
@@ -48,9 +73,7 @@ class Server
           @[method](req, res, match)
 
       if not found
-        res.writeHead(404, 'Content-Type': 'text/plain')
-        res.write('404. Page not found.')
-        res.end()
+        notFound(res)
 
   listen: (port) =>
     @server.listen(port)

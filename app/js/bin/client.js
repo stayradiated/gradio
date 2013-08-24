@@ -5,7 +5,7 @@
 
   Promise = require('when');
 
-  METHODS = ['getSearchResults', 'getArtistsSongs', 'getAlbumSongs', 'getPlaylistSongs', 'albumGetAllSongs', 'userGetSongsInLibrary', 'getFavorites', 'getPopularSongs', 'markSongAsDownloaded', 'markStreamKeyOver30Seconds', 'markSongComplete', 'authenticateUser', 'logoutUser', 'initiateQueue', 'createPlaylist', 'playlistAddSongToExisting', 'userAddSongsToLibrary', 'favorite', 'userGetPlaylists', 'getSongUrl', 'getSongStream'];
+  METHODS = ['getSongInfo', 'getSearchResults', 'getArtistsSongs', 'getAlbumSongs', 'getPlaylistSongs', 'albumGetAllSongs', 'userGetSongsInLibrary', 'getFavorites', 'getPopularSongs', 'markSongAsDownloaded', 'markStreamKeyOver30Seconds', 'markSongComplete', 'authenticateUser', 'logoutUser', 'initiateQueue', 'createPlaylist', 'playlistAddSongToExisting', 'userAddSongsToLibrary', 'favorite', 'userGetPlaylists', 'getSongUrl', 'getSongStream'];
 
   module.exports = (function() {
     function exports() {}

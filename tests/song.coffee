@@ -1,4 +1,4 @@
-Song = require '../src/models/song'
+Song = require '../source/models/song'
 
 song = new Song({
   SongID: 1
