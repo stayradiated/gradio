@@ -4,9 +4,9 @@ $ = require 'jqueryify'
 
 # Groovy
 if global.NODEJS
-  Core = require '../../bin/core'
-  Methods = require '../../bin/methods'
-  Server = require '../../bin/server'
+  Core = require '../../../bin/core'
+  Methods = require '../../../bin/methods'
+  Server = require '../../../bin/server'
   Player = require './player'
   Search = require './search'
 else

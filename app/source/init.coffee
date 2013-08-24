@@ -3,7 +3,12 @@
 # And in a web browser as a web app.
 
 # Are we running in node?
-NODEJS = process?
+NODEJS = process.title is 'node'
+
+if NODEJS
+  console.log 'Running in Node-Webkit'
+else
+  console.log 'Running in Browser'
 
 $ = require 'jqueryify'
 
@@ -12,7 +17,7 @@ if NODEJS
   global.document = document
   global.$ = $
   global.NODEJS = NODEJS
-  app = require './js/app'
+  app = require './js/bin/app'
 
 # Running in webkit
 else

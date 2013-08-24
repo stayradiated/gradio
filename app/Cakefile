@@ -11,8 +11,8 @@ COMPASS    = 'compass'
 
 # Configuration
 INPUT   = 'source/init.coffee'
-OUTPUT  = 'js/application.js'
-IGNORED = './js/app ./player ./search nw.gui ../../bin/core ../../bin/methods ../../bin/server'
+OUTPUT  = 'js/packaged.js'
+IGNORED = './js/bin/app ./player ./search nw.gui ../../../bin/core ../../../bin/methods ../../../bin/server'
 SASS    = __dirname + '/sass/screen.scss'
 SASS_PROJECT     = __dirname
 
@@ -28,14 +28,18 @@ run = (cmd, args) ->
   terminal.on 'error', (data) -> console.log(data.toString())
 
 compileCoffee = (options={}) ->
-  args = ['-t', COFFEEIFY, INPUT, '-o', OUTPUT]
+  args = ['-c', '-o', './js/bin/', './source/']
+  if options.watch
+    args.unshift '-w'
+  run('coffee', args)
 
+browserify = (options={}) ->
+  args = ['-t', COFFEEIFY, INPUT, '-o', OUTPUT]
   if IGNORED.length > 0
     paths = IGNORED.split(' ')
     for path in paths
       args.unshift path
       args.unshift '-i'
-
   if options.watch
     args.unshift('-v')
     run(WATCHIFY, args)
@@ -50,24 +54,7 @@ compileSass = (options={}) ->
     args.unshift 'compile'
   run(COMPASS, args)
 
-# Tasks
-task 'server', 'Start server', (options) ->
-
-  # Compile files
-  compileCoffee(options)
-  compileSass(options)
-
-  # Start Server
-  port = options.port or 9294
-  file= new(node_static.Server)(__dirname)
-  server = http.createServer (req, res) ->
-    req.addListener( 'end', ->
-      file.serve(req, res)
-    ).resume()
-  server.listen(port)
-
-  console.log 'Server started on ' + port
-
 task 'build', 'Compile CoffeeScript and SASS', (options) ->
   compileCoffee(options)
+  browserify(options)
   compileSass(options)

@@ -28,6 +28,17 @@ class Methods
 
 
   ###*
+   * Should return the information for a song
+  ###
+  getQueueSongListFromSongIDs: (songIDs) ->
+
+    parameters =
+      songIDs: songIDs
+
+    @core.callMethod(parameters, 'getQueueSongListFromSongIDs')
+
+
+  ###*
    * Returns the songs of the artist given its ID
    * @param {string} artistID - The ID of the artist
    * @param {int} offset - Displacement of the songs (Starting song)
