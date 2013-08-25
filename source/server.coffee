@@ -51,6 +51,10 @@ class Server
       res.setHeader 'Access-Control-Allow-Headers', 'X-Requested-With'
 
       uri = url.parse(req.url).pathname
+      
+      # DEFAULT PAGE
+
+      if uri is '/' then uri = '/index.html'
 
       # STATIC FILE SERVER
       

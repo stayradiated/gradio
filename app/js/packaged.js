@@ -310,13 +310,12 @@ var global=self,__dirname="/";(function() {
       });
     };
     openItem = function() {
-      var song, url;
+      var song;
       song = ranger.open();
       if (!song) {
         return;
       }
-      url = "http://" + global.server + ":" + global.port + "/song/" + song.SongID + ".mp3";
-      return player.setSource(url);
+      return player.setSong(song);
     };
     $(document).on('keydown', function(e) {
       var _ref;
@@ -367,7 +366,7 @@ var global=self,__dirname="/";(function() {
 }).call(this);
 
 
-},{"../../../bin/core":1,"../../../bin/methods":1,"../../../bin/server":1,"./client.coffee":6,"./player":1,"./player.coffee":8,"./search":1,"./search.coffee":9,"base":10,"fs":2,"jqueryify":34,"ranger":37}],6:[function(require,module,exports){
+},{"../../../bin/core":1,"../../../bin/methods":1,"../../../bin/server":1,"./client.coffee":6,"./player":1,"./player.coffee":8,"./search":1,"./search.coffee":9,"base":11,"fs":2,"jqueryify":35,"ranger":38}],6:[function(require,module,exports){
 var global=self;(function() {
   var METHODS, Promise, callMethod, method, _fn, _i, _len,
     __slice = [].slice;
@@ -412,7 +411,7 @@ var global=self;(function() {
 }).call(this);
 
 
-},{"when":42}],7:[function(require,module,exports){
+},{"when":43}],7:[function(require,module,exports){
 var process=require("__browserify_process"),global=self;(function() {
   var $, NODEJS, app, win;
 
@@ -462,9 +461,9 @@ var process=require("__browserify_process"),global=self;(function() {
 }).call(this);
 
 
-},{"./app.coffee":5,"./js/bin/app":1,"__browserify_process":4,"jqueryify":34,"nw.gui":1}],8:[function(require,module,exports){
-(function() {
-  var $, Base, Player,
+},{"./app.coffee":5,"./js/bin/app":1,"__browserify_process":4,"jqueryify":35,"nw.gui":1}],8:[function(require,module,exports){
+var global=self;(function() {
+  var $, Base, Player, Track,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
@@ -472,6 +471,8 @@ var process=require("__browserify_process"),global=self;(function() {
   $ = require('jqueryify');
 
   Base = require('base');
+
+  Track = require('./track.coffee');
 
   Player = (function(_super) {
     __extends(Player, _super);
@@ -484,7 +485,7 @@ var process=require("__browserify_process"),global=self;(function() {
 
     Player.prototype.elements = {
       '.track': 'track',
-      '.buffer': 'buffer'
+      '.now-playing': 'nowPlaying'
     };
 
     Player.prototype.audioEvents = {
@@ -496,6 +497,7 @@ var process=require("__browserify_process"),global=self;(function() {
     function Player() {
       this.setDuration = __bind(this.setDuration, this);
       this.setSource = __bind(this.setSource, this);
+      this.setSong = __bind(this.setSong, this);
       this.setVolume = __bind(this.setVolume, this);
       this.showCurrentProgress = __bind(this.showCurrentProgress, this);
       this.showBufferProgress = __bind(this.showBufferProgress, this);
@@ -513,6 +515,9 @@ var process=require("__browserify_process"),global=self;(function() {
       });
       $('body').append(this.context);
       this.context = this.audio.get(0);
+      global.track = this.track = new Track({
+        el: this.track
+      });
       _ref = this.audioEvents;
       for (event in _ref) {
         method = _ref[event];
@@ -544,18 +549,25 @@ var process=require("__browserify_process"),global=self;(function() {
       var percent;
       if (this.context.buffered.length > 0) {
         percent = this._percent(this.context.buffered.end(0));
-        return this.buffer.css('width', percent + '%');
+        return this.track.setBuffer(percent);
       }
     };
 
     Player.prototype.showCurrentProgress = function() {
       var percent;
       percent = this._percent(this.context.currentTime);
-      return this.track.css('width', percent + '%');
+      return this.track.setPlaying(percent);
     };
 
     Player.prototype.setVolume = function(volume) {
       return this.context.volume = volume;
+    };
+
+    Player.prototype.setSong = function(song) {
+      var url;
+      this.nowPlaying.html("" + song.ArtistName + " - " + song.SongName);
+      url = "http://" + global.server + ":" + global.port + "/song/" + song.SongID + ".mp3";
+      return this.setSource(url);
     };
 
     Player.prototype.setSource = function(url) {
@@ -575,7 +587,7 @@ var process=require("__browserify_process"),global=self;(function() {
 }).call(this);
 
 
-},{"base":10,"jqueryify":34}],9:[function(require,module,exports){
+},{"./track.coffee":10,"base":11,"jqueryify":35}],9:[function(require,module,exports){
 (function() {
   var Base, Search,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
@@ -623,7 +635,44 @@ var process=require("__browserify_process"),global=self;(function() {
 }).call(this);
 
 
-},{"base":10}],10:[function(require,module,exports){
+},{"base":11}],10:[function(require,module,exports){
+(function() {
+  var Base, Track,
+    __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+  Base = require('base');
+
+  Track = (function(_super) {
+    __extends(Track, _super);
+
+    Track.prototype.elements = {
+      '.playing': 'playing',
+      '.buffer': 'buffer'
+    };
+
+    function Track() {
+      Track.__super__.constructor.apply(this, arguments);
+    }
+
+    Track.prototype.setPlaying = function(percent) {
+      return this.playing.css('width', percent + '%');
+    };
+
+    Track.prototype.setBuffer = function(percent) {
+      return this.buffer.css('width', percent + '%');
+    };
+
+    return Track;
+
+  })(Base.Controller);
+
+  module.exports = Track;
+
+}).call(this);
+
+
+},{"base":11}],11:[function(require,module,exports){
 /*jslint nomen: true*/
 /*global window, require, module*/
 
@@ -1112,10 +1161,10 @@ var process=require("__browserify_process"),global=self;(function() {
 
 }());
 
-},{"swig":11}],11:[function(require,module,exports){
+},{"swig":12}],12:[function(require,module,exports){
 module.exports = require('./lib/swig');
 
-},{"./lib/swig":16}],12:[function(require,module,exports){
+},{"./lib/swig":17}],13:[function(require,module,exports){
 var utils = require('./utils');
 
 var _months = {
@@ -1315,7 +1364,7 @@ exports.U = function (input) {
   return input.getTime() / 1000;
 };
 
-},{"./utils":33}],13:[function(require,module,exports){
+},{"./utils":34}],14:[function(require,module,exports){
 var utils = require('./utils'),
   dateFormatter = require('./dateformatter');
 
@@ -1878,7 +1927,7 @@ exports.url_decode = function (input) {
   return decodeURIComponent(input);
 };
 
-},{"./dateformatter":12,"./utils":33}],14:[function(require,module,exports){
+},{"./dateformatter":13,"./utils":34}],15:[function(require,module,exports){
 var utils = require('./utils');
 
 /**
@@ -2174,7 +2223,7 @@ exports.read = function (str) {
   return tokens;
 };
 
-},{"./utils":33}],15:[function(require,module,exports){
+},{"./utils":34}],16:[function(require,module,exports){
 var utils = require('./utils'),
   lexer = require('./lexer');
 
@@ -2865,7 +2914,7 @@ exports.compile = function (template, parents, options, blockName) {
   return out;
 };
 
-},{"./lexer":14,"./utils":33}],16:[function(require,module,exports){
+},{"./lexer":15,"./utils":34}],17:[function(require,module,exports){
 var fs = require('fs'),
   path = require('path'),
   utils = require('./utils'),
@@ -3531,7 +3580,7 @@ exports.renderFile = defaultInstance.renderFile;
 exports.run = defaultInstance.run;
 exports.invalidateCache = defaultInstance.invalidateCache;
 
-},{"./dateformatter":12,"./filters":13,"./parser":15,"./tags":17,"./utils":33,"fs":2,"path":3}],17:[function(require,module,exports){
+},{"./dateformatter":13,"./filters":14,"./parser":16,"./tags":18,"./utils":34,"fs":2,"path":3}],18:[function(require,module,exports){
 exports.autoescape = require('./tags/autoescape');
 exports.block = require('./tags/block');
 exports.else = require('./tags/else');
@@ -3549,7 +3598,7 @@ exports.raw = require('./tags/raw');
 exports.set = require('./tags/set');
 exports.spaceless = require('./tags/spaceless');
 
-},{"./tags/autoescape":18,"./tags/block":19,"./tags/else":20,"./tags/elseif":21,"./tags/extends":22,"./tags/filter":23,"./tags/for":24,"./tags/if":25,"./tags/import":26,"./tags/include":27,"./tags/macro":28,"./tags/parent":29,"./tags/raw":30,"./tags/set":31,"./tags/spaceless":32}],18:[function(require,module,exports){
+},{"./tags/autoescape":19,"./tags/block":20,"./tags/else":21,"./tags/elseif":22,"./tags/extends":23,"./tags/filter":24,"./tags/for":25,"./tags/if":26,"./tags/import":27,"./tags/include":28,"./tags/macro":29,"./tags/parent":30,"./tags/raw":31,"./tags/set":32,"./tags/spaceless":33}],19:[function(require,module,exports){
 var utils = require('../utils'),
   bools = ['false', 'true'],
   strings = ['html', 'js'];
@@ -3592,7 +3641,7 @@ exports.parse = function (str, line, parser, types, stack, opts) {
 };
 exports.ends = true;
 
-},{"../utils":33}],19:[function(require,module,exports){
+},{"../utils":34}],20:[function(require,module,exports){
 /**
  * Defines a block in a template that can be overridden by a template extending this one and/or will override the current template's parent template block of the same name.
  *
@@ -3619,7 +3668,7 @@ exports.parse = function (str, line, parser, types) {
 exports.ends = true;
 exports.block = true;
 
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 /**
  * Used within an <code data-language="swig">{% if %}</code> tag, the code block following this tag up until <code data-language="swig">{% endif %}</code> will be rendered if the <i>if</i> statement returns false.
  *
@@ -3646,7 +3695,7 @@ exports.parse = function (str, line, parser, types, stack) {
   return (stack.length && stack[stack.length - 1].name === 'if');
 };
 
-},{}],21:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 var ifparser = require('./if').parse;
 
 /**
@@ -3676,7 +3725,7 @@ exports.parse = function (str, line, parser, types, stack) {
   return okay && (stack.length && stack[stack.length - 1].name === 'if');
 };
 
-},{"./if":25}],22:[function(require,module,exports){
+},{"./if":26}],23:[function(require,module,exports){
 /**
  * Makes the current template extend a parent template. This tag must be the first item in your template.
  *
@@ -3697,7 +3746,7 @@ exports.parse = function () {
 
 exports.ends = false;
 
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 var filters = require('../filters');
 
 /**
@@ -3767,7 +3816,7 @@ exports.parse = function (str, line, parser, types) {
 
 exports.ends = true;
 
-},{"../filters":13}],24:[function(require,module,exports){
+},{"../filters":14}],25:[function(require,module,exports){
 /**
  * Loop over objects and arrays.
  *
@@ -3886,7 +3935,7 @@ exports.parse = function (str, line, parser, types, stack) {
 
 exports.ends = true;
 
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 /**
  * Used to create conditional statements in templates. Accepts most JavaScript valid comparisons.
  *
@@ -3969,7 +4018,7 @@ exports.parse = function (str, line, parser, types) {
 
 exports.ends = true;
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 var utils = require('../utils');
 
 /**
@@ -4051,7 +4100,7 @@ exports.parse = function (str, line, parser, types, stack, opts) {
 };
 
 
-},{"../swig":16,"../utils":33}],27:[function(require,module,exports){
+},{"../swig":17,"../utils":34}],28:[function(require,module,exports){
 var ignore = 'ignore',
   missing = 'missing',
   only = 'only';
@@ -4153,7 +4202,7 @@ exports.parse = function (str, line, parser, types, stack, opts) {
   return true;
 };
 
-},{}],28:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 /**
  * Create custom, reusable snippets within your templates.
  *
@@ -4221,7 +4270,7 @@ exports.parse = function (str, line, parser, types, stack) {
 
 exports.ends = true;
 
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 /**
  * Inject the content from the parent template's block of the same name into the current block.
  *
@@ -4274,7 +4323,7 @@ exports.parse = function (str, line, parser, types, stack, opts) {
   return true;
 };
 
-},{}],30:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 // Magic tag, hardcoded into parser
 
 /**
@@ -4299,7 +4348,7 @@ exports.parse = function (str, line, parser, types, stack) {
 };
 exports.ends = true;
 
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 /**
  * Set a variable for re-use in the current context.
  *
@@ -4352,7 +4401,7 @@ exports.parse = function (str, line, parser, types, stack) {
 
 exports.block = true;
 
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 var utils = require('../utils');
 
 /**
@@ -4396,7 +4445,7 @@ exports.parse = function (str, line, parser, types) {
 
 exports.ends = true;
 
-},{"../utils":33}],33:[function(require,module,exports){
+},{"../utils":34}],34:[function(require,module,exports){
 var isArray;
 
 /**
@@ -4578,7 +4627,7 @@ exports.throwError = function (message, line, file) {
   throw new Error(message + '.');
 };
 
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 /*!
  * jQuery JavaScript Library v2.0.0
  * http://jquery.com/
@@ -13338,7 +13387,7 @@ if ( typeof window === "object" && typeof window.document === "object" ) {
 module.exports = window.jQuery;
 
 
-},{}],35:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 (function () {
 
   var Base, Items, template, vent,
@@ -13412,7 +13461,7 @@ module.exports = window.jQuery;
 
 }());
 
-},{"base":10}],36:[function(require,module,exports){
+},{"base":11}],37:[function(require,module,exports){
 (function () {
 
   var Base, Items, Panes, template, vent, SCROLL_OFFSET, SCROLL_HEIGHT,
@@ -13555,7 +13604,7 @@ module.exports = window.jQuery;
 
 }());
 
-},{"../controllers/items":35,"base":10}],37:[function(require,module,exports){
+},{"../controllers/items":36,"base":11}],38:[function(require,module,exports){
 var process=require("__browserify_process");(function() {
 
   var Base, Item, Items, Pane, Panes, Ranger, template, vent,
@@ -13750,7 +13799,7 @@ var process=require("__browserify_process");(function() {
 
 }());
 
-},{"../controllers/items":35,"../controllers/panes":36,"../models/item":38,"../models/pane":39,"../views/item":40,"../views/pane":41,"__browserify_process":4,"base":10}],38:[function(require,module,exports){
+},{"../controllers/items":36,"../controllers/panes":37,"../models/item":39,"../models/pane":40,"../views/item":41,"../views/pane":42,"__browserify_process":4,"base":11}],39:[function(require,module,exports){
 (function () {
 
   var Base, Item, Items, _ref;
@@ -13796,7 +13845,7 @@ var process=require("__browserify_process");(function() {
 
 }());
 
-},{"../models/pane":39,"base":10}],39:[function(require,module,exports){
+},{"../models/pane":40,"base":11}],40:[function(require,module,exports){
 (function () {
 
   var Base, Item, Pane, Panes, _ref;
@@ -13834,7 +13883,7 @@ var process=require("__browserify_process");(function() {
 
 }());
 
-},{"../models/item":38,"base":10}],40:[function(require,module,exports){
+},{"../models/item":39,"base":11}],41:[function(require,module,exports){
 (function () {
 
   var Base, template;
@@ -13845,7 +13894,7 @@ var process=require("__browserify_process");(function() {
 
 }());
 
-},{"base":10}],41:[function(require,module,exports){
+},{"base":11}],42:[function(require,module,exports){
 (function () {
 
   var Base, template;
@@ -13856,7 +13905,7 @@ var process=require("__browserify_process");(function() {
 
 }());
 
-},{"base":10}],42:[function(require,module,exports){
+},{"base":11}],43:[function(require,module,exports){
 var process=require("__browserify_process");/** @license MIT License (c) copyright 2011-2013 original author or authors */
 
 /**

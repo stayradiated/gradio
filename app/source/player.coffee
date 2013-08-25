@@ -1,6 +1,7 @@
 
 $ = require 'jqueryify'
 Base = require 'base'
+Track = require './track.coffee'
 
 class Player extends Base.Controller
 
@@ -11,7 +12,7 @@ class Player extends Base.Controller
 
   elements:
     '.track': 'track'
-    '.buffer': 'buffer'
+    '.now-playing': 'nowPlaying'
 
   audioEvents:
     'durationchange': 'setDuration'
@@ -30,6 +31,9 @@ class Player extends Base.Controller
       controls: true
     $('body').append(@context)
     @context = @audio.get(0)
+
+    # Create track
+    global.track = @track = new Track(el: @track)
 
     # Bind audio events
     for event, method of @audioEvents
@@ -53,14 +57,19 @@ class Player extends Base.Controller
   showBufferProgress: =>
     if @context.buffered.length > 0
       percent = @_percent @context.buffered.end(0)
-      @buffer.css 'width', percent + '%'
+      @track.setBuffer(percent)
 
   showCurrentProgress: =>
     percent = @_percent @context.currentTime
-    @track.css 'width', percent + '%'
+    @track.setPlaying(percent)
 
   setVolume: (volume) =>
     @context.volume = volume
+
+  setSong: (song) =>
+    @nowPlaying.html("#{ song.ArtistName } - #{ song.SongName }")
+    url = "http://#{ global.server}:#{ global.port }/song/#{ song.SongID }.mp3"
+    @setSource(url)
 
   setSource: (url) =>
     @context.src  = url

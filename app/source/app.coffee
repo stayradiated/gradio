@@ -75,8 +75,7 @@ module.exports.init = ->
   openItem = ->
     song = ranger.open()
     return unless song
-    url = "http://#{ global.server}:#{ global.port }/song/#{ song.SongID }.mp3"
-    player.setSource(url)
+    player.setSong(song)
 
   # Enable keyboard shortcuts
   $(document).on 'keydown', (e) ->

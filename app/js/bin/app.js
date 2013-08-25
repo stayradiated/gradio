@@ -72,13 +72,12 @@
       });
     };
     openItem = function() {
-      var song, url;
+      var song;
       song = ranger.open();
       if (!song) {
         return;
       }
-      url = "http://" + global.server + ":" + global.port + "/song/" + song.SongID + ".mp3";
-      return player.setSource(url);
+      return player.setSong(song);
     };
     $(document).on('keydown', function(e) {
       var _ref;

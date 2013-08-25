@@ -1,0 +1,22 @@
+.track {
+  background: #333;
+  width: 100%;
+  height: 10px;
+  position: relative;
+
+  div {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+  }
+
+  .buffer {
+    background: #aaa;
+  }
+
+  .playing {
+    background: yellow;
+  }
+
+}
