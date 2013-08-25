@@ -5,5 +5,4 @@
 /bin
 
 .sass-cache
-/app/js/*.js
 /app/node_modules
