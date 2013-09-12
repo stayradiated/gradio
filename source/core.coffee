@@ -1,40 +1,36 @@
-###*
- * @fileOverview Used to make requests to the internal Grooveshark API
+###
+ *
+ * Core class
+ * ==========
+ *
+ * Handles the connection to GrooveShark and generating tokens.
+ *
+ * TODO:
+ *   - Load tokens directly from latest GrooveShark JS files
+ *
 ###
 
-# Dependencies
-request = require 'request'
-promise = require 'when'
-http = require 'http'
-crypto = require 'crypto'
-uuid = require 'uuid'
-Token = require './token'
+request  = require 'request'
+Promise  = require 'when'
+http     = require 'http'
+crypto   = require 'crypto'
+uuid     = require 'uuid'
+Token    = require '../token.json'
 JsonPost = require './jsonPost'
-Country = require './country'
+Country  = require './country'
 
-###*
- * @class Core
-###
 
 class Core
 
-  constructor: ->
-
-    # URL Options
-    @domain = 'grooveshark.com'
-    @methodphp = 'more.php'
-    @streamphp = 'stream.php'
-    @methodurl = @domain + '/' + @methodphp
-    @homeurl = 'http://' + @domain
-
-    # JS and HTML methods use different tokens
-    @jsMethod = [
+  # Different methods use different authentication
+  methods:
+    js: [
       'getStreamKeyFromSongIDEx'
       'markSongComplete'
       'markSongDownloadedEx'
       'markStreamKeyOver30Seconds'
     ]
-    @htmlMethod = [
+    html: [
       'getQueueSongListFromSongIDs',
       'getCommunicationToken'
       'getResultsFromSearch'
@@ -55,16 +51,21 @@ class Core
       'albumGetSongs'
       'getSongsInfo'
     ]
-    @htmlName = 'htmlshark'
-    @jsName = 'jsqueue'
-    @htmlVersion = ''
-    @jsVersion = ''
-    @swfVersion = '20121003.33'
-    @password = ''
+
+  constructor: ->
+
+    # URL Options
+    @domain    = 'grooveshark.com'
+    @methodphp = 'more.php'
+    @streamphp = 'stream.php'
+    @methodurl = "#{ @domain }/#{ @methodphp }"
+    @homeurl   = "http://#{ @domain }"
 
     # Referers
-    @jsReferer = 'http://grooveshark.com/JSQueue.swf?' + @swfVersion
-    @htmlReferer = 'http://grooveshark.com/'
+    @referer =
+      js:   "#{ @homeurl }/JSQueue.swf?#{ Token.swfVersion }"
+      html: "#{ @homeurl }/"
+
     @userAgent = 'Mozilla/5.0 (Windows NT 6.1; rv:2.0.1) Gecko/20100101 Firefox/4.0.1'
 
     # Random UUID
@@ -74,11 +75,11 @@ class Core
     @country = new Country(this)
 
     # We need to generate a new token every 16 minutes
-    @newTokenTime = 16 * 60 * 1000
+    @newTokenTime  = 16 * 60 * 1000
     @lastTokenTime = 0
-    @sessionID = ''
-    @secretKey = ''
-    @token = ''
+    @sessionID     = ''
+    @secretKey     = ''
+    @token         = ''
 
 
   ###*
@@ -88,12 +89,12 @@ class Core
   ###
   init: =>
 
-    ready = promise.all([
+    ready = Promise.all [
       @getToken()
       @country.fetch()
-    ])
+    ]
 
-    ready.then ->
+    ready.then ([token]) ->
       console.log '> We are online!'
 
     return ready
@@ -102,90 +103,75 @@ class Core
   ###*
    * Returns a Grooveshark SessionID which is needed to communicate with the
    * services and generate the secret key.
-   * @promises {string} Grooveshark's SessionID
+   * @promises (string): Grooveshark's SessionID
   ###
   getSessionID: =>
 
-    deferred = promise.defer()
+    deferred = Promise.defer()
 
     # If we already have a valid session ID, use it
     if @sessionID.length > 0
-      deferred.resolve(@sessionID)
+      deferred.resolve @sessionID
       return deferred.promise
-
-    console.log '> Getting session id'
-    start = Date.now()
 
     # Else request a new ID from GrooveShark
     request @homeurl, (err, res, body) =>
-      end = Date.now()
-      console.log (end - start) / 1000, 'seconds'
       if (err) then return deferred.reject(err)
+      # Extract session ID from cookies
       cookies = res.headers['set-cookie']
       @sessionID = cookies[0].split('=')[1].split(';')[0]
-      deferred.resolve(@sessionID)
+      deferred.resolve @sessionID
 
     return deferred.promise
 
 
   ###*
    * Generates the SecretKey from the SessionID needed to get the communication
-   * Token and return s it. If getSessionID() hasn't already been called, it
-   * will do it automagically
-   * @promises {string} SessionID's SecretKey
-   * @throws Error if it can't get a session ID
+   * Token and returns it.
+   * @promises (string): SessionID's SecretKey
   ###
   getSecretKey: =>
 
-    deferred = promise.defer()
+    deferred = Promise.defer()
 
     # If we have already calculated the secret key
     if @secretKey.length > 0
-      deferred.resolve(@secretKey)
+      deferred.resolve @secretKey
       return deferred.promise
 
-    # Get the session ID
-    @getSessionID().then(
-      (sessionID) =>
-        console.log '> Getting secret key'
-        md5 = crypto.createHash('md5')
-        md5.update(sessionID, 'utf-8')
-        @secretKey = md5.digest('hex')
-        deferred.resolve(@secretKey)
-    ,
-      (err) ->
-        throw new Error(err)
-    )
+    # Else calculate the secret key
+    @getSessionID().then (sessionID) =>
+      md5 = crypto.createHash('md5')
+      md5.update(sessionID, 'utf-8')
+      @secretKey = md5.digest('hex')
+      deferred.resolve @secretKey
 
     return deferred.promise
 
 
   ###*
    * Returns the communication token needed to communicate with GrooveShark.
-   * @promises {string} Communication token
+   * @promises (string): Communication token
   ###
   getToken: =>
 
-    deferred = promise.defer()
+    deferred = Promise.defer()
 
     timeNow = Date.now()
 
     # If we have a valid token, use that instead of getting a new one
     if @token.length > 0 and (timeNow - @lastTokenTime) < @newTokenTime
-      deferred.resolve(@token)
+      deferred.resolve @token
       return deferred.promise
 
-    @getSecretKey().then(
-      (secretKey) =>
-        console.log '> Getting token'
+    @getSecretKey()
+      .then (secretKey) =>
         parameters = secretKey: secretKey
         return @callMethod(parameters, 'getCommunicationToken', 'https')
-    ).then(
-      (response) =>
+      .then (response) =>
         @token = response
         @lastTokenTime = timeNow
-        deferred.resolve(@token)
-    )
+        deferred.resolve @token
 
     return deferred.promise
 
@@ -198,73 +184,54 @@ class Core
   ###
   getTokenKey: (method) =>
 
-    deferred = promise.defer()
+    deferred = Promise.defer()
+
+    console.log "Generating key for #{ method }"
 
     @getToken().then (token) =>
 
-      console.log '> Getting token key'
-
+      # Generate a random token made of 6 hex digits
       randomhex = ''
       while 6 > randomhex.length
         pos = Math.floor Math.random() * 16
-        randomhex += "0123456789abcdef".charAt(pos)
+        randomhex += '0123456789abcdef'.charAt(pos)
 
-      if method in @jsMethod
-        @password = Token.jsToken
+      if method in @methods.js
+        password = Token.jsToken
         @versionJS = Token.jsVersion
 
-      else if method in @htmlMethod
-        @password = Token.htmlToken
+      # TODO: Can we just assume that the token is HTML if it isn't in the JS list?
+      else if method in @methods.html
+        password = Token.htmlToken
         @versionHTML = Token.htmlVersion
 
-      pass = method + ':' + token + ':' + @password + ':' + randomhex
+      else
+        console.log '[ERROR] method not supported'
 
+      # Hash the data using SHA1
+      pass = "#{ method }:#{ token }:#{ password }:#{ randomhex }"
       sha1 = crypto.createHash('sha1')
       hashhex = sha1.update(pass).digest('hex')
 
-      deferred.resolve(randomhex + hashhex)
+      deferred.resolve "#{ randomhex }#{ hashhex }"
 
     return deferred.promise
 
   ###*
    * Uses the token key and session ID to get a response from Grooveshark
    * using the desired method. The parameters must be specified.
-   * @param {object} parameters - Parameters for the method
-   * @param {string} method - The service to call
-   * @param {string} protocol - The protocol to use
-   * @promises {object} The JSON data returned from the request
+   * - parameters (object): Parameters for the method
+   * - method (string): The service to call
+   * - protocol (string): The protocol to use
   ###
   callMethod: (parameters, method, protocol='http') =>
 
-    deferred = promise.defer()
+    deferred = Promise.defer()
 
     start = Date.now()
 
     # Assemble URL
-    url = protocol + '://' + @methodurl + '?' + method
-
-    # Run the request
-    makeRequest = (json) ->
-
-      console.log "> Calling '#{method}'"
-
-      options =
-        url: url
-        method: 'POST'
-        body: json.toString()
-        headers:
-          'Referer': 'http://grooveshark.com/'
-
-      request options, (err, res, body) ->
-        if err then return deferred.reject(err)
-        end = Date.now()
-        console.log '> ' + (end - start) / 1000 + ' seconds'
-        try
-          json = JSON.parse(body)
-          if json.result? then json = json.result
-        catch e
-          json = body
-        deferred.resolve(json)
+    url = "#{ protocol }://#{ @methodurl }?#{ method }"
 
     # Transform parameters and method into a JsonPost object
     new JsonPost(this, parameters, method).then (json) =>
@@ -276,6 +243,29 @@ class Core
 
       else
         makeRequest(json)
+
+    # Runs the request
+    makeRequest = (parameters) ->
+
+      console.log "> Calling '#{method}'"
+
+      options =
+        url: url
+        method: 'POST'
+        body: parameters.toString()
+        headers:
+          'Referer': 'http://grooveshark.com/'
+
+      request options, (err, res, body) ->
+        if err then return deferred.reject(err)
+        end = Date.now()
+        console.log '> ' + (end - start) / 1000 + ' seconds for', method
+        try
+          results = JSON.parse(body)
+          if results.result? then results = results.result
+        catch e
+          results = body
+        deferred.resolve results
 
     return deferred.promise
 
@@ -291,7 +281,7 @@ class Core
   ###
   getSongStream: (ip, streamKey) ->
 
-    deferred = promise.defer()
+    deferred = Promise.defer()
 
     contents = 'streamKey=' + streamKey.replace(/_/g, '%5F')
 
