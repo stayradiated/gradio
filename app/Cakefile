@@ -12,7 +12,7 @@ COMPASS    = 'compass'
 # Configuration
 INPUT   = 'source/init.coffee'
 OUTPUT  = 'js/packaged.js'
-IGNORED = './js/bin/app ./player ./search nw.gui ../../../bin/core ../../../bin/methods ../../../bin/server'
+IGNORED = './js/bin/app ./player ./track ./search nw.gui ../../../bin/core ../../../bin/methods ../../../bin/server'
 SASS    = __dirname + '/sass/screen.scss'
 SASS_PROJECT     = __dirname
 

@@ -22,7 +22,7 @@
     app = global.app = require('./app.coffee');
   }
 
-  global.server = 'localhost';
+  global.server = '192.168.0.100';
 
   global.port = 8080;
 

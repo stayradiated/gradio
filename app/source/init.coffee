@@ -25,7 +25,7 @@ else
   app = global.app = require './app.coffee'
 
 # Server configuration
-global.server = 'localhost'
+global.server = '192.168.0.100'
 global.port = 8080
 
 # Initialise the app

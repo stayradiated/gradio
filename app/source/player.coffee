@@ -1,7 +1,11 @@
 
 $ = require 'jqueryify'
 Base = require 'base'
-Track = require './track.coffee'
+
+if NODEJS
+  Track = require './track'
+else 
+  Track = require './track.coffee'
 
 class Player extends Base.Controller
 
