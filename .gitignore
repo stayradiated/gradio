@@ -1,8 +1,5 @@
-*.sublime-*
-/node_modules
-/lib
-/cache/*.mp3
+node_modules
+.sass-cache
+cache/*.mp3
 /bin
 
-.sass-cache
-/app/node_modules

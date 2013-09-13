@@ -4,8 +4,8 @@
 ###
 
 # Dependencies
-Token = require './token'
-promise = require 'when'
+Token = require '../token.json'
+Promise = require 'when'
 
 ###*
  * @class JsonPost
@@ -21,43 +21,37 @@ class JsonPost
   ###
   constructor: (core, @parameters, @method) ->
 
-    deferred = promise.defer()
+    deferred = Promise.defer()
 
-    sessionID = null
+    sessionData = Promise.all [
+      core.getSessionID(),
+      core.country.fetch()
+    ]
+    
+    sessionData.then ([sessionID, country]) =>
 
-    # Get the session ID
-    core.getSessionID()
+      @header =
+        uuid: core.uuid
+        privacy: 0
+        session: sessionID
+        country: country
 
-      .then (id) ->
+      # Setting client details
 
-        sessionID = id
-        core.country.fetch()
+      if @method in core.methods.js
+        @header.client         = Token.jsName
+        @header.clientRevision = Token.jsVersion
+        @referer               = core.referer.js
 
-      .then (country) =>
+      else if @method in core.methods.html
+        @header.client         = Token.htmlName
+        @header.clientRevision = Token.htmlVersion
+        @referer               = core.referer.html
 
-        @header = {
-          uuid: core.uuid
-          privacy: 0
-          session: sessionID
-          country: country
-        }
+      else
+        console.log '> ERROR: Could not find method for', @method
 
-        # Setting client details
-
-        if @method in core.jsMethod
-          @header.client = core.jsName
-          @header.clientRevision = Token.jsVersion
-          @referer = core.jsReferer
-
-        else if @method in core.htmlMethod
-          @header.client = core.htmlName
-          @header.clientRevision = Token.htmlVersion
-          @referer = core.htmlReferer
-
-        else
-          console.log '> ERROR: Could not find method for', @method
-
-        deferred.resolve(this)
+      deferred.resolve this
 
     return deferred.promise
 
