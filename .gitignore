@@ -1,5 +1,5 @@
 node_modules
 .sass-cache
 cache/*.mp3
-/bin
-
+bin
+lib

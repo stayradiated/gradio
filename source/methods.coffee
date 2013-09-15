@@ -318,25 +318,14 @@ class Methods
   ###
   getSongUrl: (songID) =>
 
-    deferred = Promise.defer()
+    parameters =
+      country: core.country
+      songID: songID
+      prefetch: false
+      mobile: false
+      type: 128
 
-    @core.country.fetch()
-
-      .then (country) =>
-
-        parameters =
-          country: country
-          songID: songID
-          prefetch: false
-          mobile: false
-          type: 128
-
-        @core.callMethod(parameters, 'getStreamKeyFromSongIDEx')
-
-      .then deferred.resolve, deferred.reject, deferred.notify
-
-    return deferred.promise
-
+    @core.callMethod(parameters, 'getStreamKeyFromSongIDEx')
 
   ###*
    * Download a song. Handles everything, including getting the Stream Key,
@@ -357,7 +346,7 @@ class Methods
       .then (response) =>
         ip = response.ip
         streamKey = response.streamKey
-        timer = setTimeout(->
+        timer = setTimeout(=>
           console.log '> It has been 30 seconds...'
           past30seconds = true
           @markStreamKeyOver30Seconds(ip, streamKey, songID).then (response) ->

@@ -16,41 +16,11 @@ http     = require 'http'
 crypto   = require 'crypto'
 uuid     = require 'uuid'
 Token    = require '../token.json'
-JsonPost = require './jsonPost'
-Country  = require './country'
+jsonPost = require './jsonPost'
+mimic    = require './mimic'
 
 
 class Core
-
-  # Different methods use different authentication
-  methods:
-    js: [
-      'getStreamKeyFromSongIDEx'
-      'markSongComplete'
-      'markSongDownloadedEx'
-      'markStreamKeyOver30Seconds'
-    ]
-    html: [
-      'getQueueSongListFromSongIDs',
-      'getCommunicationToken'
-      'getResultsFromSearch'
-      'authenticateUser'
-      'logoutUser'
-      'getPlaylistByID'
-      'playlistAddSongToExisting'
-      'playlistAddSongToExisting'
-      'popularGetSongs'
-      'playlistGetSongs'
-      'initiateQueue'
-      'userAddSongsToLibrary'
-      'userGetPlaylists'
-      'userGetSongsInLibrary'
-      'getFavorites'
-      'favorite'
-      'getCountry'
-      'albumGetSongs'
-      'getSongsInfo'
-    ]
 
   constructor: ->
 
@@ -62,17 +32,10 @@ class Core
     @homeurl   = "http://#{ @domain }"
 
     # Referers
-    @referer =
-      js:   "#{ @homeurl }/JSQueue.swf?#{ Token.swfVersion }"
-      html: "#{ @homeurl }/"
-
-    @userAgent = 'Mozilla/5.0 (Windows NT 6.1; rv:2.0.1) Gecko/20100101 Firefox/4.0.1'
+    @referer = "#{ @homeurl }/"
 
     # Random UUID
     @uuid = uuid.v1()
-
-    # Keep track of the country
-    @country = new Country(this)
 
     # We need to generate a new token every 16 minutes
     @newTokenTime  = 16 * 60 * 1000
@@ -89,15 +52,12 @@ class Core
   ###
   init: =>
 
-    ready = Promise.all [
-      @getToken()
-      @country.fetch()
-    ]
-
-    ready.then ([token]) ->
-      console.log '> We are online!'
-
-    return ready
+    mimic.init().then (data) =>
+      @token = data.token
+      @country = data.country
+      @getToken().then (token) ->
+        console.log '> We are online!'
+        console.log 'data', data
 
 
   ###*
@@ -234,7 +194,7 @@ class Core
     url = "#{ protocol }://#{ @methodurl }?#{ method }"
 
     # Transform parameters and method into a JsonPost object
-    new JsonPost(this, parameters, method).then (json) =>
+    jsonPost(this, parameters, method).then (json) =>
 
       if method isnt 'getCommunicationToken'
         @getTokenKey(method).then (token) ->
@@ -247,14 +207,14 @@ class Core
     # Runs the request
     makeRequest = (parameters) ->
 
-      console.log "> Calling '#{method}'"
+      console.log "> Making request for '#{method}'"
 
       options =
         url: url
         method: 'POST'
         body: parameters.toString()
         headers:
-          'Referer': 'http://grooveshark.com/'
+          'Referer': @referer
 
       request options, (err, res, body) ->
         if err then return deferred.reject(err)
@@ -290,9 +250,11 @@ class Core
       path: '/' + @streamphp
       method: 'POST'
       headers:
-        'Content-Type': 'application/x-www-form-urlencoded'
-        'Content-Length': contents.length
-        'Referer': 'http://' + @domain + '/JSQueue.swf?' + @versionSwf
+        'Accept-Encoding': 'identity;q=1, *;q=0'
+        'User-Agent': mimic.headers['User-Agent']
+        'Accept': '*/*'
+        'Referer': @referer
+        'Accept-Language': 'en-US,en;q=0.8'
 
     req = http.request options, (res) ->
 
