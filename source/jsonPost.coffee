@@ -19,14 +19,13 @@ module.exports = (core, parameters, method) ->
     json =
       parameters:        parameters
       method:            method
-      headers:
+      header:
         privacy:         0
         uuid:            core.uuid
         session:         sessionID
         country:         core.country
-        client:          core.token.clientName
-        clientRevision:  core.token.clientRevision
-        referer:         core.referer
-      toString: =>
-        JSON.stringify(json)
+        client:          core.client.name
+        clientRevision:  core.client.revision
+      toString: => JSON.stringify(json)
+
     return json

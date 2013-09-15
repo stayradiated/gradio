@@ -3,3 +3,6 @@ node_modules
 cache/*.mp3
 bin
 lib
+pages/*.js
+pages/*.json
+pages/*.html

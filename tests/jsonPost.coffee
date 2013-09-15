@@ -1,5 +1,6 @@
 
-generateHeaders = require '../source/jsonPost'
+Promise = require 'when'
+jsonPost = require '../source/jsonPost'
 Core = require '../source/core'
 
 core = new Core()
@@ -9,7 +10,12 @@ parameters =
 
 method = 'helloWorld'
 
-core.init().then ->
-  generateHeaders(core, parameters, method).then (json) ->
-    console.log json
+describe 'jsonPost', ->
+  
+  it 'should init', (done) ->
+    promise = Promise.all [
+      core.init()
+      jsonPost(core, parameters, method)
+    ]
+    promise.then done
 

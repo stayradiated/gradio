@@ -7,6 +7,9 @@ Promise = require 'when'
 # Where to save downloaded files
 folder = __dirname + '/../pages/'
 
+# Where to write token.json to
+tokenPath = folder + 'token.json'
+
 # How long to keep downloaded files for
 keepFor = 1000 * 60 * 60 * 24 * 5 # 5 days
 
@@ -17,6 +20,8 @@ file =
 
 # HTTP Request headers
 module.exports.headers = headers =
+  'Referer': 'http://html5.grooveshark.com'
+  'Origin': 'http://html5.grooveshark.com'
   'Host': 'html5.grooveshark.com'
   'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; rv:2.0.1) Gecko/20100101 Firefox/4.0.1'
 
@@ -31,12 +36,19 @@ regex =
 # -- MAIN FUNCTION ------------------------------------------------------------
 
 module.exports.init = ->
-  files = getFiles([file.html, file.js])
-  files.then ([html, js]) ->
-    return {}=
-      token: getClientInfo(js)
-      country: getCountry(html)
-    return data
+  deferred = Promise.defer()
+  fs.stat tokenPath, (err, stats) ->
+    if stats?
+      deferred.resolve require(tokenPath)
+    else
+      files = getFiles([file.html, file.js])
+      files.then ([html, js]) ->
+        data =
+          client:   getClientInfo(js)
+          country:  getCountry(html)
+        saveFile(data)
+        deferred.resolve(data)
+  return deferred.promise
 
 # -- GET COUNTRY --------------------------------------------------------------
 
@@ -55,9 +67,9 @@ getClientInfo = (body) ->
   client = body.match(regex.html5.client)
   salt = body.match(regex.html5.pass)[1]
   return {}=
-    clientName: client[1]
-    clientRevision: client[2]
-    clientSalt: salt
+    name: client[1]
+    revision: client[2]
+    salt: salt
 
 # -- GET FILES ----------------------------------------------------------------
 
@@ -98,3 +110,9 @@ getFiles = (urls) ->
         deferred.resolve(body)
 
   return deferred.promise
+
+# -- GENERATE TOKEN.JSON ------------------------------------------------------
+
+saveFile = (data) ->
+  string = JSON.stringify data, null, 4
+  fs.writeFile tokenPath, string

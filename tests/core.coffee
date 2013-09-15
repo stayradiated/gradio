@@ -11,12 +11,20 @@ describe 'core', ->
 
   it 'should init', (done) ->
 
-    core.init().then ->
-      done()
+    core.init()
+      .then ->
+        done()
+      .otherwise (err) ->
+        throw err
 
   it 'should get favorites', (done) ->
 
-    app.userGetSongsInLibrary(20910233).then (response) ->
-      done()
+    console.log '\n\n'
+
+    app.userGetSongsInLibrary(20910233)
+      .then (response) ->
+        done()
+      .otherwise (err) ->
+        throw err
 
 

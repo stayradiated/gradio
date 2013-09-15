@@ -18,6 +18,7 @@ uuid     = require 'uuid'
 Token    = require '../token.json'
 jsonPost = require './jsonPost'
 mimic    = require './mimic'
+log      = require('./log')('core', 'green')
 
 
 class Core
@@ -53,11 +54,10 @@ class Core
   init: =>
 
     mimic.init().then (data) =>
-      @token = data.token
+      @client  = data.client
       @country = data.country
       @getToken().then (token) ->
-        console.log '> We are online!'
-        console.log 'data', data
+        log 'We are online'
 
 
   ###*
@@ -146,7 +146,7 @@ class Core
 
     deferred = Promise.defer()
 
-    console.log "Generating key for #{ method }"
+    log "[#{ method }] Generating key"
 
     @getToken().then (token) =>
 
@@ -156,20 +156,8 @@ class Core
         pos = Math.floor Math.random() * 16
         randomhex += '0123456789abcdef'.charAt(pos)
 
-      if method in @methods.js
-        password = Token.jsToken
-        @versionJS = Token.jsVersion
-
-      # TODO: Can we just assume that the token is HTML if it isn't in the JS list?
-      else if method in @methods.html
-        password = Token.htmlToken
-        @versionHTML = Token.htmlVersion
-
-      else
-        console.log '[ERROR] method not supported'
-
       # Hash the data using SHA1
-      pass = "#{ method }:#{ token }:#{ password }:#{ randomhex }"
+      pass = "#{ method }:#{ token }:#{ @client.salt }:#{ randomhex }"
       sha1 = crypto.createHash('sha1')
       hashhex = sha1.update(pass).digest('hex')
 
@@ -207,19 +195,18 @@ class Core
     # Runs the request
     makeRequest = (parameters) ->
 
-      console.log "> Making request for '#{method}'"
+      log "[#{ method }] Starting request"
 
       options =
         url: url
         method: 'POST'
         body: parameters.toString()
-        headers:
-          'Referer': @referer
+        headers: mimic.headers
 
       request options, (err, res, body) ->
         if err then return deferred.reject(err)
         end = Date.now()
-        console.log '> ' + (end - start) / 1000 + ' seconds for', method
+        log "[#{ method }] Finished request in #{ (end - start) / 1000 } seconds"
         try
           results = JSON.parse(body)
           if results.result? then results = results.result
@@ -262,7 +249,7 @@ class Core
 
       # length = parseInt res.headers['content-length'], 10
       # progress = 0
-      # console.log Math.round(length / 1024 / 1024) + 'mb'
+      # log Math.round(length / 1024 / 1024) + 'mb'
 
       # notify = ->
       #   now = Math.floor(body.length / length * 100)
@@ -276,13 +263,13 @@ class Core
       #   notify()
 
       # res.on 'end', ->
-      #   console.log 'finished download'
+      #   log 'finished download'
       #   deferred.resolve(body)
 
     req.write(contents)
 
     req.on 'error', (e) ->
-      console.log 'error', e.message
+      log 'error', e.message
 
     req.end()
 
