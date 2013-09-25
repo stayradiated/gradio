@@ -14,8 +14,6 @@
     "base": "git://github.com/stayradiated/Base.git#master",
     "ranger": "git://github.com/stayradiated/Ranger.git#master",
 
-    "taglib": "git://github.com/nikhilm/node-taglib.git#master",
-
     "request": "*",
     "when": "*",
     "uuid": "*"
