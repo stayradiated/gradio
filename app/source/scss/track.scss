@@ -1,7 +1,14 @@
 .track {
-  background: #333;
-  width: 100%;
+
+  $playing: #245780;
+  $buffer: #9CC4E5;
+
+  background: $white;
+  width: calc(100% - 40px);
+  margin: 10px 20px;
   height: 10px;
+  border-radius: 10px;
+  overflow: hidden;
   position: relative;
 
   div {
@@ -9,14 +16,17 @@
     left: 0;
     top: 0;
     bottom: 0;
+    border-radius: 0 10px 10px 0;
   }
 
   .buffer {
-    background: #aaa;
+    width: 60%;
+    background: $buffer;
   }
 
   .playing {
-    background: yellow;
+    width: 20%;
+    background: $playing;
   }
 
 }

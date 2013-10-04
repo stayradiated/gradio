@@ -1,0 +1,49 @@
+.bar {
+
+  $bar: #F0F6FB;
+
+  background: $bar;
+  line-height: $bar_height;
+  padding: 0 20px;
+  color: $brick_text;
+
+  .bricks {
+    float: left;
+    font-weight: bold;
+  }
+
+  .brick {
+    font-size: 12px;
+    float: left;
+    padding: 0 30px 0 20px;
+    position: relative;
+  }
+
+  .brick:after, .brick:before {
+    content: "";
+    display: block;
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 0px;
+    width: 0px;
+    border-top:    $bar_height/2 solid transparent;
+    border-bottom: $bar_height/2 solid transparent;
+    border-left:   $bar_height/2*0.8 solid $bar;
+  }
+
+  .brick:before {
+    right: -1px;
+    border-left-color: $bar_seperator;
+  }
+
+  .now-playing {
+    float: right;
+    font-size: 12px;
+    .song {
+      font-weight: bold;
+    }
+    .artist {
+    }
+  }
+}

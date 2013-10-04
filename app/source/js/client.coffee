@@ -28,14 +28,11 @@ METHODS = [
 class module.exports
 
 callMethod = (method, args) ->
-  deferred = Promise.defer()
   $.ajax
     method: 'post'
     url: "http://#{global.server}:#{global.port}/#{method}"
     data: JSON.stringify(args)
-    success: (data) ->
-      deferred.resolve JSON.parse(data)
-  return deferred.promise
+    dataType: 'json'
 
 # Probably not the most efficient way of doing this
 for method in METHODS

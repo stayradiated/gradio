@@ -1,13 +1,38 @@
 header.panel {
-
-  $button_height: 35px;
-  $row_height: 60px;
-  $button_margin: ($row_height - $button_height) / 2;
+  $button_height: 32px;
+  $line-height: 16px;
+  $button_margin: ($header_height - $button_height) / 2;
 
   padding: 0 20px;
-  
-  .container {
-    float: right;
+
+  .decorations {
+    $radius: 12px;
+    $spacing: $radius / 2;
+
+    float: left;
+    margin-top: $header_height / 2 - $radius / 2;
+
+    div {
+      float: left;
+      width: $radius;
+      height: $radius;
+      border-radius: 100%;
+      background: rgba(#fff, 0.3);
+      @include transition(all 0.1s);
+      margin-top: 1px;
+      margin-left: 1px;
+      margin-right: $spacing + 1;
+    }
+
+    div:hover {
+      background: rgba(#fff, 0.6);
+      width: $radius + 2px;
+      height: $radius + 2px;
+      margin-top: 0px;
+      margin-left: 0px;
+      margin-right: $spacing;
+    }
+
   }
 
   button {
@@ -19,8 +44,7 @@ header.panel {
     line-height: $button_height;
     margin-top: $button_margin;
     border: 0;
-    border-radius: 4px;
-    margin-right: 20px;
+    border-radius: 4px 0 0 4px;
     @include transition(background 0.3s);
 
     &:hover {
@@ -28,25 +52,36 @@ header.panel {
     }
   }
 
+  .search {
+    margin: 0 auto;
+    width: 328px;
+  }
+
   .dropdown {
     float: left;
+    margin-right: -1px;
+    button {
+      outline: none;
+    }
     ul {
       display: none;
     }
     li {
       color: $white;
-      line-height: $row_height;
+      line-height: $line-height;
     }
   }
 
-  input {
-    float: left;
+  .search input {
+
+    float: right;
     width: 250px;
+    line-height: $line-height;
     height: $button_height;
+    padding: 0 10px;
     margin: $button_margin 0;
     border: 0;
-    border-radius: 4px;
-    padding: 0 10px;
+    border-radius: 0 4px 4px 0;
     background: lighten($threadless, 15);
     outline: 0;
     @include transition(background 0.3s);

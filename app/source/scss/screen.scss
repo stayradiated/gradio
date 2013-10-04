@@ -1,14 +1,17 @@
 @import "compass/css3";
 @import "compass/reset";
+
+$header_height: 58px;
+$bar_height: 32px;
+$controls_height: 32px;
+
 @import "colors";
 @import "mixins";
 @import "type";
 @import "panel";
+@import "bar";
 @import "columns";
 @import "track";
-
-$header_height: 60px;
-$controls_height: 150px;
 
 header.panel {
   @include pos(0, 0, auto, 0);
@@ -16,12 +19,18 @@ header.panel {
   background: $threadless; 
 }
 
-section.columns {
-  @include pos($header_height, 0, $controls_height, 0);
+.bar {
+  @include pos($header_height - 1, 0, auto, 0);
+  border-bottom: 1px solid $bar_seperator;
+  height: $bar_height;
+}
+
+main {
+  @include pos($header_height + $bar_height, 0, $controls_height, 0);
   background: $threadless_box;
 }
 
-nav.controls {
+.controls {
   @include pos(auto, 0, 0, 0);
   height: $controls_height;
   background: $yay_threadless;

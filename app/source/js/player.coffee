@@ -1,11 +1,7 @@
 
 $ = require 'jqueryify'
 Base = require 'base'
-
-if NODEJS
-  Track = require './track'
-else 
-  Track = require './track.coffee'
+Track = require './track.coffee'
 
 class Player extends Base.Controller
 
@@ -37,7 +33,7 @@ class Player extends Base.Controller
     @context = @audio.get(0)
 
     # Create track
-    global.track = @track = new Track(el: @track)
+    track = @track = new Track(el: @track)
 
     # Bind audio events
     for event, method of @audioEvents

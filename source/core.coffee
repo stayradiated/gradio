@@ -224,49 +224,33 @@ class Core
    * this as an attack.
    * @param {string} ip - The IP of the host where the song is stored
    * @param {string} streamKey - The StreamKey identifies the song
-   * @return {stream} Audio stream of the song
+   * @return {stream} HTTP stream of the song
   ###
   getSongStream: (ip, streamKey) ->
 
     deferred = Promise.defer()
 
-    contents = 'streamKey=' + streamKey.replace(/_/g, '%5F')
+    # Generate stream key path
+    url = '/' + @streamphp + '?streamKey=' + streamKey.replace(/_/g, '%5F')
 
     options =
       hostname: ip
-      path: '/' + @streamphp
-      method: 'POST'
+      path: url
+      method: 'GET'
       headers:
+        'Connection': 'keep-alive'
+        'Cache-Control': 'no-cache'
+        'Pragma': 'no-cache'
         'Accept-Encoding': 'identity;q=1, *;q=0'
         'User-Agent': mimic.headers['User-Agent']
         'Accept': '*/*'
         'Referer': @referer
         'Accept-Language': 'en-US,en;q=0.8'
+        'Referer': 'http://html5.grooveshark.com/'
+        'Range': 'bytes=0-'
 
     req = http.request options, (res) ->
-
       deferred.resolve(res)
-
-      # length = parseInt res.headers['content-length'], 10
-      # progress = 0
-      # log Math.round(length / 1024 / 1024) + 'mb'
-
-      # notify = ->
-      #   now = Math.floor(body.length / length * 100)
-      #   if now > progress
-      #     progress = now
-      #     deferred.notify(progress)
-
-      # body = ""
-      # res.on 'data', (chunk) ->
-      #   body += chunk.toString('binary')
-      #   notify()
-
-      # res.on 'end', ->
-      #   log 'finished download'
-      #   deferred.resolve(body)
-
-    req.write(contents)
 
     req.on 'error', (e) ->
       log 'error', e.message

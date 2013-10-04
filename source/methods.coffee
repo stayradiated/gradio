@@ -319,7 +319,7 @@ class Methods
   getSongUrl: (songID) =>
 
     parameters =
-      country: core.country
+      country: @core.country
       songID: songID
       prefetch: false
       mobile: false

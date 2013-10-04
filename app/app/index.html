@@ -1,12 +1,20 @@
 <html>
+
   <head>
     <title>Groovy</title>
-    <link rel="stylesheet" href="css/screen.css" />
+    <link rel="stylesheet" href="assets/css/screen.css" />
+    <script src="assets/js/scripts.js"></script>
   </head>
+
   <body>
+
     <header class="panel">
-      <div class="container">
-        <button>Login</button>
+      <div class="decorations">
+        <div class="close"></div>
+        <div class="minimize"></div>
+        <div class="maximize"></div>
+      </div>
+      <div class="search">
         <div class="dropdown">
           <button>Songs</button>
           <ul>
@@ -16,21 +24,33 @@
             <li>Albums</li>
           </ul>
         </div>
-      <input class="search" type="search" placeholder="Search"/>
+        <input type="text" placeholder="Search"/>
       </div>
     </header>
-    <section class="columns"></section>
-    <nav class="controls">
+
+    <section class="bar">
+      <div class="bricks">
+        <div class="brick">Artists</div>
+        <div class="brick">Songs</div>
+      </div>
+      <div class="now-playing">
+        <span class="artist">The Rolling Stones</span>
+        <span> - </span>
+        <span class="song">Beast of Burden</span>
+      </div>
+    </section>
+
+    <main role="main" class="main">
+      <section class="columns"></section>
+    </main>
+
+    <section class="controls">
       <div class="track">
         <div class="buffer"></div>
         <div class="playing"></div>
       </div>
-      <button class="prev">Prev</button>
-      <button class="next">Next</button>
-      <button class="play-pause">Prev/Pause</button>
-      <p class="now-playing">Now playing:</p>
-    </nav>
+    </section>
 
-    <script src="js/loader.js"></script>
   </body>
+
 </html>

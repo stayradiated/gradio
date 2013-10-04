@@ -4,13 +4,14 @@
  * It's primary purpose is to stream audio data to the client
 ###
 
-http = require 'http'
-url = require 'url'
-fs = require 'fs'
+http       = require 'http'
+url        = require 'url'
+fs         = require 'fs'
 formatPath = require 'path'
-Methods = require './methods'
+Methods    = require './methods'
+log        = require('./log')('server', 'blue')
 
-APP_FOLDER = __dirname + '/../app'
+APP_FOLDER = __dirname + '/../app/app'
 MIME_TYPES =
   'html': 'text/html'
   'css': 'text/css'
@@ -37,8 +38,7 @@ class Server
         @[method] = (req, res) =>
           req.setEncoding('utf8')
           data = ''
-          req.on 'data', (chunk) ->
-            data += chunk
+          req.on 'data', (chunk) -> data += chunk
           req.on 'end', =>
             args = JSON.parse data
             @app[method](args...).then (results) ->
@@ -51,8 +51,8 @@ class Server
       res.setHeader 'Access-Control-Allow-Headers', 'X-Requested-With'
 
       uri = url.parse(req.url).pathname
-      
-      # DEFAULT PAGE
+
+      # REDIRECT TO APP
 
       if uri is '/' then uri = '/index.html'
 
@@ -94,7 +94,7 @@ class Server
     # server, so there is no point in resending it.
     if req.headers['if-modified-since']?
 
-      console.log '> got an if-modified-since'
+      log 'got an if-modified-since'
 
       headers =
         'Date': new Date().toGMTString()
@@ -110,10 +110,10 @@ class Server
     # Check if we have the song in cache ...
     fs.exists path, (exists) =>
 
-      console.log path, exists
+      log path, exists
 
       if exists
-        console.log '> Loading from disk'
+        log 'Loading from disk'
 
         # Load file from disk
         fs.readFile path, (err, file) ->
@@ -121,13 +121,13 @@ class Server
           range = req.headers.range
 
           unless range?
-            console.log '> no range'
+            log 'no range'
             res.writeHead 200,
               'Content-Type': 'audio/mpeg'
             res.end(file)
             return
 
-          console.log '> Normal transfer'
+          log 'Normal transfer'
 
           # Get range start and end
           bytes = range.match(/bytes=(\d+)-(\d+)?/)
@@ -180,10 +180,10 @@ class Server
               last = now
 
               # trigger some kind of event
-              console.log now
+              log now
 
           stream.on 'end', ->
-            console.log 'finished'
+            log 'finished'
             file.end()
             res.end()
 

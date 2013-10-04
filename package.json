@@ -1,25 +1,17 @@
 {
   "name": "Groovy",
-  "version": "0.0.1",
-  "description": "A javascript implementation of JGroove and GrooveJaar",
+  "version": "0.1.0",
+  "description": "Interact with GrooveShark",
   "main": "app/index.html",
   "scripts": {
     "test": "mocha tests"
   },
   "dependencies": {
-    
     "coffee-script": "*",
-
-    "jqueryify": "*",
-    "base": "git://github.com/stayradiated/Base.git#master",
-    "ranger": "git://github.com/stayradiated/Ranger.git#master",
-
     "request": "*",
     "when": "*",
     "uuid": "*"
-
   },
-  "repository": "",
   "author": "George Czabania",
   "license": "BSD"
 }

@@ -4,7 +4,7 @@ Base = require 'base'
 class Search extends Base.Controller
 
   elements:
-    '.search': 'input'
+    '.search input': 'input'
 
   events:
     'keydown .search': 'open'
