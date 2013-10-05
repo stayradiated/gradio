@@ -1,7 +1,7 @@
-
-$ = require 'jqueryify'
-Base = require 'base'
-Track = require './track.coffee'
+$        = require 'jqueryify'
+Base     = require 'base'
+Track    = require './track'
+settings = require './settings'
 
 class Player extends Base.Controller
 
@@ -67,8 +67,8 @@ class Player extends Base.Controller
     @context.volume = volume
 
   setSong: (song) =>
-    @nowPlaying.html("#{ song.ArtistName } - #{ song.SongName }")
-    url = "http://#{ global.server}:#{ global.port }/song/#{ song.SongID }.mp3"
+    @trigger 'change', song
+    url = "http://#{ settings.host }:#{ settings.port }/song/#{ song.SongID }.mp3?t=#{ Date.now() }"
     @setSource(url)
 
   setSource: (url) =>

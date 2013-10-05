@@ -1,4 +1,5 @@
-Promise = require 'when'
+Promise  = require 'when'
+settings = require './settings'
 
 METHODS = [
   'getSongInfo',
@@ -30,7 +31,7 @@ class module.exports
 callMethod = (method, args) ->
   $.ajax
     method: 'post'
-    url: "http://#{global.server}:#{global.port}/#{method}"
+    url: "http://#{ settings.host }:#{ settings.port }/#{ method }"
     data: JSON.stringify(args)
     dataType: 'json'
 

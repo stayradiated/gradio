@@ -1,8 +1,8 @@
 (function() {
   var __slice = [].slice,
-    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     __hasProp = {}.hasOwnProperty,
-    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
   (function(files) {
     var cache, module, req;
@@ -38,10 +38,6 @@
         './app.coffee': 1
       }, function(require, module, exports) {
         var app;
-        window.global = {
-          port: 8080,
-          server: 'localhost'
-        };
         app = require('./app.coffee');
         return $(function() {
           return app.init();
@@ -53,41 +49,47 @@
         'ranger': 26,
         'jqueryify': 57,
         './client': 58,
-        './player': 60,
-        './search': 62
+        './player': 61,
+        './search': 63,
+        './bar': 64
       }, function(require, module, exports) {
-        var $, Base, Client, Player, Ranger, Search;
+        var $, Bar, Base, Client, Player, Ranger, Search;
         Base = require('base');
         Ranger = require('ranger');
         $ = require('jqueryify');
         Client = require('./client');
         Player = require('./player');
         Search = require('./search');
+        Bar = require('./bar');
         return module.exports.init = function() {
-          var app, focus, openItem, player, ranger, search;
-          global.app = app = new Client();
+          var app, bar, focus, openItem, parseOffline, player, ranger, search;
+          app = app = new Client();
+          bar = new Bar({
+            el: $('.bar')
+          });
           search = new Search({
             el: $('header.panel')
           });
           player = new Player({
             el: $('section.controls')
           });
-          global.ranger = ranger = new Ranger({
+          ranger = ranger = new Ranger({
             el: $('section.columns')
+          });
+          player.on('change', function(song) {
+            return bar.setSong(song);
           });
           search.on('playlist', function(id) {
             return app.getPlaylistSongs(id).then(function(response) {
-              console.log(response);
               return ranger.loadRaw(response.Songs, [['Artist', 'ArtistName'], ['Songs', 'Name']]);
             });
           });
           search.on('search', function(query) {
             return app.getSearchResults(query, 'Songs').then(function(response) {
-              console.log(response);
               return ranger.loadRaw(response.result, [['Artist', 'ArtistName'], ['Songs', 'SongName']]);
             });
           });
-          global.parseOffline = function() {
+          parseOffline = function() {
             var fs, songIDs;
             fs = require('fs');
             songIDs = [];
@@ -145,6 +147,9 @@
               e.preventDefault();
               return false;
             }
+          });
+          $('.decorations').on('click', function() {
+            return openItem();
           });
           focus = false;
           return $('input').each(function() {
@@ -17830,10 +17835,12 @@
       }
     ], [
       {
-        'when': 59
+        'when': 59,
+        './settings': 60
       }, function(require, module, exports) {
-        var METHODS, Promise, callMethod, method, _i, _len, _results;
+        var METHODS, Promise, callMethod, method, settings, _i, _len, _results;
         Promise = require('when');
+        settings = require('./settings');
         METHODS = ['getSongInfo', 'getSearchResults', 'getArtistsSongs', 'getAlbumSongs', 'getPlaylistSongs', 'albumGetAllSongs', 'userGetSongsInLibrary', 'getFavorites', 'getPopularSongs', 'markSongAsDownloaded', 'markStreamKeyOver30Seconds', 'markSongComplete', 'authenticateUser', 'logoutUser', 'initiateQueue', 'createPlaylist', 'playlistAddSongToExisting', 'userAddSongsToLibrary', 'favorite', 'userGetPlaylists', 'getSongUrl', 'getSongStream'];
         module.exports = (function() {
           function exports() {}
@@ -17844,7 +17851,7 @@
         callMethod = function(method, args) {
           return $.ajax({
             method: 'post',
-            url: "http://" + global.server + ":" + global.port + "/" + method,
+            url: "http://" + settings.host + ":" + settings.port + "/" + method,
             data: JSON.stringify(args),
             dataType: 'json'
           });
@@ -18690,14 +18697,40 @@
       }
     ], [
       {
+        'base': 2
+      }, function(require, module, exports) {
+        var Base, Settings, _ref;
+        Base = require('base');
+        Settings = (function(_super) {
+          __extends(Settings, _super);
+
+          function Settings() {
+            _ref = Settings.__super__.constructor.apply(this, arguments);
+            return _ref;
+          }
+
+          Settings.prototype.defaults = {
+            'port': 8080,
+            'host': '192.168.0.100'
+          };
+
+          return Settings;
+
+        })(Base.Model);
+        return module.exports = new Settings();
+      }
+    ], [
+      {
         'jqueryify': 57,
         'base': 2,
-        './track.coffee': 61
+        './track': 62,
+        './settings': 60
       }, function(require, module, exports) {
-        var $, Base, Player, Track;
+        var $, Base, Player, Track, settings;
         $ = require('jqueryify');
         Base = require('base');
-        Track = require('./track.coffee');
+        Track = require('./track');
+        settings = require('./settings');
         Player = (function(_super) {
           __extends(Player, _super);
 
@@ -18789,8 +18822,8 @@
 
           Player.prototype.setSong = function(song) {
             var url;
-            this.nowPlaying.html("" + song.ArtistName + " - " + song.SongName);
-            url = "http://" + global.server + ":" + global.port + "/song/" + song.SongID + ".mp3";
+            this.trigger('change', song);
+            url = "http://" + settings.host + ":" + settings.port + "/song/" + song.SongID + ".mp3?t=" + (Date.now());
             return this.setSource(url);
           };
 
@@ -18878,6 +18911,34 @@
 
         })(Base.Controller);
         return module.exports = Search;
+      }
+    ], [
+      {
+        'base': 2
+      }, function(require, module, exports) {
+        var Bar, Base;
+        Base = require('base');
+        Bar = (function(_super) {
+          __extends(Bar, _super);
+
+          Bar.prototype.elements = {
+            '.now-playing .artist': 'nowPlayingArtist',
+            '.now-playing .song': 'nowPlayingSong'
+          };
+
+          function Bar() {
+            Bar.__super__.constructor.apply(this, arguments);
+          }
+
+          Bar.prototype.setSong = function(song) {
+            this.nowPlayingArtist.text(song.ArtistName);
+            return this.nowPlayingSong.text(song.SongName);
+          };
+
+          return Bar;
+
+        })(Base.Controller);
+        return module.exports = Bar;
       }
     ]
   ]);

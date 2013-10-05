@@ -5,10 +5,14 @@ $      = require 'jqueryify'
 Client = require './client'
 Player = require './player'
 Search = require './search'
+Bar    = require './bar'
 
 module.exports.init = ->
 
-  global.app = app = new Client()
+  app = app = new Client()
+
+  bar = new Bar
+    el: $('.bar')
 
   search = new Search
     el: $('header.panel')
@@ -16,12 +20,14 @@ module.exports.init = ->
   player = new Player
     el: $('section.controls')
 
-  global.ranger = ranger = new Ranger
+  ranger = ranger = new Ranger
     el: $('section.columns')
+
+  player.on 'change', (song) ->
+    bar.setSong(song)
 
   search.on 'playlist', (id) ->
     app.getPlaylistSongs(id).then (response) ->
-      console.log response
       ranger.loadRaw response.Songs, [
         ['Artist', 'ArtistName']
         ['Songs', 'Name']
@@ -29,14 +35,13 @@ module.exports.init = ->
 
   search.on 'search', (query) ->
     app.getSearchResults(query, 'Songs').then (response) ->
-      console.log response
       ranger.loadRaw response.result, [
         ['Artist', 'ArtistName']
         ['Songs', 'SongName']
       ]
 
   # Load offline files
-  global.parseOffline = ->
+  parseOffline = ->
     fs = require('fs')
     songIDs = []
     fs.readdir "#{ __dirname }/../../../cache", (err, files) ->
@@ -73,6 +78,10 @@ module.exports.init = ->
     if 37 <= e.which <= 40
       e.preventDefault()
       return false
+
+  $('.decorations').on('click', ->
+    openItem()
+  )
 
   # Track input focus - for keyboard shortcuts
   focus = false

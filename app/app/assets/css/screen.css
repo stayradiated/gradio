@@ -67,6 +67,7 @@ p, li, div {
   cursor: default; }
 
 header.panel {
+  position: relative;
   padding: 0 20px; }
   header.panel .decorations {
     float: left;
@@ -91,30 +92,29 @@ header.panel {
       margin-top: 0px;
       margin-left: 0px;
       margin-right: 6px; }
-  header.panel button {
-    float: left;
-    display: block;
-    background: #3a89c9;
-    color: white;
-    padding: 0 20px;
-    line-height: 32px;
-    margin-top: 13px;
-    border: 0;
-    border-radius: 4px 0 0 4px;
-    -webkit-transition: background 0.3s;
-    -moz-transition: background 0.3s;
-    -o-transition: background 0.3s;
-    transition: background 0.3s; }
-    header.panel button:hover {
-      background: #62a1d4; }
   header.panel .search {
     margin: 0 auto;
-    width: 328px; }
+    width: 400px; }
   header.panel .dropdown {
-    float: left;
-    margin-right: -1px; }
+    float: left; }
     header.panel .dropdown button {
-      outline: none; }
+      outline: none;
+      width: 100px;
+      float: left;
+      display: block;
+      background: #3a89c9;
+      color: white;
+      padding: 0 20px;
+      line-height: 32px;
+      margin-top: 13px;
+      border: 0;
+      border-radius: 4px 0 0 4px;
+      -webkit-transition: background 0.3s;
+      -moz-transition: background 0.3s;
+      -o-transition: background 0.3s;
+      transition: background 0.3s; }
+      header.panel .dropdown button:hover {
+        background: #62a1d4; }
     header.panel .dropdown ul {
       display: none; }
     header.panel .dropdown li {
@@ -122,7 +122,7 @@ header.panel {
       line-height: 16px; }
   header.panel .search input {
     float: right;
-    width: 250px;
+    width: calc(100% - 100px);
     line-height: 16px;
     height: 32px;
     padding: 0 10px;
@@ -139,6 +139,14 @@ header.panel {
     header.panel .search input:focus {
       background: white;
       color: #1b325f; }
+  header.panel .open-settings {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    bottom: auto;
+    left: auto;
+    border: 0;
+    background: orange; }
 
 .bar {
   background: #f0f6fb;
