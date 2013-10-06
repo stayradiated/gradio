@@ -84,8 +84,9 @@
               return ranger.loadRaw(response.Songs, [['Artist', 'ArtistName'], ['Songs', 'Name']]);
             });
           });
-          search.on('search', function(query) {
-            return app.getSearchResults(query, 'Songs').then(function(response) {
+          search.on('search', function(query, type) {
+            return app.getSearchResults(query, type).then(function(response) {
+              console.log(response);
               return ranger.loadRaw(response.result, [['Artist', 'ArtistName'], ['Songs', 'SongName']]);
             });
           });
@@ -684,11 +685,11 @@
       /**
        * Swig version number as a string.
        * @example
-       * if (swig.version === "1.0.0") { ... }
+       * if (swig.version === "1.1.0") { ... }
        *
        * @type {String}
        */
-      exports.version = "1.0.0";
+      exports.version = "1.1.0";
       
       /**
        * Swig Options Object. This object can be passed to many of the API-level Swig methods to control various aspects of the engine. All keys are optional.
@@ -1908,6 +1909,32 @@
         dateFormatter = require('./dateformatter');
       
       /**
+       * Helper method to recursively run a filter across an object/array and apply it to all of the object/array's values.
+       * @param  {*} input
+       * @return {*}
+       * @private
+       */
+      function iterateFilter(input) {
+        var self = this,
+          out = {};
+      
+        if (utils.isArray(input)) {
+          return utils.map(input, function (value) {
+            return self.apply(null, arguments);
+          });
+        }
+      
+        if (typeof input === 'object') {
+          utils.each(input, function (value, key) {
+            out[key] = self.apply(null, arguments);
+          });
+          return out;
+        }
+      
+        return;
+      }
+      
+      /**
        * Backslash-escape characters that need to be escaped.
        *
        * @example
@@ -1918,12 +1945,11 @@
        * @return {*}        Backslash-escaped string.
        */
       exports.addslashes = function (input) {
-        if (typeof input === 'object') {
-          utils.each(input, function (value, key) {
-            input[key] = exports.addslashes(value);
-          });
-          return input;
+        var out = iterateFilter.apply(exports.addslashes, arguments);
+        if (out !== undefined) {
+          return out;
         }
+      
         return input.replace(/\\/g, '\\\\').replace(/\'/g, "\\'").replace(/\"/g, '\\"');
       };
       
@@ -1938,12 +1964,11 @@
        * @return {*}        Returns the same type as the input.
        */
       exports.capitalize = function (input) {
-        if (typeof input === 'object') {
-          utils.each(input, function (value, key) {
-            input[key] = exports.capitalize(value);
-          });
-          return input;
+        var out = iterateFilter.apply(exports.capitalize, arguments);
+        if (out !== undefined) {
+          return out;
         }
+      
         return input.toString().charAt(0).toUpperCase() + input.toString().substr(1).toLowerCase();
       };
       
@@ -2018,32 +2043,32 @@
        * @return {string}         Escaped string.
        */
       exports.escape = function (input, type) {
-        if (typeof input === 'object') {
-          utils.each(input, function (value, key) {
-            input[key] = exports.escape(value);
-          });
-          return input;
+        var out = iterateFilter.apply(exports.escape, arguments),
+          inp = input,
+          i = 0,
+          code;
+      
+        if (out !== undefined) {
+          return out;
         }
       
         if (typeof input !== 'string') {
           return input;
         }
       
-        var i = 0,
-          out = '',
-          code;
+        out = '';
       
         switch (type) {
         case 'js':
-          input = input.replace(/\\/g, '\\u005C');
-          for (i; i < input.length; i += 1) {
-            code = input.charCodeAt(i);
+          inp = inp.replace(/\\/g, '\\u005C');
+          for (i; i < inp.length; i += 1) {
+            code = inp.charCodeAt(i);
             if (code < 32) {
               code = code.toString(16).toUpperCase();
               code = (code.length < 2) ? '0' + code : code;
               out += '\\u00' + code;
             } else {
-              out += input[i];
+              out += inp[i];
             }
           }
           return out.replace(/&/g, '\\u0026')
@@ -2056,7 +2081,7 @@
             .replace(/;/g, '\\u003B');
       
         default:
-          return input.replace(/&(?!amp;|lt;|gt;|quot;|#39;)/g, '&amp;')
+          return inp.replace(/&(?!amp;|lt;|gt;|quot;|#39;)/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
@@ -2197,12 +2222,11 @@
        * @return {*}          Returns the same type as the input.
        */
       exports.lower = function (input) {
-        if (typeof input === 'object') {
-          utils.each(input, function (value, key) {
-            input[key] = exports.lower(value);
-          });
-          return input;
+        var out = iterateFilter.apply(exports.lower, arguments);
+        if (out !== undefined) {
+          return out;
         }
+      
         return input.toString().toLowerCase();
       };
       
@@ -2336,12 +2360,11 @@
        * @return {*}        Returns the same object as the input, but with all string values stripped of tags.
        */
       exports.striptags = function (input) {
-        if (typeof input === 'object') {
-          utils.each(input, function (value, key) {
-            input[key] = exports.striptags(value);
-          });
-          return input;
+        var out = iterateFilter.apply(exports.striptags, arguments);
+        if (out !== undefined) {
+          return out;
         }
+      
         return input.toString().replace(/(<([^>]+)>)/ig, '');
       };
       
@@ -2362,12 +2385,11 @@
        * @return {*}        Returns the same object as the input, but with all words in strings title-cased.
        */
       exports.title = function (input) {
-        if (typeof input === 'object') {
-          utils.each(input, function (value, key) {
-            input[key] = exports.title(value);
-          });
-          return input;
+        var out = iterateFilter.apply(exports.title, arguments);
+        if (out !== undefined) {
+          return out;
         }
+      
         return input.toString().replace(/\w\S*/g, function (str) {
           return str.charAt(0).toUpperCase() + str.substr(1).toLowerCase();
         });
@@ -2417,12 +2439,11 @@
        * @return {*}        Returns the same type as the input, with all strings upper-cased.
        */
       exports.upper = function (input) {
-        if (typeof input === 'object') {
-          utils.each(input, function (value, key) {
-            input[key] = exports.upper(value);
-          });
-          return input;
+        var out = iterateFilter.apply(exports.upper, arguments);
+        if (out !== undefined) {
+          return out;
         }
+      
         return input.toString().toUpperCase();
       };
       
@@ -2438,11 +2459,9 @@
        * @return {*}       URL-encoded string.
        */
       exports.url_encode = function (input) {
-        if (typeof input === 'object') {
-          utils.each(input, function (value, key) {
-            input[key] = exports.url_encode(value);
-          });
-          return input;
+        var out = iterateFilter.apply(exports.url_encode, arguments);
+        if (out !== undefined) {
+          return out;
         }
         return encodeURIComponent(input);
       };
@@ -2459,11 +2478,9 @@
        * @return {*}       URL-decoded string.
        */
       exports.url_decode = function (input) {
-        if (typeof input === 'object') {
-          utils.each(input, function (value, key) {
-            input[key] = exports.url_decode(value);
-          });
-          return input;
+        var out = iterateFilter.apply(exports.url_decode, arguments);
+        if (out !== undefined) {
+          return out;
         }
         return decodeURIComponent(input);
       };
@@ -3149,6 +3166,24 @@
             }
             self.out.push(', ');
             self.filterApplyIdx.pop();
+            break;
+      
+          case _t.LOGIC:
+          case _t.COMPARATOR:
+            if (!prevToken ||
+                prevToken.type === _t.COMMA ||
+                prevToken.type === token.type ||
+                prevToken.type === _t.BRACKETOPEN ||
+                prevToken.type === _t.CURLYOPEN ||
+                prevToken.type === _t.PARENOPEN ||
+                prevToken.type === _t.FUNCTION) {
+              utils.throwError('Unexpected logic', self.line, self.filename);
+            }
+            self.out.push(token.match);
+            break;
+      
+          case _t.NOT:
+            self.out.push(token.match);
             break;
       
           case _t.VAR:
@@ -4259,7 +4294,7 @@
       exports.compile = function (compiler, args, content, parents, options, blockName) {
         function stripWhitespace(tokens) {
           return utils.map(tokens, function (token) {
-            if (token.content) {
+            if (token.content || typeof token !== 'string') {
               token.content = stripWhitespace(token.content);
               return token;
             }
@@ -4294,101 +4329,113 @@
         '../models/pane': 55,
         '../models/item': 56
       }, function(require, module, exports) {
-        // Generated by CoffeeScript 1.6.3
-      (function() {
+        (function() {
+      
         var Base, Item, Items, Pane, Panes, Ranger, template, vent,
-          __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
-          __hasProp = {}.hasOwnProperty,
-          __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+          bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
       
         Base = require('base');
       
+        // Global event passer
         vent = new Base.Event();
       
+        // Templates
         template = {
           pane: require('../views/pane'),
           item: require('../views/item')
         };
       
+        // Controllers and Models
         Panes = require('../controllers/panes')(vent, template.pane);
-      
         Items = require('../controllers/items')(vent, template.item);
-      
         Pane = require('../models/pane');
-      
         Item = require('../models/item');
       
-        Ranger = (function(_super) {
-          __extends(Ranger, _super);
+        Ranger = Base.Controller.extend({
       
-          function Ranger() {
-            this.open = __bind(this.open, this);
-            this.left = __bind(this.left, this);
-            this.right = __bind(this.right, this);
-            this.down = __bind(this.down, this);
-            this.up = __bind(this.up, this);
-            this.selectFirst = __bind(this.selectFirst, this);
-            this.loadRaw = __bind(this.loadRaw, this);
-            this.remove = __bind(this.remove, this);
-            this.addOne = __bind(this.addOne, this);
-            this.recheck = __bind(this.recheck, this);
-            this.selectItem = __bind(this.selectItem, this);
-            this.selectPane = __bind(this.selectPane, this);
+          constructor: function() {
+      
+            this.open        = bind(this.open, this);
+            this.left        = bind(this.left, this);
+            this.right       = bind(this.right, this);
+            this.down        = bind(this.down, this);
+            this.up          = bind(this.up, this);
+            this.selectFirst = bind(this.selectFirst, this);
+            this.loadRaw     = bind(this.loadRaw, this);
+            this.remove      = bind(this.remove, this);
+            this.addOne      = bind(this.addOne, this);
+            this.recheck     = bind(this.recheck, this);
+            this.selectItem  = bind(this.selectItem, this);
+            this.selectPane  = bind(this.selectPane, this);
             Ranger.__super__.constructor.apply(this, arguments);
+      
             this.current = {
               pane: null,
               item: null
             };
+      
             this.panes = new Pane();
             this.panes.on('create:model show', this.addOne);
             this.panes.on('before:destroy:model', this.remove);
+      
             vent.on('select:item', this.selectItem);
             vent.on('select:pane', this.selectPane);
-          }
       
-          Ranger.prototype.selectPane = function(pane) {
+          },
+      
+          // Select a pane
+          selectPane: function(pane) {
             this.current.pane = pane;
-            return this.el.find('.active.pane').removeClass('active');
-          };
+            this.el.find('.active.pane').removeClass('active');
+          },
       
-          Ranger.prototype.selectItem = function(item, pane) {
+          // Select an item
+          selectItem: function(item, pane) {
             this.current.item = item;
             this.recheck(pane);
             if (!item.child) {
               return;
             }
-            return this.panes.trigger('show', item.child);
-          };
+            this.panes.trigger('show', item.child);
+          },
       
-          Ranger.prototype.recheck = function(pane) {
+          // Remove panes that aren't displayed
+          recheck: function(pane) {
             var _this = this;
             return pane.contents.forEach(function(item) {
               if (!item.child) {
                 return;
               }
               item.child.trigger('remove');
-              return _this.recheck(item.child);
+              _this.recheck(item.child);
             });
-          };
+          },
       
-          Ranger.prototype.addOne = function(pane) {
+          // Render a pane
+          addOne: function(pane) {
             var view;
             view = new Panes({
               pane: pane
             });
-            return this.el.append(view.render().el);
-          };
+            this.el.append(view.render().el);
+          },
       
-          Ranger.prototype.remove = function(pane) {
+          // Destroying the view of a pane when the model is destroyed
+          // Also destroy all child views
+          remove: function(pane) {
             pane.trigger('remove');
-            return this.recheck(pane);
-          };
+            this.recheck(pane);
+          },
       
-          Ranger.prototype.loadRaw = function(array, panes) {
+          // Load an array of objects
+          loadRaw: function(array, panes) {
             var i, id, item, key, length, main, map, out, title, x, _base, _i, _j, _len, _len1, _ref;
+      
+            // You can only have one top level pane at a time
             if (this.panes.length > 0) {
               this.panes.get(0).destroy();
             }
+      
             map = {};
             main = {};
             length = panes.length - 1;
@@ -4397,77 +4444,84 @@
               out = main;
               x = '';
               for (i = _j = 0, _len1 = panes.length; _j < _len1; i = ++_j) {
-                _ref = panes[i], title = _ref[0], key = _ref[1];
+                _ref = panes[i]; title = _ref[0]; key = _ref[1];
                 x += title + ':' + item[key] + ':';
                 out.title = title;
-                if (out.contents == null) {
-                  out.contents = [];
-                }
-                if (map[x] === void 0) {
+                if (out.contents === undefined) { out.contents = []; }
+                if (map[x] === undefined) {
                   id = out.contents.push({
                     title: item[key]
                   }) - 1;
                   map[x] = out.contents[id];
                 }
                 if (i !== length) {
-                  out = (_base = map[x]).child != null ? (_base = map[x]).child : _base.child = {};
+                  out = (_base = map[x]).child !== undefined ? (_base = map[x]).child : _base.child = {};
                 } else {
                   map[x].data = item;
                 }
               }
             }
-            return this.panes.create(main);
-          };
+            this.panes.create(main);
+          },
       
-          Ranger.prototype.selectFirst = function() {
+          // Select the first item in the first pane
+          selectFirst: function() {
             var item, pane;
             pane = this.panes.first();
             item = pane.contents.first();
-            return pane.contents.trigger('click:item', item);
-          };
+            pane.contents.trigger('click:item', item);
+          },
       
-          Ranger.prototype.up = function() {
+          // Move up
+          up: function() {
             if (!this.current.pane) {
               return this.selectFirst();
             }
-            return this.current.pane.trigger('move:up');
-          };
+            this.current.pane.trigger('move:up');
+          },
       
-          Ranger.prototype.down = function() {
+          // Move down
+          down: function() {
             if (!this.current.pane) {
               return this.selectFirst();
             }
-            return this.current.pane.trigger('move:down');
-          };
+            this.current.pane.trigger('move:down');
+          },
       
-          Ranger.prototype.right = function() {
+          // Move right
+          right: function() {
             if (!this.current.pane) {
               return;
             }
-            return this.current.pane.trigger('move:right');
-          };
+            this.current.pane.trigger('move:right');
+          },
       
-          Ranger.prototype.left = function() {
+          // Move left
+          left: function() {
             var item, pane, _ref;
-            if (!((_ref = this.current.pane) != null ? _ref.parent : void 0)) {
+            if (!((_ref = this.current.pane) !== undefined ? _ref.parent : undefined)) {
               return;
             }
             item = this.current.pane.parent;
             pane = item.collection;
-            return pane.trigger('click:item', item);
-          };
+            pane.trigger('click:item', item);
+          },
       
-          Ranger.prototype.open = function() {
+          // Return the selcted item
+          open: function() {
             return this.current.item.data;
-          };
+          }
       
-          return Ranger;
+        });
       
-        })(Base.Controller);
+        // Export global if we are running in a browser
+        if (typeof process === 'undefined' || process.title === 'browser') {
+          window.Ranger = Ranger;
+        }
       
         module.exports = Ranger;
       
-      }).call(this);
+      }());
       ;
       }
     ], [
@@ -8628,34 +8682,30 @@
       {
         'base': 27
       }, function(require, module, exports) {
-        // Generated by CoffeeScript 1.6.3
-      (function() {
-        var Base, template;
+        (function () {
       
+        var Base, template;
         Base = require('base');
       
         template = "<div class=\"title\">{{ title }}</div>\n<div class=\"items\"></div>";
-      
         module.exports = new Base.View(template, true);
       
-      }).call(this);
+      }());
       ;
       }
     ], [
       {
         'base': 27
       }, function(require, module, exports) {
-        // Generated by CoffeeScript 1.6.3
-      (function() {
-        var Base, template;
+        (function () {
       
-        Base = require('base');
+        var Base, template;
+        Base = window.Base = require('base');
       
         template = "{{ title }}";
-      
         module.exports = new Base.View(template, true);
       
-      }).call(this);
+      }());
       ;
       }
     ], [
@@ -8663,231 +8713,225 @@
         'base': 27,
         '../controllers/items': 54
       }, function(require, module, exports) {
-        // Generated by CoffeeScript 1.6.3
-      (function() {
-        var Base, Items, Panes, template, vent,
-          __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
-          __hasProp = {}.hasOwnProperty,
-          __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+        (function () {
+      
+        var Base, Items, Panes, template, vent, SCROLL_OFFSET, SCROLL_HEIGHT,
+          bind = function (fn, me){ return function (){ return fn.apply(me, arguments); }; };
       
         Base = require('base');
-      
         Items = require('../controllers/items')();
       
-        vent = null;
+        // Constants
+        SCROLL_OFFSET = 20;
+        SCROLL_HEIGHT = 50;
       
-        template = null;
-      
-        module.exports = function(vnt, tmpl) {
-          if (vent == null) {
-            vent = vnt;
-          }
-          if (template == null) {
-            template = tmpl;
-          }
+        // Set globals
+        module.exports = function (vnt, tmpl) {
+          if (vent === undefined) { vent = vnt; }
+          if (template === undefined) { template = tmpl; }
           return Panes;
         };
       
-        Panes = (function(_super) {
-          __extends(Panes, _super);
+        Panes = Base.Controller.extend({
       
-          Panes.prototype.tagName = 'section';
+          tagName: 'section',
+          className: 'pane',
       
-          Panes.prototype.className = 'pane';
+          constructor: function () {
       
-          function Panes() {
-            this.right = __bind(this.right, this);
-            this.down = __bind(this.down, this);
-            this.up = __bind(this.up, this);
-            this.move = __bind(this.move, this);
-            this.addOne = __bind(this.addOne, this);
-            this.render = __bind(this.render, this);
-            this.select = __bind(this.select, this);
-            this.updateScrollbar = __bind(this.updateScrollbar, this);
-            this.remove = __bind(this.remove, this);
+            this.right           = bind(this.right, this);
+            this.down            = bind(this.down, this);
+            this.up              = bind(this.up, this);
+            this.move            = bind(this.move, this);
+            this.addOne          = bind(this.addOne, this);
+            this.render          = bind(this.render, this);
+            this.select          = bind(this.select, this);
+            this.updateScrollbar = bind(this.updateScrollbar, this);
+            this.remove          = bind(this.remove, this);
             Panes.__super__.constructor.apply(this, arguments);
+      
             this.el = $("<" + this.tagName + " class=\"" + this.className + "\">");
             this.active = null;
+      
             this.listen(this.pane, {
               'remove': this.remove,
               'move:up': this.up,
               'move:down': this.down,
               'move:right': this.right
             });
+      
             this.listen(this.pane.contents, {
               'click:item': this.select
             });
-          }
       
-          Panes.prototype.remove = function() {
+          },
+      
+          remove: function () {
             this.pane.contents.trigger('remove');
             this.unbind();
             this.el.remove();
             delete this.el;
             delete this.items;
-            return this.unlisten();
-          };
+            this.unlisten();
+          },
       
-          Panes.prototype.updateScrollbar = function() {
-            var item, offset, parent, pos, scroll;
-            item = this.el.find('.active').get(0);
+          updateScrollbar: function () {
+            var item, offset, parent, height, pos, scroll;
+            item   = this.el.find('.active').get(0);
             parent = this.items.get(0);
-            pos = item.offsetTop;
+            height = parent.offsetHeight;
+            pos    = item.offsetTop;
             scroll = parent.scrollTop;
-            offset = 200;
-            return parent.scrollTop = pos - offset;
-          };
+            if (pos - scroll < SCROLL_OFFSET) {
+              parent.scrollTop = pos - SCROLL_OFFSET;
+            } else if (pos + SCROLL_HEIGHT > scroll + height - SCROLL_OFFSET) {
+              parent.scrollTop = pos - height + SCROLL_HEIGHT + SCROLL_OFFSET;
+            }
+          },
       
-          Panes.prototype.select = function(item) {
+          select: function (item) {
             vent.trigger('select:pane', this.pane);
             this.active = this.pane.contents.indexOf(item);
             this.el.addClass('active');
             this.el.find('.active').removeClass('active');
             item.trigger('select');
             vent.trigger('select:item', item, this.pane);
-            return this.updateScrollbar();
-          };
+            this.updateScrollbar();
+          },
       
-          Panes.prototype.render = function() {
+          render: function () {
             this.el.html(template.render(this.pane.toJSON()));
             this.items = this.el.find('.items');
             this.pane.contents.forEach(this.addOne);
             return this;
-          };
+          },
       
-          Panes.prototype.addOne = function(item) {
+          addOne: function (item) {
             var itemView;
             itemView = new Items({
               item: item
             });
-            return this.items.append(itemView.render().el);
-          };
+            this.items.append(itemView.render().el);
+          },
       
-          Panes.prototype.move = function(direction) {
+          move: function (direction) {
             var active, contents, item, max;
             active = this.active;
             contents = this.pane.contents;
             active += direction;
             max = contents.length - 1;
+      
             if (active < 0) {
               active = 0;
             } else if (active > max) {
               active = max;
             }
-            if (active === this.active) {
-              return;
-            }
+      
+            if (active === this.active) { return; }
+      
             this.active = active;
             item = contents.get(this.active);
-            return this.select(item);
-          };
+            this.select(item);
+          },
       
-          Panes.prototype.up = function() {
-            return this.move(-1);
-          };
+          up: function () {
+            this.move(-1);
+          },
       
-          Panes.prototype.down = function() {
-            return this.move(1);
-          };
+          down: function () {
+            this.move(1);
+          },
       
-          Panes.prototype.right = function() {
+          right: function () {
             var child, current, item;
             current = this.pane.contents.get(this.active);
-            if (!current.child) {
-              return;
-            }
+            if (!current.child) { return; }
             child = current.child.contents;
             item = child.get(0);
-            return child.trigger('click:item', item);
-          };
+            child.trigger('click:item', item);
+          }
       
-          return Panes;
+        });
       
-        })(Base.Controller);
-      
-      }).call(this);
+      }());
       ;
       }
     ], [
       {
         'base': 27
       }, function(require, module, exports) {
-        // Generated by CoffeeScript 1.6.3
-      (function() {
+        (function () {
+      
         var Base, Items, template, vent,
-          __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
-          __hasProp = {}.hasOwnProperty,
-          __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+          bind = function (fn, me){ return function (){ return fn.apply(me, arguments); }; };
       
         Base = require('base');
       
-        vent = null;
-      
-        template = null;
-      
-        module.exports = function(vnt, tmpl) {
-          if (vent == null) {
-            vent = vnt;
-          }
-          if (template == null) {
-            template = tmpl;
-          }
+        // Set globals
+        module.exports = function (vnt, tmpl) {
+          if (vent === undefined) { vent = vnt; }
+          if (template === undefined) { template = tmpl; }
+          window.TEMPLATE = template;
           return Items;
         };
       
-        Items = (function(_super) {
-          __extends(Items, _super);
+        Items = Base.Controller.extend({
       
-          Items.prototype.tagName = 'div';
+          tagName: 'div',
+          className: 'item',
       
-          Items.prototype.className = 'item';
-      
-          Items.prototype.events = {
+          events: {
             'mousedown': 'click'
-          };
+          },
       
-          function Items() {
-            this.select = __bind(this.select, this);
-            this.click = __bind(this.click, this);
-            this.remove = __bind(this.remove, this);
-            this.render = __bind(this.render, this);
+          constructor: function () {
+      
+            this.select = bind(this.select, this);
+            this.click  = bind(this.click, this);
+            this.remove = bind(this.remove, this);
+            this.render = bind(this.render, this);
             Items.__super__.constructor.apply(this, arguments);
+      
             this.el = $("<" + this.tagName + " class=\"" + this.className + "\">");
             this.bind();
+      
             this.listen(this.item, {
               'select': this.select
             });
+      
             this.listen(this.item.collection, {
               'remove': this.remove
             });
-            this.el.toggleClass('hasChild', !!this.item.child);
-          }
       
-          Items.prototype.render = function() {
+            this.el.toggleClass('hasChild', !!this.item.child);
+      
+          },
+      
+          render: function () {
             this.el.html(template.render(this.item.toJSON()));
             return this;
-          };
+          },
       
-          Items.prototype.remove = function() {
+          remove: function () {
             this.unbind();
             this.el.remove();
             delete this.el;
-            return this.unlisten();
-          };
+            this.unlisten();
+          },
       
-          Items.prototype.click = function() {
-            return this.item.collection.trigger('click:item', this.item);
-          };
+          // Sending message to pane view
+          click: function () {
+            this.item.collection.trigger('click:item', this.item);
+          },
       
-          Items.prototype.select = function() {
-            return this.el.addClass('active');
-          };
+          // Receiving message from pane view
+          select: function () {
+            this.el.addClass('active');
+          }
       
-          return Items;
+        });
       
-        })(Base.Controller);
-      
-      }).call(this);
+      }());
       ;
       }
     ], [
@@ -8895,51 +8939,42 @@
         'base': 27,
         '../models/item': 56
       }, function(require, module, exports) {
-        // Generated by CoffeeScript 1.6.3
-      (function() {
-        var Base, Item, Pane, Panes, _ref,
-          __hasProp = {}.hasOwnProperty,
-          __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+        (function () {
+      
+        var Base, Item, Pane, Panes, _ref;
       
         Base = require('base');
-      
         Item = require('../models/item');
       
-        Pane = (function(_super) {
-          __extends(Pane, _super);
+        Pane = Base.Model.extend({
       
-          Pane.prototype.defaults = {
+          defaults: {
             title: '',
             contents: []
-          };
+          },
       
-          function Pane(attrs) {
+         constructor: function (attrs) {
             Pane.__super__.constructor.apply(this, arguments);
             this.contents = new Item();
             this.contents.refresh(attrs.contents, true);
           }
       
-          return Pane;
+        });
       
-        })(Base.Model);
+        Panes = Base.Collection.extend({
       
-        Panes = (function(_super) {
-          __extends(Panes, _super);
-      
-          function Panes() {
+          constructor: function () {
             _ref = Panes.__super__.constructor.apply(this, arguments);
             return _ref;
-          }
+          },
       
-          Panes.prototype.model = Pane;
+          model: Pane
       
-          return Panes;
-      
-        })(Base.Collection);
+        });
       
         module.exports = Panes;
       
-      }).call(this);
+      }());
       ;
       }
     ], [
@@ -8947,27 +8982,25 @@
         'base': 27,
         '../models/pane': 55
       }, function(require, module, exports) {
-        // Generated by CoffeeScript 1.6.3
-      (function() {
-        var Base, Item, Items, _ref,
-          __hasProp = {}.hasOwnProperty,
-          __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+        (function () {
+      
+        var Base, Item, Items, _ref;
       
         Base = require('base');
       
-        Item = (function(_super) {
-          __extends(Item, _super);
+        // Item Model
+        Item = Base.Model.extend({
       
-          Item.prototype.defaults = {
+          defaults: {
             title: '',
             child: false,
             data: false
-          };
+          },
       
-          function Item(attrs) {
+          constructor: function (attrs) {
             var Pane;
             Item.__super__.constructor.apply(this, arguments);
-            if (attrs.child == null) {
+            if (attrs.child === undefined) {
               return;
             }
             Pane = require('../models/pane').prototype.model;
@@ -8975,27 +9008,24 @@
             this.child.parent = this;
           }
       
-          return Item;
+        });
       
-        })(Base.Model);
       
-        Items = (function(_super) {
-          __extends(Items, _super);
+        // Item Collection
+        Items = Base.Collection.extend({
       
-          function Items() {
+          constructor: function () {
             _ref = Items.__super__.constructor.apply(this, arguments);
             return _ref;
-          }
+          },
       
-          Items.prototype.model = Item;
+          model: Item
       
-          return Items;
-      
-        })(Base.Collection);
+        });
       
         module.exports = Items;
       
-      }).call(this);
+      }());
       ;
       }
     ], [
@@ -17882,16 +17912,17 @@
        *
        * @author Brian Cavalier
        * @author John Hann
-       * @version 2.1.0
+       * @version 2.4.0
        */
       (function(define, global) { 'use strict';
-      define(function () {
+      define(function (require) {
       
       	// Public API
       
-      	when.defer     = defer;      // Create a deferred
+      	when.promise   = promise;    // Create a pending promise
       	when.resolve   = resolve;    // Create a resolved promise
       	when.reject    = reject;     // Create a rejected promise
+      	when.defer     = defer;      // Create a {promise, resolver} pair
       
       	when.join      = join;       // Join 2 or more promises
       
@@ -17903,9 +17934,8 @@
       	when.any       = any;        // One-winner race
       	when.some      = some;       // Multi-winner race
       
-      	when.isPromise = isPromise;  // Determine if a thing is a promise
-      
-      	when.promise   = promise;    // EXPERIMENTAL: May change. Use at your own risk
+      	when.isPromise = isPromiseLike;  // DEPRECATED: use isPromiseLike
+      	when.isPromiseLike = isPromiseLike; // Is something promise-like, aka thenable
       
       	/**
       	 * Register an observer for a promise or immediate value.
@@ -17933,14 +17963,35 @@
       	 * a trusted when.js promise.  Any other duck-typed promise is considered
       	 * untrusted.
       	 * @constructor
+      	 * @param {function} sendMessage function to deliver messages to the promise's handler
+      	 * @param {function?} inspect function that reports the promise's state
       	 * @name Promise
       	 */
-      	function Promise(then, inspect) {
-      		this.then = then;
+      	function Promise(sendMessage, inspect) {
+      		this._message = sendMessage;
       		this.inspect = inspect;
       	}
       
       	Promise.prototype = {
+      		/**
+      		 * Register handlers for this promise.
+      		 * @param [onFulfilled] {Function} fulfillment handler
+      		 * @param [onRejected] {Function} rejection handler
+      		 * @param [onProgress] {Function} progress handler
+      		 * @return {Promise} new Promise
+      		 */
+      		then: function(onFulfilled, onRejected, onProgress) {
+      			/*jshint unused:false*/
+      			var args, sendMessage;
+      
+      			args = arguments;
+      			sendMessage = this._message;
+      
+      			return _promise(function(resolve, reject, notify) {
+      				sendMessage('when', args, resolve, notify);
+      			}, this._status && this._status.observed());
+      		},
+      
       		/**
       		 * Register a rejection handler.  Shortcut for .then(undefined, onRejected)
       		 * @param {function?} onRejected
@@ -17961,7 +18012,7 @@
       		 * @returns {Promise}
       		 */
       		ensure: function(onFulfilledOrRejected) {
-      			return this.then(injectHandler, injectHandler).yield(this);
+      			return this.then(injectHandler, injectHandler)['yield'](this);
       
       			function injectHandler() {
       				return resolve(onFulfilledOrRejected());
@@ -17980,6 +18031,16 @@
       			return this.then(function() {
       				return value;
       			});
+      		},
+      
+      		/**
+      		 * Runs a side effect when this promise fulfills, without changing the
+      		 * fulfillment value.
+      		 * @param {function} onFulfilledSideEffect
+      		 * @returns {Promise}
+      		 */
+      		tap: function(onFulfilledSideEffect) {
+      			return this.then(onFulfilledSideEffect)['yield'](this);
       		},
       
       		/**
@@ -18037,10 +18098,10 @@
       	}
       
       	/**
-      	 * Creates a new Deferred with fully isolated resolver and promise parts,
-      	 * either or both of which may be given out safely to consumers.
+      	 * Creates a {promise, resolver} pair, either or both of which
+      	 * may be given out safely to consumers.
       	 * The resolver has resolve, reject, and progress.  The promise
-      	 * only has then.
+      	 * has then plus extended promise API.
       	 *
       	 * @return {{
       	 * promise: Promise,
@@ -18094,12 +18155,26 @@
       
       	/**
       	 * Creates a new promise whose fate is determined by resolver.
-      	 * @private (for now)
       	 * @param {function} resolver function(resolve, reject, notify)
       	 * @returns {Promise} promise whose fate is determine by resolver
       	 */
       	function promise(resolver) {
-      		var value, handlers = [];
+      		return _promise(resolver, monitorApi.PromiseStatus && monitorApi.PromiseStatus());
+      	}
+      
+      	/**
+      	 * Creates a new promise, linked to parent, whose fate is determined
+      	 * by resolver.
+      	 * @param {function} resolver function(resolve, reject, notify)
+      	 * @param {Promise?} status promise from which the new promise is begotten
+      	 * @returns {Promise} promise whose fate is determine by resolver
+      	 * @private
+      	 */
+      	function _promise(resolver, status) {
+      		var self, value, consumers = [];
+      
+      		self = new Promise(_message, inspect);
+      		self._status = status;
       
       		// Call the provider resolver to seal the promise's fate
       		try {
@@ -18109,31 +18184,32 @@
       		}
       
       		// Return the promise
-      		return new Promise(then, inspect);
+      		return self;
       
       		/**
-      		 * Register handlers for this promise.
-      		 * @param [onFulfilled] {Function} fulfillment handler
-      		 * @param [onRejected] {Function} rejection handler
-      		 * @param [onProgress] {Function} progress handler
-      		 * @return {Promise} new Promise
+      		 * Private message delivery. Queues and delivers messages to
+      		 * the promise's ultimate fulfillment value or rejection reason.
+      		 * @private
+      		 * @param {String} type
+      		 * @param {Array} args
+      		 * @param {Function} resolve
+      		 * @param {Function} notify
       		 */
-      		function then(onFulfilled, onRejected, onProgress) {
-      			return promise(function(resolve, reject, notify) {
-      				handlers
-      				// Call handlers later, after resolution
-      				? handlers.push(function(value) {
-      					value.then(onFulfilled, onRejected, onProgress)
-      						.then(resolve, reject, notify);
-      				})
-      				// Call handlers soon, but not in the current stack
-      				: enqueue(function() {
-      					value.then(onFulfilled, onRejected, onProgress)
-      						.then(resolve, reject, notify);
-      				});
-      			});
+      		function _message(type, args, resolve, notify) {
+      			consumers ? consumers.push(deliver) : enqueue(function() { deliver(value); });
+      
+      			function deliver(p) {
+      				p._message(type, args, resolve, notify);
+      			}
       		}
       
+      		/**
+      		 * Returns a snapshot of the promise's state at the instant inspect()
+      		 * is called. The returned object is not live and will not update as
+      		 * the promise's state changes.
+      		 * @returns {{ state:String, value?:*, reason?:* }} status snapshot
+      		 *  of the promise.
+      		 */
       		function inspect() {
       			return value ? value.inspect() : toPendingState();
       		}
@@ -18144,14 +18220,17 @@
       		 * @param {*|Promise} val resolution value
       		 */
       		function promiseResolve(val) {
-      			if(!handlers) {
+      			if(!consumers) {
       				return;
       			}
       
       			value = coerce(val);
-      			scheduleHandlers(handlers, value);
+      			scheduleConsumers(consumers, value);
+      			consumers = undef;
       
-      			handlers = undef;
+      			if(status) {
+      				updateStatus(value, status);
+      			}
       		}
       
       		/**
@@ -18167,10 +18246,71 @@
       		 * @param {*} update progress event payload to pass to all listeners
       		 */
       		function promiseNotify(update) {
-      			if(handlers) {
-      				scheduleHandlers(handlers, progressing(update));
+      			if(consumers) {
+      				scheduleConsumers(consumers, progressed(update));
       			}
       		}
+      	}
+      
+      	/**
+      	 * Creates a fulfilled, local promise as a proxy for a value
+      	 * NOTE: must never be exposed
+      	 * @param {*} value fulfillment value
+      	 * @returns {Promise}
+      	 */
+      	function fulfilled(value) {
+      		return near(
+      			new NearFulfilledProxy(value),
+      			function() { return toFulfilledState(value); }
+      		);
+      	}
+      
+      	/**
+      	 * Creates a rejected, local promise with the supplied reason
+      	 * NOTE: must never be exposed
+      	 * @param {*} reason rejection reason
+      	 * @returns {Promise}
+      	 */
+      	function rejected(reason) {
+      		return near(
+      			new NearRejectedProxy(reason),
+      			function() { return toRejectedState(reason); }
+      		);
+      	}
+      
+      	/**
+      	 * Creates a near promise using the provided proxy
+      	 * NOTE: must never be exposed
+      	 * @param {object} proxy proxy for the promise's ultimate value or reason
+      	 * @param {function} inspect function that returns a snapshot of the
+      	 *  returned near promise's state
+      	 * @returns {Promise}
+      	 */
+      	function near(proxy, inspect) {
+      		return new Promise(function (type, args, resolve) {
+      			try {
+      				resolve(proxy[type].apply(proxy, args));
+      			} catch(e) {
+      				resolve(rejected(e));
+      			}
+      		}, inspect);
+      	}
+      
+      	/**
+      	 * Create a progress promise with the supplied update.
+      	 * @private
+      	 * @param {*} update
+      	 * @return {Promise} progress promise
+      	 */
+      	function progressed(update) {
+      		return new Promise(function (type, args, _, notify) {
+      			var onProgress = args[2];
+      			try {
+      				notify(typeof onProgress === 'function' ? onProgress(update) : update);
+      			} catch(e) {
+      				notify(e);
+      			}
+      		});
       	}
       
       	/**
@@ -18178,14 +18318,14 @@
       	 *
       	 * @private
       	 * @param {*} x thing to coerce
-      	 * @returns {Promise} Guaranteed to return a trusted Promise.  If x
+      	 * @returns {*} Guaranteed to return a trusted Promise.  If x
       	 *   is trusted, returns x, otherwise, returns a new, trusted, already-resolved
       	 *   Promise whose resolution value is:
       	 *   * the resolution value of x if it's a foreign promise, or
       	 *   * x if it's a value
       	 */
       	function coerce(x) {
-      		if(x instanceof Promise) {
+      		if (x instanceof Promise) {
       			return x;
       		}
       
@@ -18216,65 +18356,34 @@
       	}
       
       	/**
-      	 * Create an already-fulfilled promise for the supplied value
-      	 * @private
+      	 * Proxy for a near, fulfilled value
       	 * @param {*} value
-      	 * @return {Promise} fulfilled promise
+      	 * @constructor
       	 */
-      	function fulfilled(value) {
-      		var self = new Promise(function (onFulfilled) {
-      			try {
-      				return typeof onFulfilled == 'function'
-      					? coerce(onFulfilled(value)) : self;
-      			} catch (e) {
-      				return rejected(e);
-      			}
-      		}, function() {
-      			return toFulfilledState(value);
-      		});
-      
-      		return self;
+      	function NearFulfilledProxy(value) {
+      		this.value = value;
       	}
       
+      	NearFulfilledProxy.prototype.when = function(onResult) {
+      		return typeof onResult === 'function' ? onResult(this.value) : this.value;
+      	};
+      
       	/**
-      	 * Create an already-rejected promise with the supplied rejection reason.
-      	 * @private
+      	 * Proxy for a near rejection
       	 * @param {*} reason
-      	 * @return {Promise} rejected promise
+      	 * @constructor
       	 */
-      	function rejected(reason) {
-      		var self = new Promise(function (_, onRejected) {
-      			try {
-      				return typeof onRejected == 'function'
-      					? coerce(onRejected(reason)) : self;
-      			} catch (e) {
-      				return rejected(e);
-      			}
-      		}, function() {
-      			return toRejectedState(reason);
-      		});
-      
-      		return self;
+      	function NearRejectedProxy(reason) {
+      		this.reason = reason;
       	}
       
-      	/**
-      	 * Create a progress promise with the supplied update.
-      	 * @private
-      	 * @param {*} update
-      	 * @return {Promise} progress promise
-      	 */
-      	function progressing(update) {
-      		var self = new Promise(function (_, __, onProgress) {
-      			try {
-      				return typeof onProgress == 'function'
-      					? progressing(onProgress(update)) : self;
-      			} catch (e) {
-      				return progressing(e);
-      			}
-      		});
-      
-      		return self;
-      	}
+      	NearRejectedProxy.prototype.when = function(_, onError) {
+      		if(typeof onError === 'function') {
+      			return onError(this.reason);
+      		} else {
+      			throw this.reason;
+      		}
+      	};
       
       	/**
       	 * Schedule a task that will process a list of handlers
@@ -18283,7 +18392,7 @@
       	 * @param {Array} handlers queue of handlers to execute
       	 * @param {*} value passed as the only arg to each handler
       	 */
-      	function scheduleHandlers(handlers, value) {
+      	function scheduleConsumers(handlers, value) {
       		enqueue(function() {
       			var handler, i = 0;
       			while (handler = handlers[i++]) {
@@ -18292,14 +18401,23 @@
       		});
       	}
       
+      	function updateStatus(value, status) {
+      		value.then(statusFulfilled, statusRejected);
+      
+      		function statusFulfilled() { status.fulfilled(); }
+      		function statusRejected(r) { status.rejected(r); }
+      	}
+      
       	/**
-      	 * Determines if promiseOrValue is a promise or not
-      	 *
-      	 * @param {*} promiseOrValue anything
-      	 * @returns {boolean} true if promiseOrValue is a {@link Promise}
+      	 * Determines if x is promise-like, i.e. a thenable object
+      	 * NOTE: Will return true for *any thenable object*, and isn't truly
+      	 * safe, since it may attempt to access the `then` property of x (i.e.
+      	 *  clever/malicious getters may do weird things)
+      	 * @param {*} x anything
+      	 * @returns {boolean} true if x is promise-like
       	 */
-      	function isPromise(promiseOrValue) {
-      		return promiseOrValue && typeof promiseOrValue.then === 'function';
+      	function isPromiseLike(x) {
+      		return x && typeof x.then === 'function';
       	}
       
       	/**
@@ -18459,10 +18577,10 @@
       	function _map(array, mapFunc, fallback) {
       		return when(array, function(array) {
       
-      			return promise(resolveMap);
+      			return _promise(resolveMap);
       
       			function resolveMap(resolve, reject, notify) {
-      				var results, len, toResolve, resolveOne, i;
+      				var results, len, toResolve, i;
       
       				// Since we know the resulting length, we can preallocate the results
       				// array to avoid array expansions.
@@ -18474,16 +18592,6 @@
       					return;
       				}
       
-      				resolveOne = function(item, i) {
-      					when(item, mapFunc, fallback).then(function(mapped) {
-      						results[i] = mapped;
-      
-      						if(!--toResolve) {
-      							resolve(results);
-      						}
-      					}, reject, notify);
-      				};
-      
       				// Since mapFunc may be async, get all invocations of it into flight
       				for(i = 0; i < len; i++) {
       					if(i in array) {
@@ -18491,6 +18599,17 @@
       					} else {
       						--toResolve;
       					}
+      				}
+      
+      				function resolveOne(item, i) {
+      					when(item, mapFunc, fallback).then(function(mapped) {
+      						results[i] = mapped;
+      						notify(mapped);
+      
+      						if(!--toResolve) {
+      							resolve(results);
+      						}
+      					}, reject);
       				}
       			}
       		});
@@ -18563,11 +18682,14 @@
       	}
       
       	//
-      	// Utilities, etc.
+      	// Internals, utilities, etc.
       	//
       
       	var reduceArray, slice, fcall, nextTick, handlerQueue,
-      		setTimeout, funcProto, call, arrayProto, undef;
+      		setTimeout, funcProto, call, arrayProto, monitorApi,
+      		cjsRequire, undef;
+      
+      	cjsRequire = require;
       
       	//
       	// Shared handler queue processing
@@ -18585,15 +18707,8 @@
       	 */
       	function enqueue(task) {
       		if(handlerQueue.push(task) === 1) {
-      			scheduleDrainQueue();
+      			nextTick(drainQueue);
       		}
-      	}
-      
-      	/**
-      	 * Schedule the queue to be drained after the stack has cleared.
-      	 */
-      	function scheduleDrainQueue() {
-      		nextTick(drainQueue);
       	}
       
       	/**
@@ -18611,18 +18726,36 @@
       		handlerQueue = [];
       	}
       
-      	//
-      	// Capture function and array utils
-      	//
-      	/*global setImmediate,process,vertx*/
-      
-      	// capture setTimeout to avoid being caught by fake timers used in time based tests
+      	// capture setTimeout to avoid being caught by fake timers
+      	// used in time based tests
       	setTimeout = global.setTimeout;
-      	// Prefer setImmediate, cascade to node, vertx and finally setTimeout
-      	nextTick = typeof setImmediate === 'function' ? setImmediate.bind(global)
-      		: typeof process === 'object' && process.nextTick ? process.nextTick
-      		: typeof vertx === 'object' ? vertx.runOnLoop // vert.x
-      			: function(task) { setTimeout(task, 0); }; // fallback
+      
+      	// Allow attaching the monitor to when() if env has no console
+      	monitorApi = typeof console != 'undefined' ? console : when;
+      
+      	// Prefer setImmediate or MessageChannel, cascade to node,
+      	// vertx and finally setTimeout
+      	/*global setImmediate,MessageChannel,process*/
+      	if (typeof setImmediate === 'function') {
+      		nextTick = setImmediate.bind(global);
+      	} else if(typeof MessageChannel !== 'undefined') {
+      		var channel = new MessageChannel();
+      		channel.port1.onmessage = drainQueue;
+      		nextTick = function() { channel.port2.postMessage(0); };
+      	} else if (typeof process === 'object' && process.nextTick) {
+      		nextTick = process.nextTick;
+      	} else {
+      		try {
+      			// vert.x 1.x || 2.x
+      			nextTick = cjsRequire('vertx').runOnLoop || cjsRequire('vertx').runOnContext;
+      		} catch(ignore) {
+      			nextTick = function(t) { setTimeout(t, 0); };
+      		}
+      	}
+      
+      	//
+      	// Capture/polyfill function and array utils
+      	//
       
       	// Safe function calls
       	funcProto = Function.prototype;
@@ -18689,10 +18822,7 @@
       
       	return when;
       });
-      })(
-      	typeof define === 'function' && define.amd ? define : function (factory) { module.exports = factory(); },
-      	this
-      );
+      })(typeof define === 'function' && define.amd ? define : function (factory) { module.exports = factory(require); }, this);
       ;
       }
     ], [
@@ -18711,7 +18841,7 @@
 
           Settings.prototype.defaults = {
             'port': 8080,
-            'host': '192.168.0.100'
+            'host': 'localhost'
           };
 
           return Settings;
@@ -18881,16 +19011,21 @@
           __extends(Search, _super);
 
           Search.prototype.elements = {
-            '.search input': 'input'
+            '.search input': 'input',
+            '.dropdown': 'dropdown',
+            '.dropdown button': 'chosenType'
           };
 
           Search.prototype.events = {
-            'keydown .search': 'open'
+            'keydown .search': 'open',
+            'click .dropdown ul li': 'chooseItem'
           };
 
           function Search() {
+            this.chooseItem = __bind(this.chooseItem, this);
             this.open = __bind(this.open, this);
             Search.__super__.constructor.apply(this, arguments);
+            this.type = 'Songs';
           }
 
           Search.prototype.open = function(e) {
@@ -18902,9 +19037,31 @@
             if (!isNaN(parseInt(query))) {
               this.trigger('playlist', query);
             } else {
-              this.trigger('search', query);
+              this.trigger('search', query, this.type);
             }
             return true;
+          };
+
+          Search.prototype.chooseItem = function(event) {
+            var element, name;
+            element = $(event.target);
+            name = element.text();
+            this.type = (function() {
+              switch (element.data('id')) {
+                case 0:
+                  return 'Songs';
+                case 1:
+                  return 'Playlists';
+                case 2:
+                  return 'Artists';
+                case 3:
+                  return 'Albums';
+              }
+            })();
+            this.chosenType.text(name);
+            this.dropdown.find('.active').removeClass('active');
+            element.toggleClass('active');
+            return console.log('chosing type', this.type);
           };
 
           return Search;

@@ -96,30 +96,42 @@ header.panel {
     margin: 0 auto;
     width: 400px; }
   header.panel .dropdown {
-    float: left; }
+    position: relative;
+    z-index: 5;
+    float: left;
+    width: 100px;
+    text-align: center;
+    margin-top: 13px; }
     header.panel .dropdown button {
+      width: 100%;
       outline: none;
-      width: 100px;
-      float: left;
       display: block;
       background: #3a89c9;
       color: white;
       padding: 0 20px;
       line-height: 32px;
-      margin-top: 13px;
       border: 0;
       border-radius: 4px 0 0 4px;
       -webkit-transition: background 0.3s;
       -moz-transition: background 0.3s;
       -o-transition: background 0.3s;
-      transition: background 0.3s; }
+      transition: background 0.3s;
+      font-weight: bold; }
       header.panel .dropdown button:hover {
         background: #62a1d4; }
     header.panel .dropdown ul {
-      display: none; }
+      background: #3a89c9;
+      width: 100%;
+      border-radius: 0 0 4px 4px;
+      overflow: hidden; }
     header.panel .dropdown li {
       color: white;
-      line-height: 16px; }
+      padding: 0 20px;
+      line-height: 32px; }
+    header.panel .dropdown li:hover {
+      background: #62a1d4; }
+    header.panel .dropdown li.active {
+      background: #2d6ea3; }
   header.panel .search input {
     float: right;
     width: calc(100% - 100px);

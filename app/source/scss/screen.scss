@@ -5,13 +5,13 @@ $header_height: 58px;
 $bar_height: 32px;
 $controls_height: 32px;
 
-@import "colors";
-@import "mixins";
-@import "type";
-@import "panel";
-@import "bar";
-@import "columns";
-@import "track";
+@import "_colors";
+@import "_mixins";
+@import "_type";
+@import "_panel";
+@import "_bar";
+@import "_columns";
+@import "_track";
 
 header.panel {
   @include pos(0, 0, auto, 0);

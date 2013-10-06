@@ -33,8 +33,9 @@ module.exports.init = ->
         ['Songs', 'Name']
       ]
 
-  search.on 'search', (query) ->
-    app.getSearchResults(query, 'Songs').then (response) ->
+  search.on 'search', (query, type) ->
+    app.getSearchResults(query, type).then (response) ->
+      console.log response
       ranger.loadRaw response.result, [
         ['Artist', 'ArtistName']
         ['Songs', 'SongName']
