@@ -53,15 +53,12 @@ class Core
   ###
   init: =>
 
-    mimic.init().then (data) =>
-      console.log data
-      @client  = data.client
-      @country = data.country
+    mimic.init().then (session) =>
+      @client  = session.client
+      @country = session.country
       @getToken()
         .then (token) ->
           log 'We are online'
-        .otherwrise ->
-          console.log 'error'
 
 
   ###*

@@ -6,4 +6,5 @@ core = new Core()
 describe 'mimic', ->
 
   it 'should init', (done) ->
-    mimic.init(core).then done
+    mimic.init(core).then ->
+      done()

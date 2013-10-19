@@ -7,9 +7,7 @@ Delay = require 'when/delay'
 
 queue = new Queue 5, (item) ->
   deferred = Promise.defer()
-  console.log '>>>', item
   Delay(Math.random() * 5000).then ->
-    console.log '---', item
     deferred.resolve()
   return deferred.promise
 

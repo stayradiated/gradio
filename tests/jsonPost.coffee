@@ -11,11 +11,12 @@ parameters =
 method = 'helloWorld'
 
 describe 'jsonPost', ->
-  
+
   it 'should init', (done) ->
-    promise = Promise.all [
+
+    Promise.all([
       core.init()
       jsonPost(core, parameters, method)
-    ]
-    promise.then done
+    ]).then ->
+      done()
 
