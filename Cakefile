@@ -22,8 +22,12 @@ task 'test', 'Test project using files in ./test', ->
 
 task 'server', 'Start server', ->
 
-  args = [__dirname + '/tests/server.coffee']
-  terminal = spawn('coffee', args)
-  terminal.stdout.on 'data', (data) -> console.log(data.toString()[0...-1])
-  terminal.stderr.on 'data', (data) -> console.log(data.toString()[0...-1])
+  Core = require './source/core'
+  Server = require './source/server'
 
+  core = new Core()
+  server = new Server(core)
+
+  core.init()
+
+  server.listen(8080)

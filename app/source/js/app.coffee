@@ -27,7 +27,8 @@ module.exports.init = ->
     bar.setSong(song)
 
   search.on 'playlist', (id) ->
-    app.getPlaylistSongs(id).then (response) ->
+    console.log id
+    app.getPlaylistByID(id).then (response) ->
       ranger.loadRaw response.Songs, [
         ['Artist', 'ArtistName']
         ['Songs', 'Name']

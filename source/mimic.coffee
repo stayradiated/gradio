@@ -25,6 +25,13 @@ module.exports.headers = headers =
   'Host': 'html5.grooveshark.com'
   'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; rv:2.0.1) Gecko/20100101 Firefox/4.0.1'
 
+module.exports.methodHeaders = (length) ->
+  'Referer': 'http://html5.grooveshark.com'
+  'Origin': 'http://html5.grooveshark.com'
+  'Host': 'html5.grooveshark.com'
+  'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; rv:2.0.1) Gecko/20100101 Firefox/4.0.1'
+  'Content-Length': length
+
 # Regexs to extract information
 regex =
   country: /"country":(\{[":,\d\w]+\})/

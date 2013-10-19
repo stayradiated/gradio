@@ -88,6 +88,12 @@ class Methods
 
     @core.callMethod(parameters, 'playlistGetSongs')
 
+  getPlaylistByID: (playlistID) ->
+
+    parameters =
+      playlistID: playlistID
+
+    @core.callMethod(parameters, 'getPlaylistByID')
 
   ###*
    * Returns all the songs in an album

@@ -7,6 +7,7 @@ METHODS = [
   'getArtistsSongs',
   'getAlbumSongs',
   'getPlaylistSongs',
+  'getPlaylistByID',
   'albumGetAllSongs',
   'userGetSongsInLibrary',
   'getFavorites',

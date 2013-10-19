@@ -26,18 +26,6 @@
       "outputStyle" : 0,
       "fileType" : 32
     },
-    "\/source\/scss\/type.scss" : {
-      "ignoreWasSetByUser" : 0,
-      "ignore" : 1,
-      "hidden" : 0,
-      "outputPathIsSetByUser" : 0,
-      "inputAbbreviatedPath" : "\/source\/scss\/type.scss",
-      "outputStyle" : 0,
-      "shouldRunBless" : 0,
-      "outputAbbreviatedPath" : "\/app\/assets\/css\/type.css",
-      "fileType" : 4,
-      "debugStyle" : 0
-    },
     "\/app\/index.html" : {
       "ignoreWasSetByUser" : 0,
       "ignore" : 0,
@@ -59,39 +47,51 @@
       "outputStyle" : 0,
       "fileType" : 32
     },
-    "\/source\/scss\/panel.scss" : {
+    "\/source\/scss\/_columns.scss" : {
       "ignoreWasSetByUser" : 0,
       "ignore" : 1,
       "hidden" : 0,
       "outputPathIsSetByUser" : 0,
-      "inputAbbreviatedPath" : "\/source\/scss\/panel.scss",
+      "inputAbbreviatedPath" : "\/source\/scss\/_columns.scss",
       "outputStyle" : 0,
       "shouldRunBless" : 0,
-      "outputAbbreviatedPath" : "\/app\/assets\/css\/panel.css",
+      "outputAbbreviatedPath" : "\/app\/assets\/css\/_columns.css",
       "fileType" : 4,
       "debugStyle" : 0
     },
-    "\/source\/scss\/mixins.scss" : {
+    "\/source\/scss\/_panel.scss" : {
       "ignoreWasSetByUser" : 0,
       "ignore" : 1,
       "hidden" : 0,
       "outputPathIsSetByUser" : 0,
-      "inputAbbreviatedPath" : "\/source\/scss\/mixins.scss",
+      "inputAbbreviatedPath" : "\/source\/scss\/_panel.scss",
       "outputStyle" : 0,
       "shouldRunBless" : 0,
-      "outputAbbreviatedPath" : "\/app\/assets\/css\/mixins.css",
+      "outputAbbreviatedPath" : "\/app\/assets\/css\/_panel.css",
       "fileType" : 4,
       "debugStyle" : 0
     },
-    "\/source\/scss\/columns.scss" : {
+    "\/source\/scss\/_type.scss" : {
       "ignoreWasSetByUser" : 0,
       "ignore" : 1,
       "hidden" : 0,
       "outputPathIsSetByUser" : 0,
-      "inputAbbreviatedPath" : "\/source\/scss\/columns.scss",
+      "inputAbbreviatedPath" : "\/source\/scss\/_type.scss",
       "outputStyle" : 0,
       "shouldRunBless" : 0,
-      "outputAbbreviatedPath" : "\/app\/assets\/css\/columns.css",
+      "outputAbbreviatedPath" : "\/app\/assets\/css\/_type.css",
+      "fileType" : 4,
+      "debugStyle" : 0
+    },
+    "\/source\/scss\/_track.scss" : {
+      "ignoreWasSetByUser" : 0,
+      "ignore" : 1,
+      "hidden" : 0,
+      "outputPathIsSetByUser" : 0,
+      "inputAbbreviatedPath" : "\/source\/scss\/_track.scss",
+      "outputStyle" : 0,
+      "shouldRunBless" : 0,
+      "outputAbbreviatedPath" : "\/app\/assets\/css\/_track.css",
       "fileType" : 4,
       "debugStyle" : 0
     },
@@ -107,21 +107,9 @@
       "outputStyle" : 0,
       "fileType" : 32
     },
-    "\/source\/scss\/track.scss" : {
-      "ignoreWasSetByUser" : 0,
-      "ignore" : 1,
-      "hidden" : 0,
-      "outputPathIsSetByUser" : 0,
-      "inputAbbreviatedPath" : "\/source\/scss\/track.scss",
-      "outputStyle" : 0,
-      "shouldRunBless" : 0,
-      "outputAbbreviatedPath" : "\/app\/assets\/css\/track.css",
-      "fileType" : 4,
-      "debugStyle" : 0
-    },
     "\/app\/assets\/js\/scripts.js" : {
       "ignoreWasSetByUser" : 1,
-      "ignore" : 1,
+      "ignore" : 0,
       "hidden" : 0,
       "outputPathIsSetByUser" : 1,
       "inputAbbreviatedPath" : "\/app\/assets\/js\/scripts.js",
@@ -129,6 +117,30 @@
       "syntaxCheckerStyle" : 0,
       "outputAbbreviatedPath" : "\/app\/assets\/js\/scripts.min.js",
       "fileType" : 64
+    },
+    "\/source\/scss\/_colors.scss" : {
+      "ignoreWasSetByUser" : 0,
+      "ignore" : 1,
+      "hidden" : 0,
+      "outputPathIsSetByUser" : 0,
+      "inputAbbreviatedPath" : "\/source\/scss\/_colors.scss",
+      "outputStyle" : 0,
+      "shouldRunBless" : 0,
+      "outputAbbreviatedPath" : "\/app\/assets\/css\/_colors.css",
+      "fileType" : 4,
+      "debugStyle" : 0
+    },
+    "\/source\/scss\/_bar.scss" : {
+      "ignoreWasSetByUser" : 0,
+      "ignore" : 1,
+      "hidden" : 0,
+      "outputPathIsSetByUser" : 0,
+      "inputAbbreviatedPath" : "\/source\/scss\/_bar.scss",
+      "outputStyle" : 0,
+      "shouldRunBless" : 0,
+      "outputAbbreviatedPath" : "\/app\/assets\/css\/_bar.css",
+      "fileType" : 4,
+      "debugStyle" : 0
     },
     "\/source\/js\/search.coffee" : {
       "ignoreWasSetByUser" : 1,
@@ -153,6 +165,18 @@
       "outputAbbreviatedPath" : "\/source\/js\/bar.js",
       "outputStyle" : 0,
       "fileType" : 32
+    },
+    "\/source\/scss\/_mixins.scss" : {
+      "ignoreWasSetByUser" : 0,
+      "ignore" : 1,
+      "hidden" : 0,
+      "outputPathIsSetByUser" : 0,
+      "inputAbbreviatedPath" : "\/source\/scss\/_mixins.scss",
+      "outputStyle" : 0,
+      "shouldRunBless" : 0,
+      "outputAbbreviatedPath" : "\/app\/assets\/css\/_mixins.css",
+      "fileType" : 4,
+      "debugStyle" : 0
     },
     "\/source\/js\/app.coffee" : {
       "ignoreWasSetByUser" : 1,
@@ -206,30 +230,6 @@
       "inputAbbreviatedPath" : "\/app\/assets\/css\/screen.css",
       "outputAbbreviatedPath" : "No Output Path",
       "fileType" : 16
-    },
-    "\/source\/scss\/bar.scss" : {
-      "ignoreWasSetByUser" : 0,
-      "ignore" : 1,
-      "hidden" : 0,
-      "outputPathIsSetByUser" : 0,
-      "inputAbbreviatedPath" : "\/source\/scss\/bar.scss",
-      "outputStyle" : 0,
-      "shouldRunBless" : 0,
-      "outputAbbreviatedPath" : "\/app\/assets\/css\/bar.css",
-      "fileType" : 4,
-      "debugStyle" : 0
-    },
-    "\/source\/scss\/colors.scss" : {
-      "ignoreWasSetByUser" : 0,
-      "ignore" : 1,
-      "hidden" : 0,
-      "outputPathIsSetByUser" : 0,
-      "inputAbbreviatedPath" : "\/source\/scss\/colors.scss",
-      "outputStyle" : 0,
-      "shouldRunBless" : 0,
-      "outputAbbreviatedPath" : "\/app\/assets\/css\/colors.css",
-      "fileType" : 4,
-      "debugStyle" : 0
     },
     "\/source\/js\/track.coffee" : {
       "ignoreWasSetByUser" : 1,

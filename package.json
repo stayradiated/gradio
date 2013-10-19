@@ -10,7 +10,8 @@
     "coffee-script": "*",
     "request": "*",
     "when": "*",
-    "uuid": "*"
+    "uuid": "*",
+    "oboe": "~1.2.0"
   },
   "author": "George Czabania",
   "license": "BSD"

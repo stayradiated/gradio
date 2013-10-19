@@ -10,12 +10,12 @@
  *
 ###
 
+oboe     = require 'oboe'
 request  = require 'request'
 Promise  = require 'when'
 http     = require 'http'
 crypto   = require 'crypto'
 uuid     = require 'uuid'
-Token    = require '../token.json'
 jsonPost = require './jsonPost'
 mimic    = require './mimic'
 log      = require('./log')('core', 'green')
@@ -54,10 +54,14 @@ class Core
   init: =>
 
     mimic.init().then (data) =>
+      console.log data
       @client  = data.client
       @country = data.country
-      @getToken().then (token) ->
-        log 'We are online'
+      @getToken()
+        .then (token) ->
+          log 'We are online'
+        .otherwrise ->
+          console.log 'error'
 
 
   ###*
@@ -179,7 +183,10 @@ class Core
     start = Date.now()
 
     # Assemble URL
-    url = "#{ protocol }://#{ @methodurl }?#{ method }"
+    url = "#{ @methodurl }?#{ method }"
+
+    if protocol is 'https'
+      url = "#{ protocol }://#{ url }"
 
     # Transform parameters and method into a JsonPost object
     jsonPost(this, parameters, method).then (json) =>
@@ -197,22 +204,47 @@ class Core
 
       log "[#{ method }] Starting request"
 
-      options =
-        url: url
-        method: 'POST'
-        body: parameters.toString()
-        headers: mimic.headers
+      if protocol is 'http'
 
-      request options, (err, res, body) ->
-        if err then return deferred.reject(err)
-        end = Date.now()
-        log "[#{ method }] Finished request in #{ (end - start) / 1000 } seconds"
-        try
-          results = JSON.parse(body)
-          if results.result? then results = results.result
-        catch e
-          results = body
-        deferred.resolve results
+        log "[#{ method }] Using HTTP"
+
+        params = parameters.toString()
+        oboeRequest = oboe.doPost
+          url: url
+          body: params
+          headers: mimic.methodHeaders(params.length)
+
+        oboeRequest.node '!.result.result.*', (result) ->
+          console.log 'found a result'
+
+        oboeRequest.done (result) ->
+          console.log 'finished oboe request'
+          if result.result? then result = result.result
+          deferred.resolve result
+
+        oboeRequest.fail (error) ->
+          console.log oboeRequest.root()
+
+      else
+
+        log "[#{ method }] Using HTTPS"
+
+        options =
+          url: url
+          method: 'POST'
+          body: parameters.toString()
+          headers: mimic.headers
+
+        request options, (err, res, body) ->
+          if err then return deferred.reject(err)
+          end = Date.now()
+          log "[#{ method }] Finished request in #{ (end - start) / 1000 } seconds"
+          try
+            results = JSON.parse(body)
+            if results.result? then results = results.result
+          catch e
+            results = body
+          deferred.resolve results
 
     return deferred.promise
 

@@ -17,7 +17,7 @@ class Search extends Base.Controller
     @type = 'Songs'
 
   open: (e) =>
-    
+
     return true unless e.which is 13
     query = @input.val()
     if not isNaN parseInt(query)
