@@ -57,7 +57,7 @@ class Server
       if uri is '/' then uri = '/index.html'
 
       # STATIC FILE SERVER
-      
+
       if uri.match(/\.(js|css|html)$/)
         filename = APP_FOLDER + unescape(uri)
         fs.exists filename, (exists) ->

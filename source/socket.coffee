@@ -7,11 +7,12 @@ class Socket
     io = SocketIo.listen(server)
     io.set 'log level', 1
     io.sockets.on 'connection', (socket) ->
+      console.log 'Got new connection'
       new Socket(socket)
       return true
 
   events:
-    'call', 'callMethod'
+    'call': 'callMethod'
 
   constructor: (@socket) ->
     for event, fn of @events

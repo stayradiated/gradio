@@ -1,11 +1,11 @@
 
 # [==============================================|                          ]
-# 
+#
 # Buffer track
 
 Base = require 'base'
 
-class Track extends Base.Controller
+class Track extends Base.View
 
   elements:
     '.playing': 'playing'
