@@ -1,5 +1,6 @@
 Promise  = require 'when'
 settings = require './settings'
+SocketIo = require './lib/socket.io'
 
 METHODS = [
   'getSongInfo',
@@ -29,15 +30,16 @@ METHODS = [
 
 class module.exports
 
-callMethod = (method, args) ->
-  $.ajax
-    method: 'post'
-    url: "http://#{ settings.host }:#{ settings.port }/#{ method }"
-    data: JSON.stringify(args)
-    dataType: 'json'
+  constructor: ->
+    @socket = SocketIo.connect 'http://localhost:8080'
+    @socket.on 'result', ([method, data]) ->
+      console.log method, data
 
-# Probably not the most efficient way of doing this
+  _callMethod: (method, args) =>
+    deferred = Promise.defer()
+    @socket.emit 'call', [method, args]
+    return deferred.promise
+
 for method in METHODS
   do (method) ->
-    module.exports.prototype[method] = (args...) ->
-      callMethod(method, args)
+    module.exports::[method] = (args...) -> @_callMethod(method, args)

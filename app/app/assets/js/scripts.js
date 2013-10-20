@@ -1,8 +1,8 @@
 (function() {
-  var __slice = [].slice,
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+    __slice = [].slice,
     __hasProp = {}.hasOwnProperty,
-    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
   (function(files) {
     var cache, module, req;
@@ -39,12 +39,10 @@
           /home/stayrad/Projects/Groovy/app/source/js/init.coffee
         */
 
-        './app.coffee': 1,
-        './lib/socket.io': 20
+        './app.coffee': 1
       }, function(require, module, exports) {
         var app;
         app = require('./app.coffee');
-        window.SocketIo = require('./lib/socket.io');
         return $(function() {
           return app.init();
         });
@@ -59,9 +57,9 @@
         'ranger': 3,
         'jqueryify': 12,
         './client': 13,
-        './player': 16,
-        './search': 18,
-        './bar': 19
+        './player': 17,
+        './search': 19,
+        './bar': 20
       }, function(require, module, exports) {
         var $, Bar, Base, Client, Player, Ranger, Search;
         Base = require('base');
@@ -10831,26 +10829,35 @@
         */
 
         'when': 14,
-        './settings': 15
+        './settings': 15,
+        './lib/socket.io': 16
       }, function(require, module, exports) {
-        var METHODS, Promise, callMethod, method, settings, _i, _len, _results;
+        var METHODS, Promise, SocketIo, method, settings, _i, _len, _results;
         Promise = require('when');
         settings = require('./settings');
+        SocketIo = require('./lib/socket.io');
         METHODS = ['getSongInfo', 'getSearchResults', 'getArtistsSongs', 'getAlbumSongs', 'getPlaylistSongs', 'getPlaylistByID', 'albumGetAllSongs', 'userGetSongsInLibrary', 'getFavorites', 'getPopularSongs', 'markSongAsDownloaded', 'markStreamKeyOver30Seconds', 'markSongComplete', 'authenticateUser', 'logoutUser', 'initiateQueue', 'createPlaylist', 'playlistAddSongToExisting', 'userAddSongsToLibrary', 'favorite', 'userGetPlaylists', 'getSongUrl', 'getSongStream'];
         module.exports = (function() {
-          function exports() {}
+          function exports() {
+            this._callMethod = __bind(this._callMethod, this);
+            this.socket = SocketIo.connect('http://localhost:8080');
+            this.socket.on('result', function(_arg) {
+              var data, method;
+              method = _arg[0], data = _arg[1];
+              return console.log(method, data);
+            });
+          }
+
+          exports.prototype._callMethod = function(method, args) {
+            var deferred;
+            deferred = Promise.defer();
+            this.socket.emit('call', [method, args]);
+            return deferred.promise;
+          };
 
           return exports;
 
         })();
-        callMethod = function(method, args) {
-          return $.ajax({
-            method: 'post',
-            url: "http://" + settings.host + ":" + settings.port + "/" + method,
-            data: JSON.stringify(args),
-            dataType: 'json'
-          });
-        };
         _results = [];
         for (_i = 0, _len = METHODS.length; _i < _len; _i++) {
           method = METHODS[_i];
@@ -10858,7 +10865,7 @@
             return module.exports.prototype[method] = function() {
               var args;
               args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-              return callMethod(method, args);
+              return this._callMethod(method, args);
             };
           })(method));
         }
@@ -11822,270 +11829,6 @@
 
         })(Base.Model);
         return module.exports = new Settings();
-      }
-    ], [
-      {
-        /*
-          /home/stayrad/Projects/Groovy/app/source/js/player.coffee
-        */
-
-        'jqueryify': 12,
-        'base': 2,
-        './track': 17,
-        './settings': 15
-      }, function(require, module, exports) {
-        var $, Base, Player, Track, settings;
-        $ = require('jqueryify');
-        Base = require('base');
-        Track = require('./track');
-        settings = require('./settings');
-        Player = (function(_super) {
-          __extends(Player, _super);
-
-          Player.prototype.events = {
-            'click .prev': 'prev',
-            'click .next': 'next',
-            'click .play-pause': 'toggle'
-          };
-
-          Player.prototype.elements = {
-            '.track': 'track',
-            '.now-playing': 'nowPlaying'
-          };
-
-          Player.prototype.audioEvents = {
-            'durationchange': 'setDuration',
-            'progress': 'showBufferProgress',
-            'timeupdate': 'showCurrentProgress'
-          };
-
-          function Player() {
-            this.setDuration = __bind(this.setDuration, this);
-            this.setSource = __bind(this.setSource, this);
-            this.setSong = __bind(this.setSong, this);
-            this.setVolume = __bind(this.setVolume, this);
-            this.showCurrentProgress = __bind(this.showCurrentProgress, this);
-            this.showBufferProgress = __bind(this.showBufferProgress, this);
-            this._percent = __bind(this._percent, this);
-            this.next = __bind(this.next, this);
-            this.prev = __bind(this.prev, this);
-            this.toggle = __bind(this.toggle, this);
-            var event, method, track, _ref;
-            Player.__super__.constructor.apply(this, arguments);
-            this.audio = $('<audio>');
-            this.audio.attr({
-              autoplay: true,
-              preload: 'auto',
-              controls: true
-            });
-            $('body').append(this.context);
-            this.context = this.audio.get(0);
-            track = this.track = new Track({
-              el: this.track
-            });
-            _ref = this.audioEvents;
-            for (event in _ref) {
-              method = _ref[event];
-              this.context.addEventListener(event, this[method]);
-            }
-          }
-
-          Player.prototype.toggle = function() {
-            if (this.context.paused) {
-              return this.context.play();
-            } else {
-              return this.context.pause();
-            }
-          };
-
-          Player.prototype.prev = function() {
-            return this.context.currentTime = 0;
-          };
-
-          Player.prototype.next = function() {
-            return this.context.currentTime += 10;
-          };
-
-          Player.prototype._percent = function(x) {
-            return x / this.duration * 100;
-          };
-
-          Player.prototype.showBufferProgress = function() {
-            var percent;
-            if (this.context.buffered.length > 0) {
-              percent = this._percent(this.context.buffered.end(0));
-              return this.track.setBuffer(percent);
-            }
-          };
-
-          Player.prototype.showCurrentProgress = function() {
-            var percent;
-            percent = this._percent(this.context.currentTime);
-            return this.track.setPlaying(percent);
-          };
-
-          Player.prototype.setVolume = function(volume) {
-            return this.context.volume = volume;
-          };
-
-          Player.prototype.setSong = function(song) {
-            var url;
-            this.trigger('change', song);
-            url = "http://" + settings.host + ":" + settings.port + "/song/" + song.SongID + ".mp3?t=" + (Date.now());
-            return this.setSource(url);
-          };
-
-          Player.prototype.setSource = function(url) {
-            return this.context.src = url;
-          };
-
-          Player.prototype.setDuration = function() {
-            return this.duration = this.context.duration;
-          };
-
-          return Player;
-
-        })(Base.View);
-        return module.exports = Player;
-      }
-    ], [
-      {
-        /*
-          /home/stayrad/Projects/Groovy/app/source/js/track.coffee
-        */
-
-        'base': 2
-      }, function(require, module, exports) {
-        var Base, Track;
-        Base = require('base');
-        Track = (function(_super) {
-          __extends(Track, _super);
-
-          Track.prototype.elements = {
-            '.playing': 'playing',
-            '.buffer': 'buffer'
-          };
-
-          function Track() {
-            Track.__super__.constructor.apply(this, arguments);
-          }
-
-          Track.prototype.setPlaying = function(percent) {
-            return this.playing.css('width', percent + '%');
-          };
-
-          Track.prototype.setBuffer = function(percent) {
-            return this.buffer.css('width', percent + '%');
-          };
-
-          return Track;
-
-        })(Base.View);
-        return module.exports = Track;
-      }
-    ], [
-      {
-        /*
-          /home/stayrad/Projects/Groovy/app/source/js/search.coffee
-        */
-
-        'base': 2
-      }, function(require, module, exports) {
-        var Base, Search;
-        Base = require('base');
-        Search = (function(_super) {
-          __extends(Search, _super);
-
-          Search.prototype.elements = {
-            '.search input': 'input',
-            '.dropdown': 'dropdown',
-            '.dropdown button': 'chosenType'
-          };
-
-          Search.prototype.events = {
-            'keydown .search': 'open',
-            'click .dropdown ul li': 'chooseItem'
-          };
-
-          function Search() {
-            this.chooseItem = __bind(this.chooseItem, this);
-            this.open = __bind(this.open, this);
-            Search.__super__.constructor.apply(this, arguments);
-            this.type = 'Songs';
-          }
-
-          Search.prototype.open = function(e) {
-            var query;
-            if (e.which !== 13) {
-              return true;
-            }
-            query = this.input.val();
-            if (!isNaN(parseInt(query))) {
-              this.trigger('playlist', query);
-            } else {
-              this.trigger('search', query, this.type);
-            }
-            return true;
-          };
-
-          Search.prototype.chooseItem = function(event) {
-            var element, name;
-            element = $(event.target);
-            name = element.text();
-            this.type = (function() {
-              switch (element.data('id')) {
-                case 0:
-                  return 'Songs';
-                case 1:
-                  return 'Playlists';
-                case 2:
-                  return 'Artists';
-                case 3:
-                  return 'Albums';
-              }
-            })();
-            this.chosenType.text(name);
-            this.dropdown.find('.active').removeClass('active');
-            element.toggleClass('active');
-            return console.log('chosing type', this.type);
-          };
-
-          return Search;
-
-        })(Base.View);
-        return module.exports = Search;
-      }
-    ], [
-      {
-        /*
-          /home/stayrad/Projects/Groovy/app/source/js/bar.coffee
-        */
-
-        'base': 2
-      }, function(require, module, exports) {
-        var Bar, Base;
-        Base = require('base');
-        Bar = (function(_super) {
-          __extends(Bar, _super);
-
-          Bar.prototype.elements = {
-            '.now-playing .artist': 'nowPlayingArtist',
-            '.now-playing .song': 'nowPlayingSong'
-          };
-
-          function Bar() {
-            Bar.__super__.constructor.apply(this, arguments);
-          }
-
-          Bar.prototype.setSong = function(song) {
-            this.nowPlayingArtist.text(song.ArtistName);
-            return this.nowPlayingSong.text(song.SongName);
-          };
-
-          return Bar;
-
-        })(Base.View);
-        return module.exports = Bar;
       }
     ], [
       {
@@ -15421,6 +15164,270 @@
         define([], function () { return io; });
       }
       })();;
+      }
+    ], [
+      {
+        /*
+          /home/stayrad/Projects/Groovy/app/source/js/player.coffee
+        */
+
+        'jqueryify': 12,
+        'base': 2,
+        './track': 18,
+        './settings': 15
+      }, function(require, module, exports) {
+        var $, Base, Player, Track, settings;
+        $ = require('jqueryify');
+        Base = require('base');
+        Track = require('./track');
+        settings = require('./settings');
+        Player = (function(_super) {
+          __extends(Player, _super);
+
+          Player.prototype.events = {
+            'click .prev': 'prev',
+            'click .next': 'next',
+            'click .play-pause': 'toggle'
+          };
+
+          Player.prototype.elements = {
+            '.track': 'track',
+            '.now-playing': 'nowPlaying'
+          };
+
+          Player.prototype.audioEvents = {
+            'durationchange': 'setDuration',
+            'progress': 'showBufferProgress',
+            'timeupdate': 'showCurrentProgress'
+          };
+
+          function Player() {
+            this.setDuration = __bind(this.setDuration, this);
+            this.setSource = __bind(this.setSource, this);
+            this.setSong = __bind(this.setSong, this);
+            this.setVolume = __bind(this.setVolume, this);
+            this.showCurrentProgress = __bind(this.showCurrentProgress, this);
+            this.showBufferProgress = __bind(this.showBufferProgress, this);
+            this._percent = __bind(this._percent, this);
+            this.next = __bind(this.next, this);
+            this.prev = __bind(this.prev, this);
+            this.toggle = __bind(this.toggle, this);
+            var event, method, track, _ref;
+            Player.__super__.constructor.apply(this, arguments);
+            this.audio = $('<audio>');
+            this.audio.attr({
+              autoplay: true,
+              preload: 'auto',
+              controls: true
+            });
+            $('body').append(this.context);
+            this.context = this.audio.get(0);
+            track = this.track = new Track({
+              el: this.track
+            });
+            _ref = this.audioEvents;
+            for (event in _ref) {
+              method = _ref[event];
+              this.context.addEventListener(event, this[method]);
+            }
+          }
+
+          Player.prototype.toggle = function() {
+            if (this.context.paused) {
+              return this.context.play();
+            } else {
+              return this.context.pause();
+            }
+          };
+
+          Player.prototype.prev = function() {
+            return this.context.currentTime = 0;
+          };
+
+          Player.prototype.next = function() {
+            return this.context.currentTime += 10;
+          };
+
+          Player.prototype._percent = function(x) {
+            return x / this.duration * 100;
+          };
+
+          Player.prototype.showBufferProgress = function() {
+            var percent;
+            if (this.context.buffered.length > 0) {
+              percent = this._percent(this.context.buffered.end(0));
+              return this.track.setBuffer(percent);
+            }
+          };
+
+          Player.prototype.showCurrentProgress = function() {
+            var percent;
+            percent = this._percent(this.context.currentTime);
+            return this.track.setPlaying(percent);
+          };
+
+          Player.prototype.setVolume = function(volume) {
+            return this.context.volume = volume;
+          };
+
+          Player.prototype.setSong = function(song) {
+            var url;
+            this.trigger('change', song);
+            url = "http://" + settings.host + ":" + settings.port + "/song/" + song.SongID + ".mp3?t=" + (Date.now());
+            return this.setSource(url);
+          };
+
+          Player.prototype.setSource = function(url) {
+            return this.context.src = url;
+          };
+
+          Player.prototype.setDuration = function() {
+            return this.duration = this.context.duration;
+          };
+
+          return Player;
+
+        })(Base.View);
+        return module.exports = Player;
+      }
+    ], [
+      {
+        /*
+          /home/stayrad/Projects/Groovy/app/source/js/track.coffee
+        */
+
+        'base': 2
+      }, function(require, module, exports) {
+        var Base, Track;
+        Base = require('base');
+        Track = (function(_super) {
+          __extends(Track, _super);
+
+          Track.prototype.elements = {
+            '.playing': 'playing',
+            '.buffer': 'buffer'
+          };
+
+          function Track() {
+            Track.__super__.constructor.apply(this, arguments);
+          }
+
+          Track.prototype.setPlaying = function(percent) {
+            return this.playing.css('width', percent + '%');
+          };
+
+          Track.prototype.setBuffer = function(percent) {
+            return this.buffer.css('width', percent + '%');
+          };
+
+          return Track;
+
+        })(Base.View);
+        return module.exports = Track;
+      }
+    ], [
+      {
+        /*
+          /home/stayrad/Projects/Groovy/app/source/js/search.coffee
+        */
+
+        'base': 2
+      }, function(require, module, exports) {
+        var Base, Search;
+        Base = require('base');
+        Search = (function(_super) {
+          __extends(Search, _super);
+
+          Search.prototype.elements = {
+            '.search input': 'input',
+            '.dropdown': 'dropdown',
+            '.dropdown button': 'chosenType'
+          };
+
+          Search.prototype.events = {
+            'keydown .search': 'open',
+            'click .dropdown ul li': 'chooseItem'
+          };
+
+          function Search() {
+            this.chooseItem = __bind(this.chooseItem, this);
+            this.open = __bind(this.open, this);
+            Search.__super__.constructor.apply(this, arguments);
+            this.type = 'Songs';
+          }
+
+          Search.prototype.open = function(e) {
+            var query;
+            if (e.which !== 13) {
+              return true;
+            }
+            query = this.input.val();
+            if (!isNaN(parseInt(query))) {
+              this.trigger('playlist', query);
+            } else {
+              this.trigger('search', query, this.type);
+            }
+            return true;
+          };
+
+          Search.prototype.chooseItem = function(event) {
+            var element, name;
+            element = $(event.target);
+            name = element.text();
+            this.type = (function() {
+              switch (element.data('id')) {
+                case 0:
+                  return 'Songs';
+                case 1:
+                  return 'Playlists';
+                case 2:
+                  return 'Artists';
+                case 3:
+                  return 'Albums';
+              }
+            })();
+            this.chosenType.text(name);
+            this.dropdown.find('.active').removeClass('active');
+            element.toggleClass('active');
+            return console.log('chosing type', this.type);
+          };
+
+          return Search;
+
+        })(Base.View);
+        return module.exports = Search;
+      }
+    ], [
+      {
+        /*
+          /home/stayrad/Projects/Groovy/app/source/js/bar.coffee
+        */
+
+        'base': 2
+      }, function(require, module, exports) {
+        var Bar, Base;
+        Base = require('base');
+        Bar = (function(_super) {
+          __extends(Bar, _super);
+
+          Bar.prototype.elements = {
+            '.now-playing .artist': 'nowPlayingArtist',
+            '.now-playing .song': 'nowPlayingSong'
+          };
+
+          function Bar() {
+            Bar.__super__.constructor.apply(this, arguments);
+          }
+
+          Bar.prototype.setSong = function(song) {
+            this.nowPlayingArtist.text(song.ArtistName);
+            return this.nowPlayingSong.text(song.SongName);
+          };
+
+          return Bar;
+
+        })(Base.View);
+        return module.exports = Bar;
       }
     ]
   ]);

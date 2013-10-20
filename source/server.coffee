@@ -30,21 +30,6 @@ class Server
   constructor: (@core) ->
 
     @app = new Methods(@core)
-
-    # Extend all methods as POST requests
-    for method of Methods.prototype
-      @events[method] = new RegExp("\\/#{method}")
-      do (method) =>
-        @[method] = (req, res) =>
-          req.setEncoding('utf8')
-          data = ''
-          req.on 'data', (chunk) -> data += chunk
-          req.on 'end', =>
-            args = JSON.parse data
-            @app[method](args...).then (results) ->
-              res.write JSON.stringify(results)
-              res.end()
-
     @server = http.createServer (req, res) =>
 
       res.setHeader 'Access-Control-Allow-Origin', '*'

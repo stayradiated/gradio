@@ -9,5 +9,5 @@ task 'server', 'Start server', ->
 
   core.init()
   server.listen(8080)
-  Socket.init(server.server)
+  Socket.init(server.server, server.app)
 

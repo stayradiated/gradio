@@ -16,7 +16,7 @@ class Methods
    * @param {string} type - The type of result you want (Songs, Artists, Albums, Playlists, Users, Events...)
    * @return {object} Json object will all info of the response
   ###
-  getSearchResults: (query, type) ->
+  getSearchResults: (query, type) =>
 
     parameters =
       query: query
@@ -30,7 +30,7 @@ class Methods
   ###*
    * Should return the information for a song
   ###
-  getSongInfo: (songIDs) ->
+  getSongInfo: (songIDs) =>
 
     parameters =
       songIDs: songIDs
@@ -45,7 +45,7 @@ class Methods
    * @param {boolean} isVerified - Songs verified or not
    * @return {object} Json object with all info of the response
   ###
-  getArtistsSongs: (artistID, offset, isVerified) ->
+  getArtistsSongs: (artistID, offset, isVerified) =>
 
     parameters =
       offset: offset
@@ -62,7 +62,7 @@ class Methods
    * @param {boolean} isVerified - Songs verified or not
    * @return {object} Json object with all info the response
   ###
-  getAlbumSongs: (albumID, offset=0, isVerified=false) ->
+  getAlbumSongs: (albumID, offset=0, isVerified=false) =>
 
     parameters =
       offset: offset
@@ -79,7 +79,7 @@ class Methods
    * @param {boolean} isVerified - Songs verified or not
    * @return {object} Contains playlist song list
   ###
-  getPlaylistSongs: (listID, offset=0, isVerified=false) ->
+  getPlaylistSongs: (listID, offset=0, isVerified=false) =>
 
     parameters =
       offset: offset
@@ -88,7 +88,7 @@ class Methods
 
     @core.callMethod(parameters, 'playlistGetSongs')
 
-  getPlaylistByID: (playlistID) ->
+  getPlaylistByID: (playlistID) =>
 
     parameters =
       playlistID: playlistID
@@ -98,7 +98,7 @@ class Methods
   ###*
    * Returns all the songs in an album
   ###
-  albumGetAllSongs: (albumID) ->
+  albumGetAllSongs: (albumID) =>
 
     parameters =
       albumID: albumID
@@ -111,7 +111,7 @@ class Methods
    * @param {int} userID - ID of the user
    * @param {int} page - The page number, use result.hasMore to check for more
   ###
-  userGetSongsInLibrary: (userID, page=0) ->
+  userGetSongsInLibrary: (userID, page=0) =>
 
     parameters =
       userID: userID
@@ -126,7 +126,7 @@ class Methods
    * @param {string} ofWhat='Songs' - What you want to get the favorites for (songs, artists)
    * @promises {object} Array of song data
   ###
-  getFavorites: (userID, ofWhat='Songs') ->
+  getFavorites: (userID, ofWhat='Songs') =>
 
     parameters =
       userID: userID
@@ -140,7 +140,7 @@ class Methods
    * @param {string} type - 'monthly', 'weekly' or 'daily'
    * @promises {object} Array of song data
   ###
-  getPopularSongs: (type='daily') ->
+  getPopularSongs: (type='daily') =>
 
     parameters =
       type: type
@@ -156,7 +156,7 @@ class Methods
    * @param {int} songID - the ID of the song
    * @promises {boolean} Should return {result: true}
   ###
-  markSongAsDownloaded: (ip, streamKey, songID) ->
+  markSongAsDownloaded: (ip, streamKey, songID) =>
 
     parameters =
       streamServerID: ip
@@ -166,7 +166,7 @@ class Methods
     @core.callMethod(parameters, 'markSongDownloadedEx')
 
 
-  markStreamKeyOver30Seconds: (ip, streamKey, songID, artistID) ->
+  markStreamKeyOver30Seconds: (ip, streamKey, songID, artistID) =>
 
     parameters =
       songQueueID: 0
@@ -187,7 +187,7 @@ class Methods
    * @param {int} songID - the ID of the song
    * @promises {null} Should return {result: null}
   ###
-  markSongComplete: (ip, streamKey, songID) ->
+  markSongComplete: (ip, streamKey, songID) =>
 
     parameters =
       streamServerID: ip
@@ -204,7 +204,7 @@ class Methods
     * @params {string} password - The password
     * @promises {object} Some data in a JSON object
   ###
-  authenticateUser: (username, password) ->
+  authenticateUser: (username, password) =>
 
     parameters =
       username: username
@@ -213,7 +213,7 @@ class Methods
 
     @core.callMethod(parameters, 'authenticateUser', 'https')
 
-  logoutUser: ->
+  logoutUser: =>
 
     parameters = {}
 
@@ -224,7 +224,7 @@ class Methods
    * I don't think this is used...
    * I imagine it would start the queue
   ###
-  initiateQueue: ->
+  initiateQueue: =>
 
     parameters = {}
 
@@ -239,7 +239,7 @@ class Methods
    * @params {string} playlistAbout - The description
    * @params {array} ids - An array of song IDs to put in the playlist. Can be empty.
   ###
-  createPlaylist: (playlistName, playlistAbout, ids) ->
+  createPlaylist: (playlistName, playlistAbout, ids) =>
 
     parameters =
       playlistName: playlistName
@@ -253,7 +253,7 @@ class Methods
    * @params {int} listID - The ID of the playlist to add a song to
    * @params {int} songID - The id of the song you want to add
   ###
-  playlistAddSongToExisting: (listID, songID) ->
+  playlistAddSongToExisting: (listID, songID) =>
 
     parameters =
       playlistID: listID
@@ -265,7 +265,7 @@ class Methods
   ###*
    * Add a song to the users library collection
   ###
-  userAddSongsToLibrary: (songID, songName, albumID, albumName, artistID, artistName, artFilename, trackNum) ->
+  userAddSongsToLibrary: (songID, songName, albumID, albumName, artistID, artistName, artFilename, trackNum) =>
 
     songs =
       songID: songID
@@ -285,7 +285,7 @@ class Methods
   ###*
    * Add a song to the users favorites
   ###
-  favorite: (songID, songName, albumID, albumName, artistID, artistName, artFilename, trackNum) ->
+  favorite: (songID, songName, albumID, albumName, artistID, artistName, artFilename, trackNum) =>
 
     details =
       songID: songID
@@ -309,7 +309,7 @@ class Methods
     * Fetch a users playlists
     * @params {int} userID - The ID of the user
   ###
-  userGetPlaylists: (userID) ->
+  userGetPlaylists: (userID) =>
 
     parameters =
       userID: userID

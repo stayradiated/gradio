@@ -212,7 +212,7 @@ class Core
           headers: mimic.methodHeaders(params.length)
 
         oboeRequest.node '!.result.result.*', (result) ->
-          console.log 'found a result'
+          deferred.notify(result)
 
         oboeRequest.done (result) ->
           console.log 'finished oboe request'
