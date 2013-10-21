@@ -164,11 +164,9 @@
           focus = false;
           return $('input').each(function() {
             this.addEventListener('focus', function() {
-              console.log('focus');
               return focus = true;
             });
             return this.addEventListener('blur', function() {
-              console.log('blur');
               return focus = false;
             });
           });

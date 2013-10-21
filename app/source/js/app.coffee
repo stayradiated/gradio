@@ -88,9 +88,5 @@ module.exports.init = ->
   # Track input focus - for keyboard shortcuts
   focus = false
   $('input').each ->
-    @addEventListener 'focus', ->
-      console.log 'focus'
-      focus = true
-    @addEventListener 'blur', ->
-      console.log 'blur'
-      focus = false
+    @addEventListener 'focus', -> focus = true
+    @addEventListener 'blur', -> focus = false
