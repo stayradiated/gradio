@@ -9,7 +9,7 @@ Bar    = require './bar'
 
 module.exports.init = ->
 
-  app = app = new Client()
+  app = new Client()
 
   bar = new Bar
     el: $('.bar')
@@ -20,27 +20,27 @@ module.exports.init = ->
   player = new Player
     el: $('section.controls')
 
-  ranger = ranger = new Ranger
+  ranger = new Ranger
     el: $('section.columns')
+
+  ranger.setPanes [
+    ['Artist', 'ArtistName']
+    ['Songs', 'SongName']
+  ]
+
+  app.vent.on 'result', (method, song) ->
+    ranger.add song
 
   player.on 'change', (song) ->
     bar.setSong(song)
 
   search.on 'playlist', (id) ->
-    console.log id
-    app.getPlaylistByID(id).then (response) ->
-      ranger.loadRaw response.Songs, [
-        ['Artist', 'ArtistName']
-        ['Songs', 'Name']
-      ]
+    ranger.clear()
+    app.getPlaylistByID(id)
 
   search.on 'search', (query, type) ->
-    app.getSearchResults(query, type).then (response) ->
-      console.log response
-      ranger.loadRaw response.result, [
-        ['Artist', 'ArtistName']
-        ['Songs', 'SongName']
-      ]
+    ranger.clear()
+    app.getSearchResults(query, type)
 
   # Load offline files
   parseOffline = ->
@@ -51,7 +51,7 @@ module.exports.init = ->
         id = file.match(/(\d+)\.mp3/)
         if id? then songIDs.push(id[1])
       app.getSongInfo(songIDs).then (results) ->
-        ranger.loadRaw results, [
+        ranger.load results, [
           ['Artist', 'ArtistName']
           ['Songs', 'Name']
         ]

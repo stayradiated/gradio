@@ -29,7 +29,7 @@ class Server
 
   constructor: (@core) ->
 
-    @app = new Methods(@core)
+    @app = new Methods @core
     @server = http.createServer (req, res) =>
 
       res.setHeader 'Access-Control-Allow-Origin', '*'
@@ -71,7 +71,7 @@ class Server
 
   fetchSong: (req, res, match) =>
 
-    songID = decodeURIComponent(match[1])
+    songID = decodeURIComponent match[1]
     path = "./cache/#{ songID }.mp3"
 
     # If the client already has a copy of the song in cache, then we just tell

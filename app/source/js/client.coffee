@@ -1,3 +1,4 @@
+Base     = require 'base'
 Promise  = require 'when'
 settings = require './settings'
 SocketIo = require './lib/socket.io'
@@ -31,14 +32,14 @@ METHODS = [
 class module.exports
 
   constructor: ->
-    @socket = SocketIo.connect 'http://localhost:8080'
-    @socket.on 'result', ([method, data]) ->
-      console.log method, data
+    @socket = SocketIo.connect "http://#{ settings.host }:#{ settings.port }"
+    @vent = new Base.Event()
+
+    @socket.on 'result', ([method, data]) =>
+      @vent.trigger 'result', method, data
 
   _callMethod: (method, args) =>
-    deferred = Promise.defer()
     @socket.emit 'call', [method, args]
-    return deferred.promise
 
 for method in METHODS
   do (method) ->
