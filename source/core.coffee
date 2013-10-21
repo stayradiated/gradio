@@ -53,15 +53,12 @@ class Core
   ###
   init: =>
 
-    mimic.init().then (data) =>
-      console.log data
-      @client  = data.client
-      @country = data.country
+    mimic.init().then (session) =>
+      @client  = session.client
+      @country = session.country
       @getToken()
         .then (token) ->
           log 'We are online'
-        .otherwrise ->
-          console.log 'error'
 
 
   ###*
@@ -215,7 +212,7 @@ class Core
           headers: mimic.methodHeaders(params.length)
 
         oboeRequest.node '!.result.result.*', (result) ->
-          console.log 'found a result'
+          deferred.notify(result)
 
         oboeRequest.done (result) ->
           console.log 'finished oboe request'

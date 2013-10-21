@@ -1,5 +1,7 @@
+Base     = require 'base'
 Promise  = require 'when'
 settings = require './settings'
+SocketIo = require './lib/socket.io'
 
 METHODS = [
   'getSongInfo',
@@ -29,15 +31,16 @@ METHODS = [
 
 class module.exports
 
-callMethod = (method, args) ->
-  $.ajax
-    method: 'post'
-    url: "http://#{ settings.host }:#{ settings.port }/#{ method }"
-    data: JSON.stringify(args)
-    dataType: 'json'
+  constructor: ->
+    @socket = SocketIo.connect "http://#{ settings.host }:#{ settings.port }"
+    @vent = new Base.Event()
 
-# Probably not the most efficient way of doing this
+    @socket.on 'result', ([method, data]) =>
+      @vent.trigger 'result', method, data
+
+  _callMethod: (method, args) =>
+    @socket.emit 'call', [method, args]
+
 for method in METHODS
   do (method) ->
-    module.exports.prototype[method] = (args...) ->
-      callMethod(method, args)
+    module.exports::[method] = (args...) -> @_callMethod(method, args)

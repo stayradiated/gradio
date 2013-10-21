@@ -1,11 +1,11 @@
 Base = require 'base'
 
-class Bar extends Base.Controller
+class Bar extends Base.View
 
   elements:
     '.now-playing .artist' : 'nowPlayingArtist'
     '.now-playing .song'   : 'nowPlayingSong'
-  
+
   constructor: ->
     super
 

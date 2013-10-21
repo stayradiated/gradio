@@ -1,7 +1,6 @@
 node_modules
 .sass-cache
 cache/*.mp3
-bin
 lib
 pages/*.js
 pages/*.json

@@ -11,7 +11,8 @@
     "request": "*",
     "when": "*",
     "uuid": "*",
-    "oboe": "~1.2.0"
+    "oboe": "~1.2.0",
+    "socket.io": "~0.9.16"
   },
   "author": "George Czabania",
   "license": "BSD"

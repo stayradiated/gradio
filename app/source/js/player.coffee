@@ -3,7 +3,7 @@ Base     = require 'base'
 Track    = require './track'
 settings = require './settings'
 
-class Player extends Base.Controller
+class Player extends Base.View
 
   events:
     'click .prev': 'prev'

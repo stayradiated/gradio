@@ -29,22 +29,7 @@ class Server
 
   constructor: (@core) ->
 
-    @app = new Methods(@core)
-
-    # Extend all methods as POST requests
-    for method of Methods.prototype
-      @events[method] = new RegExp("\\/#{method}")
-      do (method) =>
-        @[method] = (req, res) =>
-          req.setEncoding('utf8')
-          data = ''
-          req.on 'data', (chunk) -> data += chunk
-          req.on 'end', =>
-            args = JSON.parse data
-            @app[method](args...).then (results) ->
-              res.write JSON.stringify(results)
-              res.end()
-
+    @app = new Methods @core
     @server = http.createServer (req, res) =>
 
       res.setHeader 'Access-Control-Allow-Origin', '*'
@@ -57,7 +42,7 @@ class Server
       if uri is '/' then uri = '/index.html'
 
       # STATIC FILE SERVER
-      
+
       if uri.match(/\.(js|css|html)$/)
         filename = APP_FOLDER + unescape(uri)
         fs.exists filename, (exists) ->
@@ -86,7 +71,7 @@ class Server
 
   fetchSong: (req, res, match) =>
 
-    songID = decodeURIComponent(match[1])
+    songID = decodeURIComponent match[1]
     path = "./cache/#{ songID }.mp3"
 
     # If the client already has a copy of the song in cache, then we just tell
