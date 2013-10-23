@@ -1,22 +1,29 @@
-fs = require 'fs'
+fs      = require 'fs'
 Scrunch = require 'coffee-scrunch'
 
-input = './source/js/init.coffee'
+input  = './source/js/init.coffee'
 output = './app/assets/js/scripts.js'
 
-scrunch = new Scrunch
-  path: input
-  compile: true
-  watch: true
+init = (scrunch) ->
 
-scrunch.vent.on 'init', ->
-  scrunch.scrunch()
+  scrunch.vent.on 'init', ->
+    scrunch.scrunch()
 
-scrunch.vent.on 'scrunch', (data) ->
-  console.log '...writing'
-  fs.writeFile output, data
+  scrunch.vent.on 'scrunch', (data) ->
+    console.log '...writing'
+    fs.writeFile output, data
 
-task 'dev', ->
   scrunch.init()
+
+task 'watch', ->
+  init new Scrunch
+    path: input
+    compile: true
+    watch: true
+
+task 'build', ->
+  init new Scrunch
+    path: input
+    compile: true
 
 
