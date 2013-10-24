@@ -3,9 +3,10 @@
 fs = require 'fs'
 request = require 'request'
 Promise = require 'when'
+log = require('./log')('Mimic', 'blue')
 
 # Where to save downloaded files
-folder = __dirname + '/../pages/'
+folder = __dirname + '/../grooveshark/'
 
 # Where to write token.json to
 tokenPath = folder + 'token.json'
@@ -44,17 +45,20 @@ regex =
 
 module.exports.init = ->
   deferred = Promise.defer()
-  fs.stat tokenPath, (err, stats) ->
-    if stats?
-      deferred.resolve require(tokenPath)
+  fs.exists tokenPath, (exists) ->
+    if exists
+      log 'loading token.json from disk'
+      deferred.resolve require tokenPath
+
     else
-      files = getFiles([file.html, file.js])
-      files.then ([html, js]) ->
+      log 'generating token.json from grooveshark files'
+      getFiles([file.html, file.js]).then ([html, js]) ->
         data =
-          client:   getClientInfo(js)
-          country:  getCountry(html)
-        saveFile(data)
-        deferred.resolve(data)
+          client:   getClientInfo js
+          country:  getCountry    html
+        saveFile data
+        deferred.resolve data
+
   return deferred.promise
 
 # -- GET COUNTRY --------------------------------------------------------------
@@ -64,7 +68,7 @@ getCountry = (body) ->
   try
     country = JSON.parse country
   catch err
-    console.log 'WARNING: Could not parse grooveshark html file'
+    log 'WARNING: Could not parse grooveshark html file'
     country = ID: 1, CC1: 0, CC2: 0, CC3: 0, CC4: 0, DMA: 0, IPR: 0
   return country
 
@@ -78,7 +82,14 @@ getClientInfo = (body) ->
     revision: client[2]
     salt: salt
 
-# -- GET FILES ----------------------------------------------------------------
+
+###*
+ * Downloads a file from the internet, but also keeps a cache of the file for
+ * at least 5 days.
+ * - urls (array): An array of multiple URLs
+ * - url (string): A single URL
+ * > promises the content of the file
+###
 
 getFiles = (urls) ->
 
@@ -91,13 +102,15 @@ getFiles = (urls) ->
 
   deferred = Promise.defer()
 
-  filename = folder + url.match(/(?!=\/)[^\/]+$/)[0]
-
   # Check if we have already loaded the file
+  filename = folder + url.match(/(?!=\/)[^\/]+$/)[0]
   fs.stat filename, (err, stats) ->
 
     # If the file exists and is new enough
     if stats?.ctime > Date.now() - keepFor
+
+      log 'loading from cache', url
+
       fs.readFile filename, encoding: 'utf-8', (err, body) ->
         if err then return deferred.reject(err)
         deferred.resolve(body)
@@ -105,7 +118,7 @@ getFiles = (urls) ->
     # Else download a copy of the file
     else
 
-      console.log 'downloading file', url
+      log 'downloading', url
 
       options =
         url: url

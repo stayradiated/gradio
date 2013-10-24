@@ -199,11 +199,9 @@ class Core
     # Runs the request
     makeRequest = (parameters) ->
 
-      log "[#{ method }] Starting request"
+      log "[#{ method }] Starting request via", protocol
 
       if protocol is 'http'
-
-        log "[#{ method }] Using HTTP"
 
         params = parameters.toString()
         oboeRequest = oboe.doPost
@@ -216,15 +214,12 @@ class Core
 
         oboeRequest.done (result) ->
           console.log 'finished oboe request'
-          if result.result? then result = result.result
           deferred.resolve result
 
         oboeRequest.fail (error) ->
           console.log oboeRequest.root()
 
       else
-
-        log "[#{ method }] Using HTTPS"
 
         options =
           url: url
@@ -237,8 +232,7 @@ class Core
           end = Date.now()
           log "[#{ method }] Finished request in #{ (end - start) / 1000 } seconds"
           try
-            results = JSON.parse(body)
-            if results.result? then results = results.result
+            results = JSON.parse body
           catch e
             results = body
           deferred.resolve results
@@ -251,10 +245,11 @@ class Core
    * IMPORTANT!: When using this method markSongAsDownloaded and
    * markSongComplete should be used to avoid Grooveshark heuristics to detect
    * this as an attack.
-   * @param {string} ip - The IP of the host where the song is stored
-   * @param {string} streamKey - The StreamKey identifies the song
-   * @return {stream} HTTP stream of the song
+   * - ip (string): The IP of the host where the song is stored
+   * - streamKey (string): The StreamKey identifies the song
+   * > HTTP stream of the song
   ###
+
   getSongStream: (ip, streamKey) ->
 
     deferred = Promise.defer()

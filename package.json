@@ -7,7 +7,6 @@
     "test": "mocha tests"
   },
   "dependencies": {
-    "coffee-script": "*",
     "request": "*",
     "when": "*",
     "uuid": "*",

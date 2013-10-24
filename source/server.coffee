@@ -74,23 +74,29 @@ class Server
     songID = decodeURIComponent match[1]
     path = "./cache/#{ songID }.mp3"
 
+    console.log ''
+    console.log req.headers
+
     # If the client already has a copy of the song in cache, then we just tell
     # it to use it. Mainly because the file is never going to change on the
     # server, so there is no point in resending it.
     if req.headers['if-modified-since']?
-
       log 'got an if-modified-since'
 
-      headers =
-        'Date': new Date().toGMTString()
-        'Server': 'Apache/2.2.22 (Ubuntu)'
-        'Connection': 'Keep-Alive'
-        'Keep-Alive': 'timeout=5, max=100'
-        'ETag': '"grooveshark"'
+      modifiedSince = new Date req.headers['if-modified-since']
+      if Date.now() - modifiedSince < 1000 * 60 * 60
 
-      res.writeHead(304, headers)
-      res.end()
-      return
+        headers =
+          'Date': new Date().toGMTString()
+          'Server': 'Apache/2.2.22 (Ubuntu)'
+          'Connection': 'Keep-Alive'
+          'Keep-Alive': 'timeout=5, max=100'
+          'ETag': '"grooveshark"'
+
+        res.writeHead(304, headers)
+        res.end()
+        return
+
 
     # Check if we have the song in cache ...
     fs.exists path, (exists) =>
@@ -116,28 +122,28 @@ class Server
 
           # Get range start and end
           bytes = range.match(/bytes=(\d+)-(\d+)?/)
-          ini = parseInt(bytes[1], 10)
-          end = parseInt(bytes[2], 10)
-          if isNaN(end) then end = file.length - 1
+          rangeStart = parseInt(bytes[1], 10)
+          rangeEnd = parseInt(bytes[2], 10)
+          if isNaN(rangeEnd) then rangeEnd = file.length - 1
 
           # Generate headers
           total = file.length
-          chunk = end - ini + 1
+          chunk = rangeEnd - rangeStart + 1
           headers =
             'Date': new Date().toGMTString()
             'Server': 'Apache/2.2.22 (Ubuntu)'
-            'Last-Modified': new Date('5/10/2013').toGMTString()
+            'Last-Modified': new Date('5/10/2013').toGMTString() # why?
             'ETag': '"grooveshark"'
             'Accept-Ranges': 'bytes'
             'Content-Length': chunk
-            'Content-Range': "bytes #{ini}-#{end}/#{total}"
+            'Content-Range': "bytes #{ rangeStart }-#{ rangeEnd }/#{total}"
             'Keep-Alive': 'timeout=5, max=100'
             'Connection': 'Keep-Alive'
             'Content-Type': 'audio/mpeg'
 
           # Send to client
-          res.writeHead(206, headers)
-          res.end(file)
+          res.writeHead 206, headers
+          res.end file[rangeStart..rangeEnd]
 
       else
 

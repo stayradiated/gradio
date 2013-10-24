@@ -14,7 +14,7 @@
           if ((typeof require !== "undefined" && require !== null)) {
             return require(id);
           }
-          console.trace("Cannot find module '" + id + "'");
+          console.error("Cannot find module '" + id + "'");
           return null;
         }
         file = cache[id] = {
@@ -36,7 +36,7 @@
     [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/source/js/init.coffee
+          /Volumes/Home/Projects/Groovy/app/source/js/init.coffee
         */
 
         './app.coffee': 1
@@ -50,7 +50,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/source/js/app.coffee
+          /Volumes/Home/Projects/Groovy/app/source/js/app.coffee
         */
 
         'base': 2,
@@ -175,7 +175,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/node_modules/base/index.js
+          /Volumes/Home/Projects/Groovy/app/node_modules/base/index.js
         */
 
       }, function(require, module, exports) {
@@ -625,7 +625,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/node_modules/ranger/lib/controllers/ranger.js
+          /Volumes/Home/Projects/Groovy/app/node_modules/ranger/lib/controllers/ranger.js
         */
 
         'base': 2,
@@ -857,7 +857,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/node_modules/ranger/lib/common.js
+          /Volumes/Home/Projects/Groovy/app/node_modules/ranger/lib/common.js
         */
 
       }, function(require, module, exports) {
@@ -879,7 +879,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/node_modules/ranger/lib/views/pane.js
+          /Volumes/Home/Projects/Groovy/app/node_modules/ranger/lib/views/pane.js
         */
 
       }, function(require, module, exports) {
@@ -897,7 +897,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/node_modules/ranger/lib/views/item.js
+          /Volumes/Home/Projects/Groovy/app/node_modules/ranger/lib/views/item.js
         */
 
       }, function(require, module, exports) {
@@ -915,7 +915,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/node_modules/ranger/lib/controllers/panes.js
+          /Volumes/Home/Projects/Groovy/app/node_modules/ranger/lib/controllers/panes.js
         */
 
         'base': 2,
@@ -1074,7 +1074,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/node_modules/ranger/lib/controllers/items.js
+          /Volumes/Home/Projects/Groovy/app/node_modules/ranger/lib/controllers/items.js
         */
 
         'base': 2,
@@ -1162,7 +1162,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/node_modules/ranger/lib/models/pane.js
+          /Volumes/Home/Projects/Groovy/app/node_modules/ranger/lib/models/pane.js
         */
 
         'base': 2,
@@ -1212,7 +1212,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/node_modules/ranger/lib/models/item.js
+          /Volumes/Home/Projects/Groovy/app/node_modules/ranger/lib/models/item.js
         */
 
         'base': 2,
@@ -1270,7 +1270,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/node_modules/jqueryify/index.js
+          /Volumes/Home/Projects/Groovy/app/node_modules/jqueryify/index.js
         */
 
       }, function(require, module, exports) {
@@ -10110,7 +10110,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/source/js/client.coffee
+          /Volumes/Home/Projects/Groovy/app/source/js/client.coffee
         */
 
         'base': 2,
@@ -10159,7 +10159,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/node_modules/when/when.js
+          /Volumes/Home/Projects/Groovy/node_modules/when/when.js
         */
 
       }, function(require, module, exports) {
@@ -10990,7 +10990,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/source/js/settings.coffee
+          /Volumes/Home/Projects/Groovy/app/source/js/settings.coffee
         */
 
         'base': 2
@@ -11018,7 +11018,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/source/js/player.coffee
+          /Volumes/Home/Projects/Groovy/app/source/js/player.coffee
         */
 
         'jqueryify': 11,
@@ -11143,7 +11143,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/source/js/track.coffee
+          /Volumes/Home/Projects/Groovy/app/source/js/track.coffee
         */
 
         'base': 2
@@ -11178,7 +11178,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/source/js/search.coffee
+          /Volumes/Home/Projects/Groovy/app/source/js/search.coffee
         */
 
         'base': 2
@@ -11250,7 +11250,7 @@
     ], [
       {
         /*
-          /Users/Admin/Projects/Groovy/app/source/js/bar.coffee
+          /Volumes/Home/Projects/Groovy/app/source/js/bar.coffee
         */
 
         'base': 2
