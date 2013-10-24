@@ -1,7 +1,4 @@
 node_modules
 .sass-cache
 cache/*.mp3
-lib
-pages/*.js
-pages/*.json
-pages/*.html
+grooveshark/*.*
