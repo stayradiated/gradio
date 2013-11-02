@@ -15,17 +15,16 @@ Promise = require 'when'
 ###
 module.exports = (core, parameters, method) ->
 
-  core.getSessionID().then (sessionID) =>
-    json =
-      parameters:        parameters
-      method:            method
-      header:
-        privacy:         0
-        uuid:            core.uuid
-        session:         sessionID
-        country:         core.country
-        client:          core.client.name
-        clientRevision:  core.client.revision
-      toString: => JSON.stringify(json)
+  json =
+    parameters:        parameters
+    method:            method
+    header:
+      privacy:         0
+      uuid:            core.uuid
+      session:         core.sessionID
+      country:         core.country
+      client:          core.client.name
+      clientRevision:  core.client.revision
+    toString: => JSON.stringify(json)
 
-    return json
+  return json

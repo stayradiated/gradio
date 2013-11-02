@@ -74,9 +74,6 @@ class Server
     songID = decodeURIComponent match[1]
     path = "./cache/#{ songID }.mp3"
 
-    console.log ''
-    console.log req.headers
-
     # If the client already has a copy of the song in cache, then we just tell
     # it to use it. Mainly because the file is never going to change on the
     # server, so there is no point in resending it.

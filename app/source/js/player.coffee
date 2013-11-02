@@ -39,6 +39,8 @@ class Player extends Base.View
     for event, method of @audioEvents
       @context.addEventListener(event, @[method])
 
+    window.toggle = @toggle
+
   toggle: =>
     if @context.paused
       @context.play()

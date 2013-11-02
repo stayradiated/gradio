@@ -17,15 +17,15 @@ class Search extends Base.View
     @type = 'Songs'
 
   open: (e) =>
-
     return true unless e.which is 13
+    @play()
+
+  play: =>
     query = @input.val()
     if not isNaN parseInt(query)
       @trigger 'playlist', query
     else
       @trigger 'search', query, @type
-
-    return true
 
   chooseItem: (event) =>
     element = $(event.target)
@@ -39,6 +39,5 @@ class Search extends Base.View
     @dropdown.find('.active').removeClass('active')
     element.toggleClass('active')
     console.log 'chosing type', @type
-
 
 module.exports = Search

@@ -81,9 +81,7 @@ module.exports.init = ->
       e.preventDefault()
       return false
 
-  $('.decorations').on('click', ->
-    openItem()
-  )
+  window.play = openItem
 
   # Track input focus - for keyboard shortcuts
   focus = false

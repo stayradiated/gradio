@@ -23,6 +23,7 @@ class Socket
     @socket.on event, fn
 
   emit: (event, data) =>
+    if data.toJSON? then data = data.toJSON()
     @socket.emit event, data
 
   callMethod: ([method, args]) =>

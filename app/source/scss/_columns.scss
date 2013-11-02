@@ -35,8 +35,9 @@ section.columns {
   .items {
     height: 100%;
     background: $white;
-    overflow-y: auto;
+    overflow-y: scroll;
     padding: 10px;
+    -webkit-overflow-scrolling: touch;
   }
 
   .item {

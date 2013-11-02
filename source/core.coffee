@@ -17,6 +17,7 @@ http     = require 'http'
 crypto   = require 'crypto'
 uuid     = require 'uuid'
 jsonPost = require './jsonPost'
+Song     = require './models/song'
 mimic    = require './mimic'
 log      = require('./log')('core', 'green')
 
@@ -56,58 +57,31 @@ class Core
     mimic.init().then (session) =>
       @client  = session.client
       @country = session.country
+      @sessionID = session.id
+
+      log '[sessionID]', @sessionID
       @getToken()
         .then (token) ->
           log 'We are online'
 
 
   ###*
-   * Returns a Grooveshark SessionID which is needed to communicate with the
-   * services and generate the secret key.
-   * @promises (string): Grooveshark's SessionID
-  ###
-  getSessionID: =>
-
-    deferred = Promise.defer()
-
-    # If we already have a valid session ID, use it
-    if @sessionID.length > 0
-      deferred.resolve @sessionID
-      return deferred.promise
-
-    # Else request a new ID from GrooveShark
-    request @homeurl, (err, res, body) =>
-      if (err) then return deferred.reject(err)
-      # Extract session ID from cookies
-      cookies = res.headers['set-cookie']
-      @sessionID = cookies[0].split('=')[1].split(';')[0]
-      deferred.resolve @sessionID
-
-    return deferred.promise
-
-
-  ###*
    * Generates the SecretKey from the SessionID needed to get the communication
    * Token and returns it.
-   * @promises (string): SessionID's SecretKey
+   * @returns (string): SessionID's SecretKey
   ###
   getSecretKey: =>
 
-    deferred = Promise.defer()
-
     # If we have already calculated the secret key
     if @secretKey.length > 0
-      deferred.resolve @secretKey
-      return deferred.promise
+      return @secretKey
 
     # Else calculate the secret key
-    @getSessionID().then (sessionID) =>
-      md5 = crypto.createHash('md5')
-      md5.update(sessionID, 'utf-8')
-      @secretKey = md5.digest('hex')
-      deferred.resolve @secretKey
-
-    return deferred.promise
+    md5 = crypto.createHash('md5')
+    md5.update(@sessionID, 'utf-8')
+    @secretKey = md5.digest('hex')
+    log '[secretKey]', @secretKey
+    return @secretKey
 
 
   ###*
@@ -116,23 +90,24 @@ class Core
   ###
   getToken: =>
 
+    log '[getToken] start'
+
     deferred = Promise.defer()
 
     timeNow = Date.now()
 
     # If we have a valid token, use that instead of getting a new one
     if @token.length > 0 and (timeNow - @lastTokenTime) < @newTokenTime
+      log '[getToken] end (cache)'
       deferred.resolve @token
       return deferred.promise
 
-    @getSecretKey()
-      .then (secretKey) =>
-        parameters = secretKey: secretKey
-        return @callMethod(parameters, 'getCommunicationToken', 'https')
-      .then (response) =>
-        @token = response
-        @lastTokenTime = timeNow
-        deferred.resolve @token
+    parameters = secretKey: @getSecretKey()
+    @callMethod(parameters, 'getCommunicationToken', 'https').then (response) =>
+      @token = response.result
+      @lastTokenTime = timeNow
+      log '[getToken] end'
+      deferred.resolve @token
 
     return deferred.promise
 
@@ -153,7 +128,7 @@ class Core
 
       # Generate a random token made of 6 hex digits
       randomhex = ''
-      while 6 > randomhex.length
+      while randomhex.length < 6
         pos = Math.floor Math.random() * 16
         randomhex += '0123456789abcdef'.charAt(pos)
 
@@ -175,6 +150,8 @@ class Core
   ###
   callMethod: (parameters, method, protocol='http') =>
 
+    log "[#{ method }] starting"
+
     deferred = Promise.defer()
 
     start = Date.now()
@@ -186,58 +163,62 @@ class Core
       url = "#{ protocol }://#{ url }"
 
     # Transform parameters and method into a JsonPost object
-    jsonPost(this, parameters, method).then (json) =>
+    json = jsonPost(this, parameters, method)
 
-      if method isnt 'getCommunicationToken'
-        @getTokenKey(method).then (token) ->
-          json.header.token = token
-          makeRequest(json)
+    log "[#{ method }] Starting request via", protocol
 
-      else
-        makeRequest(json)
+    if method isnt 'getCommunicationToken'
+      @getTokenKey(method).then (token) =>
+        json.header.token = token
+        @makeRequest(url, json, deferred)
 
-    # Runs the request
-    makeRequest = (parameters) ->
-
-      log "[#{ method }] Starting request via", protocol
-
-      if protocol is 'http'
-
-        params = parameters.toString()
-        oboeRequest = oboe.doPost
-          url: url
-          body: params
-          headers: mimic.methodHeaders(params.length)
-
-        oboeRequest.node '!.result.result.*', (result) ->
-          deferred.notify(result)
-
-        oboeRequest.done (result) ->
-          console.log 'finished oboe request'
-          deferred.resolve result
-
-        oboeRequest.fail (error) ->
-          console.log oboeRequest.root()
-
-      else
-
-        options =
-          url: url
-          method: 'POST'
-          body: parameters.toString()
-          headers: mimic.headers
-
-        request options, (err, res, body) ->
-          if err then return deferred.reject(err)
-          end = Date.now()
-          log "[#{ method }] Finished request in #{ (end - start) / 1000 } seconds"
-          try
-            results = JSON.parse body
-          catch e
-            results = body
-          deferred.resolve results
+    else
+      @makeRequest(url, json, deferred)
 
     return deferred.promise
+
+  # Runs the request
+  makeRequest: (url, parameters, deferred) ->
+    log '[request]', url
+
+    # Oboe doesn't work with HTTPS
+    if url[0..4] isnt 'https'
+
+      params = parameters.toString()
+      oboeRequest = oboe.doPost
+        url: url
+        body: params
+        headers: mimic.methodHeaders(params.length)
+
+      oboeRequest.node '!.result.result.*', (result) ->
+        deferred.notify new Song(result)
+
+      oboeRequest.node '!.result.Songs.*', (result) ->
+        deferred.notify new Song(result)
+
+      oboeRequest.done (result) ->
+        deferred.resolve result
+
+      oboeRequest.fail (error) ->
+        console.log oboeRequest.root()
+
+    else
+
+      options =
+        url: url
+        method: 'POST'
+        body: parameters.toString()
+        headers: mimic.headers
+
+      request options, (err, res, body) ->
+        console.log body
+        if err then return deferred.reject(err)
+        end = Date.now()
+        try
+          results = JSON.parse body
+        catch e
+          results = body
+        deferred.resolve results
 
   ###*
    * Returns the song audio stream corresponded to the streamKey passed, it

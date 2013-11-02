@@ -350,8 +350,7 @@ class Methods
 
     @getSongUrl(songID)
       .then (response) =>
-        ip = response.ip
-        streamKey = response.streamKey
+        {ip, streamKey} = response.result
         timer = setTimeout(=>
           console.log '> It has been 30 seconds...'
           past30seconds = true

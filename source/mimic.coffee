@@ -53,9 +53,11 @@ module.exports.init = ->
     else
       log 'generating token.json from grooveshark files'
       getFiles([file.html, file.js]).then ([html, js]) ->
+        console.log html[1]
         data =
-          client:   getClientInfo js
-          country:  getCountry    html
+          client:   getClientInfo js[0]
+          country:  getCountry    html[0]
+          id:       getSessionId  html[1]
         saveFile data
         deferred.resolve data
 
@@ -82,6 +84,11 @@ getClientInfo = (body) ->
     revision: client[2]
     salt: salt
 
+# -- GET SESSION ID -----------------------------------------------------------
+
+getSessionId = (headers) ->
+  cookies = headers['set-cookie']
+  return cookies[0].split('=')[1].split(';')[0]
 
 ###*
  * Downloads a file from the internet, but also keeps a cache of the file for
@@ -127,7 +134,7 @@ getFiles = (urls) ->
       request options, (err, res, body) ->
         if err then return deferred.reject(err)
         fs.writeFile(filename, body)
-        deferred.resolve(body)
+        deferred.resolve([body, res.headers])
 
   return deferred.promise
 

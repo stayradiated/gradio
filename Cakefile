@@ -1,3 +1,5 @@
+{exec} = require 'child_process'
+
 task 'server', 'Start server', ->
 
   Core   = require './source/core'
@@ -10,4 +12,6 @@ task 'server', 'Start server', ->
   core.init()
   server.listen(8080)
   Socket.init(server.server, server.app)
+
+  exec('open http://localhost:8080')
 
