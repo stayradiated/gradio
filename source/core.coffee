@@ -103,7 +103,7 @@ class Core
       return deferred.promise
 
     parameters = secretKey: @getSecretKey()
-    @callMethod(parameters, 'getCommunicationToken', 'https').then (response) =>
+    @callMethod(parameters, 'getCommunicationToken', null, 'https').then (response) =>
       @token = response.result
       @lastTokenTime = timeNow
       log '[getToken] end'
@@ -148,7 +148,7 @@ class Core
    * - method (string): The service to call
    * - protocol (string): The protocol to use
   ###
-  callMethod: (parameters, method, protocol='http') =>
+  callMethod: (parameters, method, pattern, protocol='http') =>
 
     log "[#{ method }] starting"
 
@@ -157,10 +157,10 @@ class Core
     start = Date.now()
 
     # Assemble URL
-    url = "#{ @methodurl }?#{ method }"
-
-    if protocol is 'https'
-      url = "#{ protocol }://#{ url }"
+    if pattern? and protocol isnt 'https'
+      url = "#{ @methodurl }?#{ method }"
+    else
+      url = "#{ protocol }://#{ @methodurl }?#{ method }"
 
     # Transform parameters and method into a JsonPost object
     json = jsonPost(this, parameters, method)
@@ -170,50 +170,51 @@ class Core
     if method isnt 'getCommunicationToken'
       @getTokenKey(method).then (token) =>
         json.header.token = token
-        @makeRequest(url, json, deferred)
+        @makeRequest(url, json, pattern, deferred)
 
     else
-      @makeRequest(url, json, deferred)
+      @makeRequest(url, json, pattern, deferred)
 
     return deferred.promise
 
   # Runs the request
-  makeRequest: (url, parameters, deferred) ->
+  makeRequest: (url, parameters, pattern, deferred) ->
     log '[request]', url
+
+    params = parameters.toString()
 
     # Oboe doesn't work with HTTPS
     if url[0..4] isnt 'https'
 
-      params = parameters.toString()
+      log '[request] using oboe'
+
       oboeRequest = oboe.doPost
         url: url
         body: params
         headers: mimic.methodHeaders(params.length)
 
-      oboeRequest.node '!.result.result.*', (result) ->
-        deferred.notify new Song(result)
-
-      oboeRequest.node '!.result.Songs.*', (result) ->
-        deferred.notify new Song(result)
+      oboeRequest.node pattern, (result) ->
+        deferred.notify result
 
       oboeRequest.done (result) ->
         deferred.resolve result
 
       oboeRequest.fail (error) ->
-        console.log oboeRequest.root()
+        console.log 'error', oboeRequest.root()
 
     else
+
+      log '[request] using request'
 
       options =
         url: url
         method: 'POST'
-        body: parameters.toString()
+        body: params
         headers: mimic.headers
 
       request options, (err, res, body) ->
-        console.log body
+        console.log err
         if err then return deferred.reject(err)
-        end = Date.now()
         try
           results = JSON.parse body
         catch e

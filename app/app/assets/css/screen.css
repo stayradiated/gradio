@@ -96,7 +96,6 @@ header.panel {
     margin: 0 auto;
     width: 400px; }
   header.panel .dropdown {
-    display: none;
     position: relative;
     z-index: 5;
     float: left;

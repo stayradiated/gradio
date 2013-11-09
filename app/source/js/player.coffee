@@ -18,6 +18,7 @@ class Player extends Base.View
     'durationchange': 'setDuration'
     'progress': 'showBufferProgress'
     'timeupdate': 'showCurrentProgress'
+    'ended': 'finished'
 
   # el is the audio-controls element
   constructor: ->
@@ -29,7 +30,6 @@ class Player extends Base.View
       autoplay: true
       preload: 'auto'
       controls: true
-    $('body').append(@context)
     @context = @audio.get(0)
 
     # Create track
@@ -71,6 +71,7 @@ class Player extends Base.View
   setSong: (song) =>
     @trigger 'change', song
     url = "http://#{ settings.host }:#{ settings.port }/song/#{ song.SongID }.mp3?t=#{ Date.now() }"
+    console.log 'loading', url
     @setSource(url)
 
   setSource: (url) =>
@@ -78,5 +79,8 @@ class Player extends Base.View
 
   setDuration: =>
     @duration = @context.duration
+
+  finished: =>
+    @trigger 'finished'
 
 module.exports = Player

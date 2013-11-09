@@ -70,7 +70,7 @@
         Search = require('./search');
         Bar = require('./bar');
         return module.exports.init = function() {
-          var app, bar, focus, openItem, parseOffline, player, ranger, search;
+          var app, bar, focus, openItem, parseOffline, player, ranger, search, startBroadcast;
           app = new Client();
           bar = new Bar({
             el: $('.bar')
@@ -85,8 +85,15 @@
             el: $('section.columns')
           });
           ranger.setPanes([['Artist', 'ArtistName'], ['Songs', 'SongName']]);
-          app.vent.on('result', function(method, song) {
-            return ranger.add(song);
+          app.vent.on('result', function(method, item) {
+            switch (method) {
+              case 'broadcastStatusPoll':
+                console.log(item);
+                player.setSong(item.activeSong);
+                return bar.setSong(item.activeSong);
+              default:
+                return ranger.add(item);
+            }
           });
           player.on('change', function(song) {
             return bar.setSong(song);
@@ -97,7 +104,17 @@
           });
           search.on('search', function(query, type) {
             ranger.clear();
-            return app.getSearchResults(query, type);
+            switch (type) {
+              case 'User':
+                ranger.setPanes([['Songs', 'SongName']]);
+                return app.userGetSongsInLibrary(20910233);
+              case 'Broadcast':
+                ranger.setPanes([['Broadcasts', 'n']]);
+                return app.getTopBroadcasts();
+              default:
+                ranger.setPanes([['Artist', 'ArtistName'], ['Songs', 'SongName']]);
+                return app.getSearchResults(query, type);
+            }
           });
           parseOffline = function() {
             var fs, songIDs;
@@ -117,13 +134,24 @@
               });
             });
           };
+          startBroadcast = function(broadcast) {
+            console.log('opening broadcast', broadcast);
+            app.broadcastStatusPoll(broadcast.sub.slice(6));
+            return player.on('finished', function() {
+              return app.broadcastStatusPoll(broadcast.sub.slice(6));
+            });
+          };
           openItem = function() {
-            var song;
-            song = ranger.open();
-            if (!song) {
+            var item;
+            item = ranger.open();
+            if (!item) {
               return;
             }
-            return player.setSong(song);
+            if (item.sub != null) {
+              return startBroadcast(item);
+            } else {
+              return player.setSong(item);
+            }
           };
           $(document).on('keydown', function(e) {
             var _ref;
@@ -387,6 +415,9 @@
               // If el is not specified use this.el
               if (!el) { el = this.el; }
       
+              // Else set this.el if it isn't already set
+              else if (!this.el) { this.el = el; }
+      
               // Cache elements
               for (selector in this.elements) {
                   if (this.elements.hasOwnProperty(selector)) {
@@ -578,11 +609,16 @@
           // Add a model to the collection
           Collection.prototype.add = function (model, options) {
       
-              var id, index, self = this;
+              var id, number, index, self = this;
       
               // Set ID
               if (model.id) {
                   id = model.id;
+                  // Make sure we don't reuse an existing id
+                  number = parseInt(model.id.slice(2), 10);
+                  if (number> this._index) {
+                      this._index = number + 1;
+                  }
               } else {
                   id = 'c-' + this._index;
                   this._index += 1;
@@ -664,6 +700,15 @@
           // Sort the models. Does not alter original order
           Collection.prototype.sort = function () {
               return this._models.sort.apply(this._models, arguments);
+          };
+      
+          // Get an array of all the properties from the models
+          Collection.prototype.pluck = function(property) {
+              var array = [];
+              this.forEach(function (task) {
+                  array.push(task[property]);
+              });
+              return array
           };
       
           // Get the index of the item
@@ -1282,6 +1327,9 @@
               // If el is not specified use this.el
               if (!el) { el = this.el; }
       
+              // Else set this.el if it isn't already set
+              else if (!this.el) { this.el = el; }
+      
               // Cache elements
               for (selector in this.elements) {
                   if (this.elements.hasOwnProperty(selector)) {
@@ -1473,11 +1521,16 @@
           // Add a model to the collection
           Collection.prototype.add = function (model, options) {
       
-              var id, index, self = this;
+              var id, number, index, self = this;
       
               // Set ID
               if (model.id) {
                   id = model.id;
+                  // Make sure we don't reuse an existing id
+                  number = parseInt(model.id.slice(2), 10);
+                  if (number> this._index) {
+                      this._index = number + 1;
+                  }
               } else {
                   id = 'c-' + this._index;
                   this._index += 1;
@@ -1559,6 +1612,15 @@
           // Sort the models. Does not alter original order
           Collection.prototype.sort = function () {
               return this._models.sort.apply(this._models, arguments);
+          };
+      
+          // Get an array of all the properties from the models
+          Collection.prototype.pluck = function(property) {
+              var array = [];
+              this.forEach(function (task) {
+                  array.push(task[property]);
+              });
+              return array
           };
       
           // Get the index of the item
@@ -10881,7 +10943,7 @@
         Promise = require('when');
         settings = require('./settings');
         SocketIo = require('./lib/socket.io');
-        METHODS = ['getSongInfo', 'getSearchResults', 'getArtistsSongs', 'getAlbumSongs', 'getPlaylistSongs', 'getPlaylistByID', 'albumGetAllSongs', 'userGetSongsInLibrary', 'getFavorites', 'getPopularSongs', 'markSongAsDownloaded', 'markStreamKeyOver30Seconds', 'markSongComplete', 'authenticateUser', 'logoutUser', 'initiateQueue', 'createPlaylist', 'playlistAddSongToExisting', 'userAddSongsToLibrary', 'favorite', 'userGetPlaylists', 'getSongUrl', 'getSongStream'];
+        METHODS = ['getSongInfo', 'getSearchResults', 'getArtistsSongs', 'getAlbumSongs', 'getPlaylistSongs', 'getPlaylistByID', 'getTopBroadcasts', 'broadcastStatusPoll', 'albumGetAllSongs', 'userGetSongsInLibrary', 'getFavorites', 'getPopularSongs', 'markSongAsDownloaded', 'markStreamKeyOver30Seconds', 'markSongComplete', 'authenticateUser', 'logoutUser', 'initiateQueue', 'createPlaylist', 'playlistAddSongToExisting', 'userAddSongsToLibrary', 'favorite', 'userGetPlaylists', 'getSongUrl', 'getSongStream'];
         module.exports = (function() {
           function exports() {
             this._callMethod = __bind(this._callMethod, this);
@@ -15246,10 +15308,12 @@
           Player.prototype.audioEvents = {
             'durationchange': 'setDuration',
             'progress': 'showBufferProgress',
-            'timeupdate': 'showCurrentProgress'
+            'timeupdate': 'showCurrentProgress',
+            'ended': 'finished'
           };
 
           function Player() {
+            this.finished = __bind(this.finished, this);
             this.setDuration = __bind(this.setDuration, this);
             this.setSource = __bind(this.setSource, this);
             this.setSong = __bind(this.setSong, this);
@@ -15323,6 +15387,7 @@
             var url;
             this.trigger('change', song);
             url = "http://" + settings.host + ":" + settings.port + "/song/" + song.SongID + ".mp3?t=" + (Date.now());
+            console.log('loading', url);
             return this.setSource(url);
           };
 
@@ -15332,6 +15397,10 @@
 
           Player.prototype.setDuration = function() {
             return this.duration = this.context.duration;
+          };
+
+          Player.prototype.finished = function() {
+            return this.trigger('finished');
           };
 
           return Player;
@@ -15437,6 +15506,10 @@
                   return 'Artists';
                 case 3:
                   return 'Albums';
+                case 4:
+                  return 'User';
+                case 5:
+                  return 'Broadcast';
               }
             })();
             this.chosenType.text(name);

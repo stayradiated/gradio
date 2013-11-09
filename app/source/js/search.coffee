@@ -35,6 +35,8 @@ class Search extends Base.View
       when 1 then 'Playlists'
       when 2 then 'Artists'
       when 3 then 'Albums'
+      when 4 then 'User'
+      when 5 then 'Broadcast'
     @chosenType.text(name)
     @dropdown.find('.active').removeClass('active')
     element.toggleClass('active')

@@ -28,11 +28,18 @@ module.exports.init = ->
     ['Songs', 'SongName']
   ]
 
-  app.vent.on 'result', (method, song) ->
-    ranger.add song
+  app.vent.on 'result', (method, item) ->
+    switch method
+      when 'broadcastStatusPoll'
+        console.log item
+        player.setSong item.activeSong
+        bar.setSong item.activeSong
+      else
+        ranger.add item
 
   player.on 'change', (song) ->
     bar.setSong(song)
+
 
   search.on 'playlist', (id) ->
     ranger.clear()
@@ -40,7 +47,25 @@ module.exports.init = ->
 
   search.on 'search', (query, type) ->
     ranger.clear()
-    app.getSearchResults(query, type)
+    switch type
+      when 'User'
+        ranger.setPanes [
+          ['Songs', 'SongName']
+        ]
+        app.userGetSongsInLibrary(20910233)
+
+      when 'Broadcast'
+        ranger.setPanes [
+          ['Broadcasts', 'n']
+        ]
+        app.getTopBroadcasts();
+
+      else
+        ranger.setPanes [
+          ['Artist', 'ArtistName']
+          ['Songs', 'SongName']
+        ]
+        app.getSearchResults(query, type)
 
   # Load offline files
   parseOffline = ->
@@ -56,10 +81,19 @@ module.exports.init = ->
           ['Songs', 'Name']
         ]
 
+  startBroadcast = (broadcast) ->
+    console.log 'opening broadcast', broadcast
+    app.broadcastStatusPoll broadcast.sub[6..]
+    player.on 'finished', ->
+      app.broadcastStatusPoll broadcast.sub[6..]
+
   openItem = ->
-    song = ranger.open()
-    return unless song
-    player.setSong(song)
+    item = ranger.open()
+    return unless item
+    if item.sub?
+      startBroadcast(item)
+    else
+      player.setSong(item)
 
   # Enable keyboard shortcuts
   $(document).on 'keydown', (e) ->

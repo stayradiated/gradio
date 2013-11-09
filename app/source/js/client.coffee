@@ -10,6 +10,8 @@ METHODS = [
   'getAlbumSongs',
   'getPlaylistSongs',
   'getPlaylistByID',
+  'getTopBroadcasts',
+  'broadcastStatusPoll',
   'albumGetAllSongs',
   'userGetSongsInLibrary',
   'getFavorites',

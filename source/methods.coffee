@@ -9,6 +9,25 @@ class Methods
   ###
   constructor: (@core) ->
 
+
+  # Get a list of the top broadcasts
+  getTopBroadcasts: =>
+
+    pattern = '!.result.*'
+    parameters = {}
+
+    @core.callMethod(parameters, 'getTopBroadcastsCombined', pattern)
+
+  # Check a broadcast
+  broadcastStatusPoll: (broadcastID) =>
+
+    pattern = '!.result'
+
+    parameters =
+      broadcastID: broadcastID
+
+    @core.callMethod(parameters, 'broadcastStatusPoll', pattern)
+
   ###*
    * Returns the results of a search from the result of calling Grooveshark's
    * method getSearchResultsEx
@@ -18,13 +37,15 @@ class Methods
   ###
   getSearchResults: (query, type) =>
 
+    pattern = '!.result.result.*'
+
     parameters =
       query: query
       type: type
       guts: 0
       ppOveride: false
 
-    @core.callMethod(parameters, 'getResultsFromSearch')
+    @core.callMethod(parameters, 'getResultsFromSearch', pattern)
 
 
   ###*
@@ -81,12 +102,14 @@ class Methods
   ###
   getPlaylistSongs: (listID, offset=0, isVerified=false) =>
 
+    pattern = '!.result.Songs.*'
+
     parameters =
       offset: offset
       playlistID: listID
       isVerified: isVerified
 
-    @core.callMethod(parameters, 'playlistGetSongs')
+    @core.callMethod(parameters, 'playlistGetSongs', pattern)
 
   getPlaylistByID: (playlistID) =>
 
