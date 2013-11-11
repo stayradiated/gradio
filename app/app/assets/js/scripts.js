@@ -70,7 +70,7 @@
         Search = require('./search');
         Bar = require('./bar');
         return module.exports.init = function() {
-          var app, bar, focus, openItem, parseOffline, player, ranger, search, startBroadcast;
+          var app, bar, currentBroadcast, focus, openItem, parseOffline, player, ranger, search, startBroadcast;
           app = new Client();
           bar = new Bar({
             el: $('.bar')
@@ -134,13 +134,18 @@
               });
             });
           };
+          currentBroadcast = null;
           startBroadcast = function(broadcast) {
             console.log('opening broadcast', broadcast);
-            app.broadcastStatusPoll(broadcast.sub.slice(6));
-            return player.on('finished', function() {
-              return app.broadcastStatusPoll(broadcast.sub.slice(6));
-            });
+            currentBroadcast = broadcast.sub.slice(6);
+            return app.broadcastStatusPoll(currentBroadcast);
           };
+          player.on('finished', function() {
+            if (!currentBroadcast) {
+              return;
+            }
+            return app.broadcastStatusPoll(currentBroadcast);
+          });
           openItem = function() {
             var item;
             item = ranger.open();
@@ -15332,7 +15337,6 @@
               preload: 'auto',
               controls: true
             });
-            $('body').append(this.context);
             this.context = this.audio.get(0);
             track = this.track = new Track({
               el: this.track

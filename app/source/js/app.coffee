@@ -40,7 +40,6 @@ module.exports.init = ->
   player.on 'change', (song) ->
     bar.setSong(song)
 
-
   search.on 'playlist', (id) ->
     ranger.clear()
     app.getPlaylistByID(id)
@@ -81,11 +80,18 @@ module.exports.init = ->
           ['Songs', 'Name']
         ]
 
+
+  currentBroadcast = null
+
   startBroadcast = (broadcast) ->
     console.log 'opening broadcast', broadcast
-    app.broadcastStatusPoll broadcast.sub[6..]
-    player.on 'finished', ->
-      app.broadcastStatusPoll broadcast.sub[6..]
+    currentBroadcast = broadcast.sub[6..]
+    app.broadcastStatusPoll currentBroadcast
+
+  player.on 'finished', ->
+    return unless currentBroadcast
+    app.broadcastStatusPoll currentBroadcast
+
 
   openItem = ->
     item = ranger.open()

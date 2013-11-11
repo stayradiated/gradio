@@ -164,7 +164,7 @@ class Server
             res.write(chunk)
             current += chunk.length
             now = Math.round(current/total * 100)
-            if now > last + 5
+            if now >= last + 5
               last = now
 
               # trigger some kind of event
