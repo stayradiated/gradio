@@ -99,10 +99,14 @@
             return bar.setSong(song);
           });
           search.on('playlist', function(id) {
+            var currentBroadcast;
+            currentBroadcast = false;
             ranger.clear();
             return app.getPlaylistByID(id);
           });
           search.on('search', function(query, type) {
+            var currentBroadcast;
+            currentBroadcast = false;
             ranger.clear();
             switch (type) {
               case 'User':

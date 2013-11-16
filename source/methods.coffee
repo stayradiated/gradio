@@ -1,4 +1,5 @@
 
+Song = require './models/song'
 request = require 'request'
 Promise = require 'when'
 
@@ -113,10 +114,16 @@ class Methods
 
   getPlaylistByID: (playlistID) =>
 
+    pattern = '!.result.Songs.*'
+
     parameters =
       playlistID: playlistID
 
-    @core.callMethod(parameters, 'getPlaylistByID')
+    # Convert song to Song
+    @core
+      .callMethod(parameters, 'getPlaylistByID', pattern)
+      .then null, null, (song) ->
+        new Song song
 
   ###*
    * Returns all the songs in an album

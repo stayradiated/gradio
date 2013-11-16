@@ -41,10 +41,12 @@ module.exports.init = ->
     bar.setSong(song)
 
   search.on 'playlist', (id) ->
+    currentBroadcast = false
     ranger.clear()
     app.getPlaylistByID(id)
 
   search.on 'search', (query, type) ->
+    currentBroadcast  = false
     ranger.clear()
     switch type
       when 'User'
