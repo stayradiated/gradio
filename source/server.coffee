@@ -96,51 +96,51 @@ class Server
 
 
     # Check if we have the song in cache ...
-    fs.exists path, (exists) =>
+    fs.stat path, (err, stats) =>
 
-      log path, exists
-
-      if exists
+      if not err
         log 'Loading from disk'
 
-        # Load file from disk
-        fs.readFile path, (err, file) ->
+        range = req.headers.range
 
-          range = req.headers.range
-
-          unless range?
-            log 'no range'
-            res.writeHead 200,
-              'Content-Type': 'audio/mpeg'
-            res.end(file)
-            return
-
-          log 'Normal transfer'
-
-          # Get range start and end
-          bytes = range.match(/bytes=(\d+)-(\d+)?/)
-          rangeStart = parseInt(bytes[1], 10)
-          rangeEnd = parseInt(bytes[2], 10)
-          if isNaN(rangeEnd) then rangeEnd = file.length - 1
-
-          # Generate headers
-          total = file.length
-          chunk = rangeEnd - rangeStart + 1
-          headers =
-            'Date': new Date().toGMTString()
-            'Server': 'Apache/2.2.22 (Ubuntu)'
-            'Last-Modified': new Date('5/10/2013').toGMTString() # why?
-            'ETag': '"grooveshark"'
-            'Accept-Ranges': 'bytes'
-            'Content-Length': chunk
-            'Content-Range': "bytes #{ rangeStart }-#{ rangeEnd }/#{total}"
-            'Keep-Alive': 'timeout=5, max=100'
-            'Connection': 'Keep-Alive'
+        unless range?
+          log 'no range'
+          stream = fs.createReadStream path
+          res.writeHead 200,
             'Content-Type': 'audio/mpeg'
+          stream.pipe res
+          return
 
-          # Send to client
-          res.writeHead 206, headers
-          res.end file[rangeStart..rangeEnd]
+        log 'Normal transfer'
+
+        # Get range start and end
+        bytes = range.match(/bytes=(\d+)-(\d+)?/)
+        rangeStart = parseInt(bytes[1], 10)
+        rangeEnd = parseInt(bytes[2], 10)
+        if isNaN(rangeEnd) then rangeEnd = stats.size - 1
+
+        stream = fs.createReadStream path,
+          start: rangeStart
+          end: rangeEnd
+
+        # Generate headers
+        total = stats.size
+        chunk = rangeEnd - rangeStart + 1
+        headers =
+          'Date': new Date().toGMTString()
+          'Server': 'Apache/2.2.23 (Unix)'
+          'Last-Modified': stats.mtime.toGMTString()
+          'ETag': '"grooveshark"'
+          'Accept-Ranges': 'bytes'
+          'Content-Length': chunk
+          'Content-Range': "bytes #{ rangeStart }-#{ rangeEnd }/#{total}"
+          'Keep-Alive': 'timeout=5, max=100'
+          'Connection': 'Keep-Alive'
+          'Content-Type': 'audio/mpeg'
+
+        # Send to client
+        res.writeHead 206, headers
+        stream.pipe res
 
       else
 
