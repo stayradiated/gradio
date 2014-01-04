@@ -1,18 +1,15 @@
 # Get info from the grooveshark files
 
-fs = require 'fs'
+fs      = require 'fs'
 request = require 'request'
-Promise = require 'when'
-log = require('./log')('Mimic', 'blue')
+Q       = require 'kew'
+log     = require('./log')('Mimic', 'blue')
 
 # Where to save downloaded files
 folder = __dirname + '/../grooveshark/'
 
 # Where to write token.json to
 tokenPath = folder + 'token.json'
-
-# How long to keep downloaded files for
-keepFor = 1000 * 60 * 60 * 24 * 3 # 3 days
 
 # Which files to download
 file =
@@ -48,32 +45,24 @@ regex =
 
 # -- MAIN FUNCTION ------------------------------------------------------------
 
-exports.init = ->
-  deferred = Promise.defer()
-  fs.stat tokenPath, (err, stats) ->
+mData = {}
 
-    if Date.now() - stats?.mtime < keepFor
-      log 'loading token.json from disk'
-      deferred.resolve require tokenPath
+update = (obj) ->
+  for key, value of obj
+    mData[key] = value
 
-    else
-      log 'generating token.json from grooveshark files'
-      getFiles([file.html, file.preload])
-        .then ([html, preload]) ->
-          script = getAppScript(html)
-          data = getPreload(preload)
-
-          # Get salt and client from app.js
-          getFiles(script).then (js) ->
-            data.salt   = js.match(regex.salt)[1]
-            data.client =
-              name: js.match(regex.client)[1]
-              revision: js.match(regex.revision)[1]
-
-            # Save to disk
-            saveFile data
-            deferred.resolve data
-
+exports.fetch = ->
+  deferred = Q.defer()
+  getFiles([file.html, file.preload]).then ([html, preload]) ->
+    update getPreload(preload)
+    script = getAppScript(html)
+    getFiles(script).then (js) ->
+      update
+        salt: js.match(regex.salt)[1]
+        client:
+          name: js.match(regex.client)[1]
+          revision: js.match(regex.revision)[1]
+      deferred.resolve mData
   return deferred.promise
 
 # -- GET APP SCRIPT -----------------------------------------------------------
@@ -110,12 +99,12 @@ getFiles = (urls) ->
   if Array.isArray(urls)
     promises = for url in urls
       getFiles(url)
-    return Promise.all(promises)
+    return Q.all(promises)
 
   else
     url = urls
 
-  deferred = Promise.defer()
+  deferred = Q.defer()
 
   log 'downloading', url
 

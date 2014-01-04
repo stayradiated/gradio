@@ -10,9 +10,9 @@
  *
 ###
 
+Q        = require 'when'
 oboe     = require 'oboe'
 request  = require 'request'
-Promise  = require 'when'
 http     = require 'http'
 crypto   = require 'crypto'
 uuid     = require 'uuid'
@@ -47,35 +47,23 @@ class Core
     @token         = ''
 
 
-  ###*
-   * Make all the necessary calls to get the session ID and Token
-   * Completely optional
-   * @promises {null} can be used to do stuff when everything is ready
-  ###
   init: =>
-
-    mimic.init().then (data) =>
+    mimic.fetch().then (data) =>
       @[key] = value for key, value of data
       log 'we are online'
 
+  getToken: =>
 
-  ###*
-   * Generates the SecretKey from the SessionID needed to get the communication
-   * Token and returns it.
-   * @returns (string): SessionID's SecretKey
-  ###
-  getSecretKey: =>
+    if Date.now() - @lastTokenTime < @newTokenTime
+      return Q.resolve @token
 
-    # If we have already calculated the secret key
-    if @secretKey.length > 0
-      return @secretKey
+    deferred = Q.defer()
 
-    # Else calculate the secret key
-    md5 = crypto.createHash('md5')
-    md5.update(@sessionID, 'utf-8')
-    @secretKey = md5.digest('hex')
-    log '[secretKey]', @secretKey
-    return @secretKey
+    mimic.fetch().then (data) =>
+      @token = data.token
+      deferred.resolve @token
+
+    return deferred.promise
 
 
 
@@ -87,24 +75,22 @@ class Core
   ###
   getTokenKey: (method) =>
 
-    deferred = Promise.defer()
-
     log "[#{ method }] Generating key"
 
-    # Generate a random token made of 6 hex digits
-    randomhex = ''
-    while randomhex.length < 6
-      pos = Math.floor Math.random() * 16
-      randomhex += '0123456789abcdef'.charAt(pos)
+    @getToken().then (token) =>
 
-    # Hash the data using SHA1
-    pass = "#{ method }:#{ @token }:#{ @salt }:#{ randomhex }"
-    sha1 = crypto.createHash('sha1')
-    hashhex = sha1.update(pass).digest('hex')
+      # Generate a random token made of 6 hex digits
+      randomhex = ''
+      while randomhex.length < 6
+        pos = Math.floor Math.random() * 16
+        randomhex += '0123456789abcdef'.charAt(pos)
 
-    deferred.resolve "#{ randomhex }#{ hashhex }"
+      # Hash the data using SHA1
+      pass = "#{ method }:#{ @token }:#{ @salt }:#{ randomhex }"
+      sha1 = crypto.createHash('sha1')
+      hashhex = sha1.update(pass).digest('hex')
 
-    return deferred.promise
+      return "#{ randomhex }#{ hashhex }"
 
   ###*
    * Uses the token key and session ID to get a response from Grooveshark
@@ -115,7 +101,7 @@ class Core
   ###
   callMethod: (parameters, method, pattern, protocol='http') =>
 
-    deferred = Promise.defer()
+    deferred = Q.defer()
     start = Date.now()
 
     # Assemble URL
@@ -129,12 +115,8 @@ class Core
 
     log "[#{ method }] Starting request via", protocol
 
-    if method isnt 'getCommunicationToken'
-      @getTokenKey(method).then (token) =>
-        json.header.token = token
-        @makeRequest(url, json, pattern, deferred)
-
-    else
+    @getTokenKey(method).then (token) =>
+      json.header.token = token
       @makeRequest(url, json, pattern, deferred)
 
     return deferred.promise
@@ -195,7 +177,7 @@ class Core
 
   getSongStream: (ip, streamKey) ->
 
-    deferred = Promise.defer()
+    deferred = Q.defer()
 
     # Generate stream key path
     url = '/' + @streamphp + '?streamKey=' + streamKey.replace(/_/g, '%5F')
