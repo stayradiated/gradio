@@ -94,14 +94,16 @@ class Methods
    * @param {boolean} isVerified - Songs verified or not
    * @return {object} Json object with all info the response
   ###
-  getAlbumSongs: (albumID, offset=0, isVerified=false) =>
+  getAlbumSongs: (albumID) =>
+
+    pattern = '!.result.*'
 
     parameters =
-      offset: offset
       albumID: albumID
-      isVerified: isVerified
 
-    @core.callMethod(parameters, 'albumGetSongs')
+    @core.callMethod(parameters, 'albumGetAllSongs', pattern).then null, null, (result) ->
+      new Song result
+
 
 
   ###*

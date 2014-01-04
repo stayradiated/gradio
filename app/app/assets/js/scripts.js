@@ -114,6 +114,8 @@
               case 'User':
                 ranger.setPanes([['Songs', 'SongName']]);
                 return app.userGetSongsInLibrary(20910233);
+              case 'Albums':
+                return app.getAlbumSongs(query);
               case 'Broadcast':
                 ranger.setPanes([['Broadcasts', 'n']]);
                 return app.getTopBroadcasts();
@@ -644,6 +646,13 @@
             return this._data[key];
           }
           return this[key];
+        };
+      
+        // Change multiple values
+        Model.prototype.setAttributes = function (obj, options) {
+          for (var key in obj) {
+            this.set(key, obj[key], options);
+          }
         };
       
         // Load data into the model
@@ -1676,6 +1685,13 @@
             return this._data[key];
           }
           return this[key];
+        };
+      
+        // Change multiple values
+        Model.prototype.setAttributes = function (obj, options) {
+          for (var key in obj) {
+            this.set(key, obj[key], options);
+          }
         };
       
         // Load data into the model

@@ -55,6 +55,9 @@ module.exports.init = ->
         ]
         app.userGetSongsInLibrary(20910233)
 
+      when 'Albums'
+        app.getAlbumSongs query
+
       when 'Broadcast'
         ranger.setPanes [
           ['Broadcasts', 'n']

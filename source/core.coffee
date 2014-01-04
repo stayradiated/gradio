@@ -125,7 +125,7 @@ class Core
     params = parameters.toString()
 
     # Oboe doesn't work with HTTPS
-    if url[0..4] isnt 'https'
+    if pattern? and url[0..4] isnt 'https'
 
       log '[request] using oboe'
 
@@ -154,6 +154,7 @@ class Core
         headers: mimic.headers
 
       request options, (err, res, body) ->
+        console.log body
         if err then return deferred.reject(err)
         try
           results = JSON.parse body
