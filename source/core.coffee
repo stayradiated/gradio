@@ -58,15 +58,10 @@ class Core
     if now - @lastTokenTime < @newTokenTime
       return Q.resolve @token
 
-    deferred = Q.defer()
-
     mimic.fetch().then (data) =>
       @lastTokenTime = now
       @[key] = value for key, value of data
-      deferred.resolve @token
-
-    return deferred.promise
-
+      return data.token
 
 
   ###*

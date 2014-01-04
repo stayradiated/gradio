@@ -59,11 +59,16 @@ class Methods
   ###
   getSongInfo: (songIDs) =>
 
+    pattern = '!.result.*'
+
     parameters =
       songIDs: songIDs
 
-    @core.callMethod(parameters, 'getQueueSongListFromSongIDs')
-
+    @core
+      .callMethod(parameters, 'getQueueSongListFromSongIDs', pattern)
+      .then null, null, (result) ->
+        new Song result
+        
 
   ###*
    * Returns the songs of the artist given its ID
