@@ -48,19 +48,21 @@ class Core
 
 
   init: =>
-    mimic.fetch().then (data) =>
-      @[key] = value for key, value of data
+    @getToken().then ->
       log 'we are online'
 
   getToken: =>
 
-    if Date.now() - @lastTokenTime < @newTokenTime
+    now = Date.now()
+
+    if now - @lastTokenTime < @newTokenTime
       return Q.resolve @token
 
     deferred = Q.defer()
 
     mimic.fetch().then (data) =>
-      @token = data.token
+      @lastTokenTime = now
+      @[key] = value for key, value of data
       deferred.resolve @token
 
     return deferred.promise
