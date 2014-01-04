@@ -11,7 +11,8 @@
     "when": "*",
     "uuid": "*",
     "oboe": "~1.2.0",
-    "socket.io": "~0.9.16"
+    "jandal": "0.0.3",
+    "sockjs": "~0.3.8"
   },
   "author": "George Czabania",
   "license": "BSD"

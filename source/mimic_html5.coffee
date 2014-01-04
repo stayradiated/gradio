@@ -12,7 +12,7 @@ folder = __dirname + '/../grooveshark/'
 tokenPath = folder + 'token.json'
 
 # How long to keep downloaded files for
-keepFor = 1000 * 60 * 60 * 24 * 5 # 5 days
+keepFor = 1000 * 60 * 60 * 24 * 3 # 3 days
 
 # Which files to download
 file =

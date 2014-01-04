@@ -57,9 +57,9 @@
         'ranger': 3,
         'jqueryify': 13,
         './client': 14,
-        './player': 18,
-        './search': 20,
-        './bar': 21
+        './player': 20,
+        './search': 22,
+        './bar': 23
       }, function(require, module, exports) {
         var $, Bar, Base, Client, Player, Ranger, Search;
         Base = require('base');
@@ -85,7 +85,9 @@
             el: $('section.columns')
           });
           ranger.setPanes([['Artist', 'ArtistName'], ['Songs', 'SongName']]);
-          app.vent.on('result', function(method, item) {
+          app.socket.on('result', function(_arg) {
+            var item, method;
+            method = _arg[0], item = _arg[1];
             switch (method) {
               case 'broadcastStatusPoll':
                 console.log(item);
@@ -115,6 +117,9 @@
               case 'Broadcast':
                 ranger.setPanes([['Broadcasts', 'n']]);
                 return app.getTopBroadcasts();
+              case 'Best Of':
+                ranger.setPanes([[query, 'SongName']]);
+                return app.getBestOf(query);
               default:
                 ranger.setPanes([['Artist', 'ArtistName'], ['Songs', 'SongName']]);
                 return app.getSearchResults(query, type);
@@ -217,565 +222,685 @@
         /*jslint node: true, nomen: true*/
       
       (function () {
-          'use strict';
+        'use strict';
       
-          var include, extend, inherit, View, Event, Model, Collection;
+        var include, extend, inherit, View, Event, Model, Collection;
       
-          // Copy object properties
-          include = function (to, from) {
-              var key;
-              for (key in from) {
-                  if (from.hasOwnProperty(key)) {
-                      to[key] = from[key];
-                  }
-              }
+        // Copy object properties
+        include = function (to, from) {
+          var key;
+          for (key in from) {
+            if (from.hasOwnProperty(key)) {
+              to[key] = from[key];
+            }
+          }
+          return to;
+        };
+      
+        // CoffeeScript extend for classes
+        inherit = function (child, parent) {
+          var Klass;
+      
+          include(child, parent);
+      
+          Klass = function () {
+            this.constructor = child;
           };
       
-          // CoffeeScript extend for classes
-          inherit = function (child, parent) {
-              var key, Klass;
-              for (key in parent) {
-                  if (parent.hasOwnProperty(key)) {
-                      child[key] = parent[key];
-                  }
-              }
-              Klass = function () {
-                  this.constructor = child;
-              };
-              Klass.prototype = parent.prototype;
-              child.prototype = new Klass();
-              child.__super__ = parent.prototype;
-              return child;
+          Klass.prototype = parent.prototype;
+          child.prototype = new Klass();
+          child.__super__ = parent.prototype;
+      
+          Klass = undefined;
+          parent = undefined;
+      
+          return child;
+        };
+      
+        // Backbone like extending
+        extend = function (attrs) {
+          var child, parent = this;
+      
+          if (!attrs) { attrs = {}; }
+      
+          if (attrs.hasOwnProperty('constructor')) {
+            child = attrs.constructor;
+          } else {
+            child = function () {
+              child.__super__.constructor.apply(this, arguments);
+            };
+          }
+      
+          inherit(child, parent);
+          include(child.prototype, attrs);
+      
+          attrs = undefined;
+          parent = undefined;
+      
+          return child;
+        };
+      
+      
+        /*
+         * EVENT
+         */
+      
+        Event = function () {
+      
+          // Stores all the event handlers that others are listening to on us
+          this._events = {};
+      
+          // Stores some of the event handlers that we are listening to on others
+          this._listening = [];
+      
+        };
+      
+        // Bind an event to a function
+        // Returns an event ID so you can unbind it later
+        Event.prototype.on = function (events, fn) {
+          var i, len, event;
+      
+          // Allow multiple events to be set at once such as:
+          // event.on('update change refresh', this.render);
+          events = events.split(' ');
+          len = events.length;
+      
+          for (i = 0; i < len; i += 1) {
+            event = events[i];
+      
+            // If the event has never been listened to before
+            if (! this._events.hasOwnProperty(event)) {
+              this._events[event] = [];
+            }
+      
+            // Add the event handler
+            this._events[event].push(fn);
+          }
+      
+          // Return the arguments so they can be reused to unbind
+          // the event handlers
+          return arguments;
+        };
+      
+      
+        // Only run an event once and then remove the handler
+        Event.prototype.once = function (event, fn) {
+          var self, once;
+          self = this;
+      
+          // Create a wrapper function that unbinds the event
+          // and then runs the original function
+          once = function () {
+            self.off(event, once);
+            fn.apply(this, arguments);
           };
       
-          // Backbone like extending
-          extend = function (attrs) {
-              var child, parent = this;
-              if (!attrs) { attrs = {}; }
-              if (attrs.hasOwnProperty('constructor')) {
-                  child = attrs.constructor;
+          // So that you can use `fn` to unbind the event as well
+          once._callback = fn;
+      
+          return this.on(event, once);
+        };
+      
+      
+        // Trigger an event
+        Event.prototype.trigger = function (event) {
+          var args, events, a1, a2, a3, i, len, ev;
+          args = [].slice.call(arguments, 1);
+      
+          // Listen to all events
+          if (event !== '*') {
+            this.trigger('*', event, args);
+          }
+      
+          // Don't do anything if there are not any events
+          if (! this._events.hasOwnProperty(event)) {
+            return;
+          }
+      
+          i = -1;
+          a1 = args[0];
+          a2 = args[1];
+          a3 = args[2];
+      
+          events = this._events[event];
+          len = events.length;
+      
+          // Backbone.js does this and it seems pretty fast
+      
+          switch (args.length) {
+            case 0:  while (++i < len) events[i].call(this); return;
+            case 1:  while (++i < len) events[i].call(this, a1); return;
+            case 2:  while (++i < len) events[i].call(this, a1, a2); return;
+            case 3:  while (++i < len) events[i].call(this, a1, a2, a3); return;
+            default: while (++i < len) events[i].apply(this, args); return;
+          }
+      
+        };
+      
+        // Remove a listener from an event
+        Event.prototype.off = function (events, fn) {
+          var i, j, k, l, name, event, retain, handler;
+          events = events.split(' ');
+          l = events.length;
+      
+          // Go through each event specified
+          for (i = 0; i < l; i += 1) {
+      
+            name = events[i];
+            event = this._events[name];
+            this._events[name] = retain = [];
+      
+            if (typeof fn !== 'undefined') {
+      
+              // Loop through each of the event handlers
+              k = event.length;
+              for (j = 0; j < k; j += 1) {
+      
+                handler = event[j];
+      
+                if (handler !== fn && handler._callback !== fn) {
+                  retain.push(event[j]);
+                }
+              }
+            }
+          }
+      
+        };
+      
+        /**
+         * Listen to multiple events from multiple objects
+         * Use this.stopListening to stop listening to them all
+         *
+         * Example:
+         *
+         *   this.listen(object, {
+         *      'create change': this.render,
+         *      'remove': this.remove
+         *   });
+         *
+         *   this.listen([
+         *      objectOne, {
+         *          'create': this.render,
+         *          'remove': this.remove
+         *      },
+         *      objectTwo, {
+         *          'change': 'this.render
+         *      }
+         *   ]);
+         *
+         */
+        Event.prototype.listen = function (obj, attrs) {
+          var i, len, event, listener;
+          if (Array.isArray(obj)) {
+            for (i = 0, len = obj.length; i < len; i += 2) {
+              this.listen(obj[i], obj[i + 1]);
+            }
+            return;
+          }
+          listener = [obj, {}];
+          for (event in attrs) {
+            if (attrs.hasOwnProperty(event)) {
+              listener[1][event] = obj.on(event, attrs[event]);
+            }
+          }
+          this._listening.push(listener);
+        };
+      
+        // Stop listening to all events
+        Event.prototype.stopListening = function (object) {
+          var i, len, obj, events, event;
+          for (i = 0, len = this._listening.length; i < len; i += 1) {
+            obj = this._listening[i][0];
+            if (!object || object === obj) {
+              events = this._listening[i][1];
+      
+              for (event in events) {
+                if (events.hasOwnProperty(event)) {
+                  event = events[event];
+                  obj.off.call(obj, event[0], event[1]);
+                }
+              }
+      
+            }
+          }
+          this._listening = [];
+        };
+      
+        /*
+         * VIEW
+         */
+      
+        View = function (attrs) {
+          View.__super__.constructor.apply(this, arguments);
+          include(this, attrs);
+      
+          if (!this.ui) {
+            this.ui = {};
+          }
+      
+          if (!this.events) {
+            this.events = {};
+          }
+      
+          if (this.el) {
+            this.bind();
+          }
+      
+        };
+      
+        // Load Events
+        inherit(View, Event);
+      
+        View.prototype.bind = function (el) {
+          var selector, query, action, split, name, ui;
+      
+          // If el is not specified use this.el
+          if (!el) { el = this.el; }
+      
+          // Convert strings into jQuery objects
+          if (typeof el === 'string') {
+            el = $(el);
+          }
+      
+          this.el = el;
+      
+          // Clone the ui list so we can use it in sub classes
+          if (! this._ui) {
+            this._ui = include({}, this.ui);
+          }
+      
+          this.ui = {};
+      
+          // Load UI elements
+          for (name in this._ui) {
+            if (this._ui.hasOwnProperty(name)) {
+              this.ui[name] = el.find(this._ui[name]);
+            }
+          }
+      
+          // Bind events
+          for (query in this.events) {
+            if (this.events.hasOwnProperty(query)) {
+      
+              action = this.events[query];
+              split = query.indexOf(' ');
+      
+              if (split > -1) {
+                selector = query.slice(split + 1);
+                el.on(query.slice(0, split), selector, this[action]);
               } else {
-                  child = function () {
-                      child.__super__.constructor.apply(this, arguments);
-                  };
-              }
-              inherit(child, parent);
-              include(child.prototype, attrs);
-              return child;
-          };
-      
-      
-          /*
-           * EVENT
-           */
-      
-          Event = function () {
-              this._events = {};
-              this._listening = [];
-          };
-      
-          // Bind an event to a function
-          // Returns an event ID so you can unbind it later
-          Event.prototype.on = function (events, fn) {
-              var ids, id, i, len, event;
-              if (typeof fn !== 'function') {
-                  throw new Error('fn not function');
+                el.on(query, this[action]);
               }
       
-              // Allow multiple events to be set at once such as:
-              // event.on('update change refresh', this.render);
-              ids = [];
-              events = events.split(' ');
-              for (i = 0, len = events.length; i < len; i += 1) {
-                  event = events[i];
-                  // If the event has never been listened to before
-                  if (!this._events[event]) {
-                      this._events[event] = {};
-                      this._events[event].index = 0;
-                  }
-                  // Increment the index and assign an ID
-                  this._events[event].index += 1;
-                  id = this._events[event].index;
-                  this._events[event][id] = fn;
-                  ids.push(id);
+            }
+          }
+      
+        };
+      
+        View.prototype.unbind = function (el) {
+          var selector, query, action, split, name, event;
+      
+          // If el is not specified use this.el
+          if (!el) { el = this.el; }
+      
+          // Delete elements
+          delete this.ui;
+      
+          // Unbind events
+          for (query in this.events) {
+            if (this.events.hasOwnProperty(query)) {
+      
+              action = this.events[query];
+              split = query.indexOf(' ');
+              event = query.slice(0, split || undefined);
+      
+              if (split > -1) {
+                selector = query.slice(split + 1);
+                el.off(event, selector, this[action]);
+              } else {
+                el.off(event, this[action]);
               }
+            }
+          }
       
-              return ids;
-          };
+        };
       
-          // Trigger an event
-          Event.prototype.trigger = function (event) {
-              var args, actions, i;
-              args = 2 <= arguments.length ? [].slice.call(arguments, 1) : [];
-      
-              // Listen to all events
-              if (event !== '*') {
-                  this.trigger('*', event, args);
-              }
-      
-              actions = this._events[event];
-              if (actions) {
-                  for (i in actions) {
-                      if (actions.hasOwnProperty(i) && i !== 'index') {
-                          actions[i].apply(actions[i], args);
-                      }
-                  }
-              }
-          };
-      
-          // Remove a listener from an event
-          Event.prototype.off = function (events, id) {
-              var i, len;
-              if (Array.isArray(id)) {
-                  for (i = 0, len = id.length; i < len; i += 1) {
-                      this.off(events, id[i]);
-                  }
-                  return;
-              }
-              events = events.split(' ');
-              for (i = 0, len = events.length; i < len; i += 1) {
-                  delete this._events[events[i]][id];
-              }
-          };
-      
-          /**
-           * Listen to multiple events from multiple objects
-           * Use this.stopListening to stop listening to them all
-           *
-           * Example:
-           *
-           *   this.listen(object, {
-           *      'create change': this.render,
-           *      'remove': this.remove
-           *   });
-           *
-           *   this.listen([
-           *      objectOne, {
-           *          'create': this.render,
-           *          'remove': this.remove
-           *      },
-           *      objectTwo, {
-           *          'change': 'this.render
-           *      }
-           *   ]);
-           *
-           */
-          Event.prototype.listen = function (obj, attrs) {
-              var i, len, event, listener;
-              if (Array.isArray(obj)) {
-                  for (i = 0, len = obj.length; i < len; i += 2) {
-                      this.listen(obj[i], obj[i + 1]);
-                  }
-                  return;
-              }
-              listener = [obj, {}];
-              for (event in attrs) {
-                  if (attrs.hasOwnProperty(event)) {
-                      listener[1][event] = obj.on(event, attrs[event]);
-                  }
-              }
-              this._listening.push(listener);
-          };
-      
-          // Stop listening to all events
-          Event.prototype.stopListening = function (object) {
-              var i, len, obj, events, event;
-              for (i = 0, len = this._listening.length; i < len; i += 1) {
-                  obj = this._listening[i][0];
-                  if (!object || object === obj) {
-                      events = this._listening[i][1];
-                      for (event in events) {
-                          if (events.hasOwnProperty(event)) {
-                              obj.off(event, events[event]);
-                          }
-                      }
-                  }
-              }
-              this._listening = [];
-          };
-      
-          /*
-           * VIEW
-           */
-      
-          View = function (attrs) {
-              View.__super__.constructor.apply(this, arguments);
-              include(this, attrs);
-      
-              if (!this.elements) {
-                  this.elements = {};
-              }
-      
-              if (!this.events) {
-                  this.events = {};
-              }
-      
-              if (this.el) {
-                  this.bind();
-              }
-          };
-      
-          // Load Events
-          inherit(View, Event);
-      
-          View.prototype.bind = function (el) {
-              var selector, query, action, split, name, event;
-      
-              // If el is not specified use this.el
-              if (!el) { el = this.el; }
-      
-              // Else set this.el if it isn't already set
-              else if (!this.el) { this.el = el; }
-      
-              // Cache elements
-              for (selector in this.elements) {
-                  if (this.elements.hasOwnProperty(selector)) {
-                      name = this.elements[selector];
-                      this[name] = el.find(selector);
-                  }
-              }
-      
-              // Bind events
-              for (query in this.events) {
-                  if (this.events.hasOwnProperty(query)) {
-                      action = this.events[query];
-                      split = query.indexOf(' ') + 1;
-                      event = query.slice(0, split || 9e9);
-                      if (split > 0) {
-                          selector = query.slice(split);
-                          el.on(event, selector, this[action]);
-                      } else {
-                          el.on(event, this[action]);
-                      }
-                  }
-              }
-      
-          };
-      
-          View.prototype.unbind = function (el) {
-              var selector, query, action, split, name, event;
-      
-              // If el is not specified use this.el
-              if (!el) { el = this.el; }
-      
-              // Delete elements
-              for (selector in this.elements) {
-                  if (this.elements.hasOwnProperty(selector)) {
-                      name = this.elements[selector];
-                      delete this[name];
-                  }
-              }
-      
-              // Unbind events
-              for (query in this.events) {
-                  if (this.events.hasOwnProperty(query)) {
-                      action = this.events[query];
-                      split = query.indexOf(' ') + 1;
-                      event = query.slice(0, split || 9e9);
-                      if (split > 0) {
-                          selector = query.slice(split);
-                          el.off(event, selector);
-                      } else {
-                          el.off(event);
-                      }
-                  }
-              }
-      
-          };
-      
-          // Unbind the view and remove the element
-          View.prototype.release = function () {
-              this.unbind();
-              this.el.remove();
-              this.stopListening();
-          };
+        // Unbind the view and remove the element
+        View.prototype.release = function () {
+          this.unbind();
+          this.el.remove();
+          this.stopListening();
+        };
       
       
-          /*
-           * MODEL
-           */
+        /*
+         * MODEL
+         */
       
-          Model = function (attrs) {
-              var set, get, key, self = this;
+        Model = function (attrs) {
+          var set, get, key, self = this;
       
-              // Call super
-              Model.__super__.constructor.apply(this, arguments);
+          // Call super
+          Model.__super__.constructor.apply(this, arguments);
       
-              // Set attributes
-              if (!this.defaults) { this.defaults = {}; }
-              this._data = {};
-              include(this._data, this.defaults);
-              include(this._data, attrs);
+          // Set attributes
+          if (!this.defaults) { this.defaults = {}; }
+          this._data = {};
+          include(this._data, this.defaults);
       
-              set = function (key) {
-                  return function (value) {
-                      return self.set.call(self, key, value);
-                  };
-              };
-      
-              get = function (key) {
-                  return function () {
-                      return self.get(key);
-                  };
-              };
-      
-              for (key in this.defaults) {
-                  if (this.defaults.hasOwnProperty(key)) {
-                      this.__defineSetter__(key, set(key));
-                      this.__defineGetter__(key, get(key));
-                  }
-              }
-      
-          };
-      
-          // Load Events
-          inherit(Model, Event);
-      
-          // Change a value
-          Model.prototype.set = function (key, value, options) {
-              if (!this.defaults.hasOwnProperty(key)) {
-                  this[key] = value;
-                  return value;
-              }
-              if (value === this._data[key]) { return; }
-              this._data[key] = value;
-              if (!options || !options.silent) {
-                  this.trigger('change', key, value);
-                  this.trigger('change:' + key, value);
-              }
-          };
-      
-          // Get a value
-          Model.prototype.get = function(key) {
+          // Merge attributes into the correct object
+          // depending on whether the key is in the defaults object
+          for (key in attrs) {
+            if (attrs.hasOwnProperty(key)) {
               if (this.defaults.hasOwnProperty(key)) {
-                  return this._data[key];
-              }
-              return this[key];
-          };
-      
-          // Load data into the model
-          Model.prototype.refresh = function (data, replace) {
-              if (replace) {
-                  this._data = {};
-                  include(this._data, this.defaults);
-              }
-              include(this._data, data);
-              this.trigger('refresh', this);
-              return this;
-          };
-      
-          // Destroy the model
-          Model.prototype.destroy = function () {
-              this.trigger('before:destroy', this);
-              delete this._data;
-              this.trigger('destroy', this);
-              return this;
-          };
-      
-          // Convert the class instance into a simple object
-          Model.prototype.toJSON = function (strict) {
-              var key, json;
-              if (strict) {
-                  for (key in this.defaults) {
-                      if (this.defaults.hasOwnProperty(key)) {
-                          json[key] = this._data[key];
-                      }
-                  }
+                this._data[key] = attrs[key];
               } else {
-                  json = this._data;
+                this[key] = attrs[key];
               }
-              return json;
+            }
+          }
+      
+          set = function (key) {
+            return function (value) {
+              return self.set.call(self, key, value);
+            };
           };
       
-      
-          /*
-           * COLLECTION
-           */
-      
-          Collection = function () {
-              Collection.__super__.constructor.apply(this, arguments);
-              this.length  = 0;
-              this._index  = 0;
-              this._models = [];
-              this._lookup = {};
+          get = function (key) {
+            return function () {
+              return self.get(key);
+            };
           };
       
-          // Load Events
-          inherit(Collection, Event);
+          for (key in this.defaults) {
+            if (this.defaults.hasOwnProperty(key)) {
+              this.__defineSetter__(key, set(key));
+              this.__defineGetter__(key, get(key));
+            }
+          }
       
-          // Access all models
-          Collection.prototype.all = function () {
-              return this._models;
-          };
+        };
       
-          // Create a new instance of the model and add it to the collection
-          Collection.prototype.create = function (attrs, options) {
-              var model = new this.model(attrs);
-              this.add(model, options);
-              return model;
-          };
+        // Load Events
+        inherit(Model, Event);
       
-          // Add a model to the collection
-          Collection.prototype.add = function (model, options) {
+        // Change a value
+        Model.prototype.set = function (key, value, options) {
+          if (!this.defaults.hasOwnProperty(key)) {
+            this[key] = value;
+            return value;
+          }
+          if (value === this._data[key]) { return; }
+          this._data[key] = value;
+          if (!options || !options.silent) {
+            this.trigger('change', key, value);
+            this.trigger('change:' + key, value);
+          }
+        };
       
-              var id, number, index, self = this;
+        // Get a value
+        Model.prototype.get = function(key) {
+          if (this.defaults.hasOwnProperty(key)) {
+            return this._data[key];
+          }
+          return this[key];
+        };
       
-              // Set ID
-              if (model.id) {
-                  id = model.id;
-                  // Make sure we don't reuse an existing id
-                  number = parseInt(model.id.slice(2), 10);
-                  if (number> this._index) {
-                      this._index = number + 1;
-                  }
-              } else {
-                  id = 'c-' + this._index;
-                  this._index += 1;
-                  model.set('id', id, {silent: true});
+        // Load data into the model
+        Model.prototype.refresh = function (data, replace) {
+          if (replace) {
+            this._data = {};
+            include(this._data, this.defaults);
+          }
+          include(this._data, data);
+          this.trigger('refresh', this);
+          return this;
+        };
+      
+        // Destroy the model
+        Model.prototype.destroy = function () {
+          this.trigger('before:destroy', this);
+          delete this._data;
+          this.trigger('destroy', this);
+          return this;
+        };
+      
+        // Convert the class instance into a simple object
+        Model.prototype.toJSON = function (strict) {
+          var key, json;
+          if (strict) {
+            for (key in this.defaults) {
+              if (this.defaults.hasOwnProperty(key)) {
+                json[key] = this._data[key];
               }
-      
-              // Add to collection
-              model.collection = this;
-              index = this._models.push(model) - 1;
-              this._lookup[id] = index;
-              this.length += 1;
-      
-              // Bubble events
-              this.listen(model, {
-                  '*': function (event, args) {
-                      args = args.slice(0);
-                      args.unshift(event + ':model', model);
-                      self.trigger.apply(self, args);
-                  },
-                  'before:destroy': function () {
-                      self.remove(model);
-                  }
-              });
-      
-              // Only trigger create if silent is not set
-              if (!options || !options.silent) {
-                  this.trigger('create:model', model);
-                  this.trigger('change');
-              }
-      
-          };
-      
-          // Remove a model from the collection
-          // Does not destroy the model - just removes it from the array
-          Collection.prototype.remove = function (model) {
-              var index = this.indexOf(model);
-              this._models.splice(index, 1);
-              delete this._lookup[model.id];
-              this.length -= 1;
-              this.stopListening(model);
-              this.trigger('remove:model');
-              this.trigger('change');
-          };
-      
-          // Reorder the collection
-          Collection.prototype.move = function (model, pos) {
-              var index = this.indexOf(model);
-              this._models.splice(index, 1);
-              this._models.splice(pos, 0, model);
-              this._lookup[model.id] = index;
-              this.trigger('change:order');
-              this.trigger('change');
-          };
-      
-          // Append or replace the data in the collection
-          // Doesn't trigger any events when updating the array apart from 'refresh'
-          Collection.prototype.refresh = function (data, replace) {
-              var i, len;
-              if (replace) {
-                  this._models = [];
-                  this._lookup = {};
-              }
-              for (i = 0, len = data.length; i < len; i += 1) {
-                  this.create(data[i], { silent: true });
-              }
-              return this.trigger('refresh');
-          };
-      
-          // Loop over each record in the collection
-          Collection.prototype.forEach = function () {
-              return this._models.forEach.apply(this._models, arguments);
-          };
-      
-          // Filter the models
-          Collection.prototype.filter = function () {
-              return this._models.filter.apply(this._models, arguments);
-          };
-      
-          // Sort the models. Does not alter original order
-          Collection.prototype.sort = function () {
-              return this._models.sort.apply(this._models, arguments);
-          };
-      
-          // Get an array of all the properties from the models
-          Collection.prototype.pluck = function(property) {
-              var array = [];
-              this.forEach(function (task) {
-                  array.push(task[property]);
-              });
-              return array
-          };
-      
-          // Get the index of the item
-          Collection.prototype.indexOf = function (model) {
-              if (typeof model === 'string') {
-                  // Convert model id to actual model
-                  return this.indexOf(this.get(model));
-              }
-              return this._models.indexOf(model);
-          };
-      
-          // Convert the collection into an array of objects
-          Collection.prototype.toJSON = function () {
-              var i, len, record, results = [];
-              for (i = 0, len = this._models.length; i < len; i += 1) {
-                  record = this._models[i];
-                  results.push(record.toJSON());
-              }
-              return results;
-          };
-      
-          // Return the first record in the collection
-          Collection.prototype.first = function () {
-              return this.at(0);
-          };
-      
-          // Return the last record in the collection
-          Collection.prototype.last = function () {
-              return this.at(this.length - 1);
-          };
-      
-          // Return the record by the id
-          Collection.prototype.get = function (id) {
-              var index = this._lookup[id];
-              return this.at(index);
-          };
-      
-          // Return a specified record in the collection
-          Collection.prototype.at = function (index) {
-              return this._models[index];
-          };
-      
-          // Check if a model exists in the collection
-          Collection.prototype.exists = function (model) {
-              return this.indexOf(model) > -1;
-          };
+            }
+          } else {
+            json = this._data;
+          }
+          return json;
+        };
       
       
-          // Add the extend to method to all classes
-          Event.extend = View.extend = Model.extend = Collection.extend = extend;
+        /*
+         * COLLECTION
+         */
       
-          // Export all the classes
-          module.exports = {
-              Event: Event,
-              View: View,
-              Model: Model,
-              Collection: Collection
-          };
+        Collection = function () {
+          Collection.__super__.constructor.apply(this, arguments);
+          this.length  = 0;
+          this._index  = 0;
+          this._models = [];
+          this._lookup = {};
+        };
+      
+        // Load Events
+        inherit(Collection, Event);
+      
+        // Access all models
+        Collection.prototype.all = function () {
+          return this._models;
+        };
+      
+        // Create a new instance of the model and add it to the collection
+        Collection.prototype.create = function (attrs, options) {
+          var model = new this.model(attrs);
+          this.add(model, options);
+          return model;
+        };
+      
+        // Add a model to the collection
+        Collection.prototype.add = function (model, options) {
+      
+          var id, number, index, self = this;
+      
+          // Set ID
+          if (model.id !== null && model.id !== undefined) {
+            id = model.id;
+            // Make sure we don't reuse an existing id
+            number = parseInt(id.slice(1), 10);
+            if (!isNaN(number) && number >= this._index) {
+              this._index = number + 1;
+            }
+          } else {
+            id = 'c' + this._index;
+            this._index += 1;
+            model.set('id', id, {silent: true});
+          }
+      
+          // Add to collection
+          model.collection = this;
+          index = this._models.push(model) - 1;
+          this._lookup[id] = index;
+          this.length += 1;
+      
+          // Bubble events
+          this._bubble(model);
+      
+          // Only trigger create if silent is not set
+          if (!options || !options.silent) {
+            this.trigger('create:model', model);
+            this.trigger('change');
+          }
+      
+        };
+      
+      
+        // Hook into the events of a model and bubble them
+        // up to this collection
+        Collection.prototype._bubble = function (model) {
+      
+          var self = this;
+      
+          this.listen(model, {
+            '*': function (event, args) {
+              args = args.slice(0);
+              args.unshift(event + ':model', model);
+              self.trigger.apply(self, args);
+            },
+            'before:destroy': function () {
+              self.remove(model);
+            }
+          });
+      
+        };
+      
+        // Remove a model from the collection
+        // Does not destroy the model - just removes it from the array
+        Collection.prototype.remove = function (model) {
+          var index = this.indexOf(model);
+          this._models.splice(index, 1);
+          delete this._lookup[model.id];
+          this.length -= 1;
+          this.stopListening(model);
+          this.trigger('remove:model');
+          this.trigger('change');
+        };
+      
+        // Reorder the collection
+        Collection.prototype.move = function (model, pos, noindex) {
+          var index = this.indexOf(model);
+          this._models.splice(index, 1);
+          this._models.splice(pos, 0, model);
+      
+          if (! noindex) {
+            this.reindex();
+          }
+      
+          this.trigger('change:order');
+          this.trigger('change');
+        };
+      
+      
+        // Regenerate the lookup table
+        // Useful if you are moving lots of items around
+        Collection.prototype.reindex = function () {
+          var i, len;
+          len = this._models.length;
+          this._lookup = [];
+          for (i = 0; i < len; i++) {
+            this._lookup[this._models[i].id] = i;
+          }
+        };
+      
+        // Append or replace the data in the collection
+        // Doesn't trigger any events when updating the array apart from 'refresh'
+        Collection.prototype.refresh = function (data, replace) {
+          var i, len;
+          if (replace) {
+            this._models = [];
+            this._lookup = {};
+          }
+          for (i = 0, len = data.length; i < len; i += 1) {
+            this.create(data[i], { silent: true });
+          }
+          return this.trigger('refresh');
+        };
+      
+        // Get a range from the collection
+        Collection.prototype.slice = function (begin, end) {
+          return this._models.slice(begin, end);
+        };
+      
+        // Loop over each record in the collection
+        Collection.prototype.forEach = function (callback, _this) {
+          return this._models.forEach(callback, _this);
+        };
+      
+        // Filter the models
+        Collection.prototype.filter = function (callback, _this) {
+          return this._models.filter(callback, _this);
+        };
+      
+        // Sort the models. Does not alter original order
+        Collection.prototype.sort = function (fn) {
+          return this._models.sort(fn);
+        };
+      
+        // Get an array of all the properties from the models
+        Collection.prototype.pluck = function(property) {
+          var i, len = this.length, array = [];
+          for (i = 0; i < len; i += 1) {
+            array.push(this._models[i][property]);
+          }
+          return array;
+        };
+      
+        // Get the index of the item
+        Collection.prototype.indexOf = function (model) {
+          if (typeof model === 'string') {
+            // Convert model id to actual model
+            return this.indexOf(this.get(model));
+          }
+          return this._models.indexOf(model);
+        };
+      
+        // Convert the collection into an array of objects
+        Collection.prototype.toJSON = function () {
+          var i, len, record, results = [];
+          for (i = 0, len = this._models.length; i < len; i += 1) {
+            record = this._models[i];
+            results.push(record.toJSON());
+          }
+          return results;
+        };
+      
+        // Return the first record in the collection
+        Collection.prototype.first = function () {
+          return this.at(0);
+        };
+      
+        // Return the last record in the collection
+        Collection.prototype.last = function () {
+          return this.at(this.length - 1);
+        };
+      
+        // Return the record by the id
+        Collection.prototype.get = function (id) {
+          var index = this._lookup[id];
+          return this.at(index);
+        };
+      
+        // Return a specified record in the collection
+        Collection.prototype.at = function (index) {
+          return this._models[index];
+        };
+      
+        // Check if a model exists in the collection
+        Collection.prototype.exists = function (model) {
+          return this.indexOf(model) > -1;
+        };
+      
+      
+        // Add the extend to method to all classes
+        Event.extend = View.extend = Model.extend = Collection.extend = extend;
+      
+        // Export all the classes
+        module.exports = {
+          Event: Event,
+          View: View,
+          Model: Model,
+          Collection: Collection
+        };
       
       }());
       ;
@@ -1129,565 +1254,685 @@
         /*jslint node: true, nomen: true*/
       
       (function () {
-          'use strict';
+        'use strict';
       
-          var include, extend, inherit, View, Event, Model, Collection;
+        var include, extend, inherit, View, Event, Model, Collection;
       
-          // Copy object properties
-          include = function (to, from) {
-              var key;
-              for (key in from) {
-                  if (from.hasOwnProperty(key)) {
-                      to[key] = from[key];
-                  }
-              }
+        // Copy object properties
+        include = function (to, from) {
+          var key;
+          for (key in from) {
+            if (from.hasOwnProperty(key)) {
+              to[key] = from[key];
+            }
+          }
+          return to;
+        };
+      
+        // CoffeeScript extend for classes
+        inherit = function (child, parent) {
+          var Klass;
+      
+          include(child, parent);
+      
+          Klass = function () {
+            this.constructor = child;
           };
       
-          // CoffeeScript extend for classes
-          inherit = function (child, parent) {
-              var key, Klass;
-              for (key in parent) {
-                  if (parent.hasOwnProperty(key)) {
-                      child[key] = parent[key];
-                  }
-              }
-              Klass = function () {
-                  this.constructor = child;
-              };
-              Klass.prototype = parent.prototype;
-              child.prototype = new Klass();
-              child.__super__ = parent.prototype;
-              return child;
+          Klass.prototype = parent.prototype;
+          child.prototype = new Klass();
+          child.__super__ = parent.prototype;
+      
+          Klass = undefined;
+          parent = undefined;
+      
+          return child;
+        };
+      
+        // Backbone like extending
+        extend = function (attrs) {
+          var child, parent = this;
+      
+          if (!attrs) { attrs = {}; }
+      
+          if (attrs.hasOwnProperty('constructor')) {
+            child = attrs.constructor;
+          } else {
+            child = function () {
+              child.__super__.constructor.apply(this, arguments);
+            };
+          }
+      
+          inherit(child, parent);
+          include(child.prototype, attrs);
+      
+          attrs = undefined;
+          parent = undefined;
+      
+          return child;
+        };
+      
+      
+        /*
+         * EVENT
+         */
+      
+        Event = function () {
+      
+          // Stores all the event handlers that others are listening to on us
+          this._events = {};
+      
+          // Stores some of the event handlers that we are listening to on others
+          this._listening = [];
+      
+        };
+      
+        // Bind an event to a function
+        // Returns an event ID so you can unbind it later
+        Event.prototype.on = function (events, fn) {
+          var i, len, event;
+      
+          // Allow multiple events to be set at once such as:
+          // event.on('update change refresh', this.render);
+          events = events.split(' ');
+          len = events.length;
+      
+          for (i = 0; i < len; i += 1) {
+            event = events[i];
+      
+            // If the event has never been listened to before
+            if (! this._events.hasOwnProperty(event)) {
+              this._events[event] = [];
+            }
+      
+            // Add the event handler
+            this._events[event].push(fn);
+          }
+      
+          // Return the arguments so they can be reused to unbind
+          // the event handlers
+          return arguments;
+        };
+      
+      
+        // Only run an event once and then remove the handler
+        Event.prototype.once = function (event, fn) {
+          var self, once;
+          self = this;
+      
+          // Create a wrapper function that unbinds the event
+          // and then runs the original function
+          once = function () {
+            self.off(event, once);
+            fn.apply(this, arguments);
           };
       
-          // Backbone like extending
-          extend = function (attrs) {
-              var child, parent = this;
-              if (!attrs) { attrs = {}; }
-              if (attrs.hasOwnProperty('constructor')) {
-                  child = attrs.constructor;
+          // So that you can use `fn` to unbind the event as well
+          once._callback = fn;
+      
+          return this.on(event, once);
+        };
+      
+      
+        // Trigger an event
+        Event.prototype.trigger = function (event) {
+          var args, events, a1, a2, a3, i, len, ev;
+          args = [].slice.call(arguments, 1);
+      
+          // Listen to all events
+          if (event !== '*') {
+            this.trigger('*', event, args);
+          }
+      
+          // Don't do anything if there are not any events
+          if (! this._events.hasOwnProperty(event)) {
+            return;
+          }
+      
+          i = -1;
+          a1 = args[0];
+          a2 = args[1];
+          a3 = args[2];
+      
+          events = this._events[event];
+          len = events.length;
+      
+          // Backbone.js does this and it seems pretty fast
+      
+          switch (args.length) {
+            case 0:  while (++i < len) events[i].call(this); return;
+            case 1:  while (++i < len) events[i].call(this, a1); return;
+            case 2:  while (++i < len) events[i].call(this, a1, a2); return;
+            case 3:  while (++i < len) events[i].call(this, a1, a2, a3); return;
+            default: while (++i < len) events[i].apply(this, args); return;
+          }
+      
+        };
+      
+        // Remove a listener from an event
+        Event.prototype.off = function (events, fn) {
+          var i, j, k, l, name, event, retain, handler;
+          events = events.split(' ');
+          l = events.length;
+      
+          // Go through each event specified
+          for (i = 0; i < l; i += 1) {
+      
+            name = events[i];
+            event = this._events[name];
+            this._events[name] = retain = [];
+      
+            if (typeof fn !== 'undefined') {
+      
+              // Loop through each of the event handlers
+              k = event.length;
+              for (j = 0; j < k; j += 1) {
+      
+                handler = event[j];
+      
+                if (handler !== fn && handler._callback !== fn) {
+                  retain.push(event[j]);
+                }
+              }
+            }
+          }
+      
+        };
+      
+        /**
+         * Listen to multiple events from multiple objects
+         * Use this.stopListening to stop listening to them all
+         *
+         * Example:
+         *
+         *   this.listen(object, {
+         *      'create change': this.render,
+         *      'remove': this.remove
+         *   });
+         *
+         *   this.listen([
+         *      objectOne, {
+         *          'create': this.render,
+         *          'remove': this.remove
+         *      },
+         *      objectTwo, {
+         *          'change': 'this.render
+         *      }
+         *   ]);
+         *
+         */
+        Event.prototype.listen = function (obj, attrs) {
+          var i, len, event, listener;
+          if (Array.isArray(obj)) {
+            for (i = 0, len = obj.length; i < len; i += 2) {
+              this.listen(obj[i], obj[i + 1]);
+            }
+            return;
+          }
+          listener = [obj, {}];
+          for (event in attrs) {
+            if (attrs.hasOwnProperty(event)) {
+              listener[1][event] = obj.on(event, attrs[event]);
+            }
+          }
+          this._listening.push(listener);
+        };
+      
+        // Stop listening to all events
+        Event.prototype.stopListening = function (object) {
+          var i, len, obj, events, event;
+          for (i = 0, len = this._listening.length; i < len; i += 1) {
+            obj = this._listening[i][0];
+            if (!object || object === obj) {
+              events = this._listening[i][1];
+      
+              for (event in events) {
+                if (events.hasOwnProperty(event)) {
+                  event = events[event];
+                  obj.off.call(obj, event[0], event[1]);
+                }
+              }
+      
+            }
+          }
+          this._listening = [];
+        };
+      
+        /*
+         * VIEW
+         */
+      
+        View = function (attrs) {
+          View.__super__.constructor.apply(this, arguments);
+          include(this, attrs);
+      
+          if (!this.ui) {
+            this.ui = {};
+          }
+      
+          if (!this.events) {
+            this.events = {};
+          }
+      
+          if (this.el) {
+            this.bind();
+          }
+      
+        };
+      
+        // Load Events
+        inherit(View, Event);
+      
+        View.prototype.bind = function (el) {
+          var selector, query, action, split, name, ui;
+      
+          // If el is not specified use this.el
+          if (!el) { el = this.el; }
+      
+          // Convert strings into jQuery objects
+          if (typeof el === 'string') {
+            el = $(el);
+          }
+      
+          this.el = el;
+      
+          // Clone the ui list so we can use it in sub classes
+          if (! this._ui) {
+            this._ui = include({}, this.ui);
+          }
+      
+          this.ui = {};
+      
+          // Load UI elements
+          for (name in this._ui) {
+            if (this._ui.hasOwnProperty(name)) {
+              this.ui[name] = el.find(this._ui[name]);
+            }
+          }
+      
+          // Bind events
+          for (query in this.events) {
+            if (this.events.hasOwnProperty(query)) {
+      
+              action = this.events[query];
+              split = query.indexOf(' ');
+      
+              if (split > -1) {
+                selector = query.slice(split + 1);
+                el.on(query.slice(0, split), selector, this[action]);
               } else {
-                  child = function () {
-                      child.__super__.constructor.apply(this, arguments);
-                  };
-              }
-              inherit(child, parent);
-              include(child.prototype, attrs);
-              return child;
-          };
-      
-      
-          /*
-           * EVENT
-           */
-      
-          Event = function () {
-              this._events = {};
-              this._listening = [];
-          };
-      
-          // Bind an event to a function
-          // Returns an event ID so you can unbind it later
-          Event.prototype.on = function (events, fn) {
-              var ids, id, i, len, event;
-              if (typeof fn !== 'function') {
-                  throw new Error('fn not function');
+                el.on(query, this[action]);
               }
       
-              // Allow multiple events to be set at once such as:
-              // event.on('update change refresh', this.render);
-              ids = [];
-              events = events.split(' ');
-              for (i = 0, len = events.length; i < len; i += 1) {
-                  event = events[i];
-                  // If the event has never been listened to before
-                  if (!this._events[event]) {
-                      this._events[event] = {};
-                      this._events[event].index = 0;
-                  }
-                  // Increment the index and assign an ID
-                  this._events[event].index += 1;
-                  id = this._events[event].index;
-                  this._events[event][id] = fn;
-                  ids.push(id);
+            }
+          }
+      
+        };
+      
+        View.prototype.unbind = function (el) {
+          var selector, query, action, split, name, event;
+      
+          // If el is not specified use this.el
+          if (!el) { el = this.el; }
+      
+          // Delete elements
+          delete this.ui;
+      
+          // Unbind events
+          for (query in this.events) {
+            if (this.events.hasOwnProperty(query)) {
+      
+              action = this.events[query];
+              split = query.indexOf(' ');
+              event = query.slice(0, split || undefined);
+      
+              if (split > -1) {
+                selector = query.slice(split + 1);
+                el.off(event, selector, this[action]);
+              } else {
+                el.off(event, this[action]);
               }
+            }
+          }
       
-              return ids;
-          };
+        };
       
-          // Trigger an event
-          Event.prototype.trigger = function (event) {
-              var args, actions, i;
-              args = 2 <= arguments.length ? [].slice.call(arguments, 1) : [];
-      
-              // Listen to all events
-              if (event !== '*') {
-                  this.trigger('*', event, args);
-              }
-      
-              actions = this._events[event];
-              if (actions) {
-                  for (i in actions) {
-                      if (actions.hasOwnProperty(i) && i !== 'index') {
-                          actions[i].apply(actions[i], args);
-                      }
-                  }
-              }
-          };
-      
-          // Remove a listener from an event
-          Event.prototype.off = function (events, id) {
-              var i, len;
-              if (Array.isArray(id)) {
-                  for (i = 0, len = id.length; i < len; i += 1) {
-                      this.off(events, id[i]);
-                  }
-                  return;
-              }
-              events = events.split(' ');
-              for (i = 0, len = events.length; i < len; i += 1) {
-                  delete this._events[events[i]][id];
-              }
-          };
-      
-          /**
-           * Listen to multiple events from multiple objects
-           * Use this.stopListening to stop listening to them all
-           *
-           * Example:
-           *
-           *   this.listen(object, {
-           *      'create change': this.render,
-           *      'remove': this.remove
-           *   });
-           *
-           *   this.listen([
-           *      objectOne, {
-           *          'create': this.render,
-           *          'remove': this.remove
-           *      },
-           *      objectTwo, {
-           *          'change': 'this.render
-           *      }
-           *   ]);
-           *
-           */
-          Event.prototype.listen = function (obj, attrs) {
-              var i, len, event, listener;
-              if (Array.isArray(obj)) {
-                  for (i = 0, len = obj.length; i < len; i += 2) {
-                      this.listen(obj[i], obj[i + 1]);
-                  }
-                  return;
-              }
-              listener = [obj, {}];
-              for (event in attrs) {
-                  if (attrs.hasOwnProperty(event)) {
-                      listener[1][event] = obj.on(event, attrs[event]);
-                  }
-              }
-              this._listening.push(listener);
-          };
-      
-          // Stop listening to all events
-          Event.prototype.stopListening = function (object) {
-              var i, len, obj, events, event;
-              for (i = 0, len = this._listening.length; i < len; i += 1) {
-                  obj = this._listening[i][0];
-                  if (!object || object === obj) {
-                      events = this._listening[i][1];
-                      for (event in events) {
-                          if (events.hasOwnProperty(event)) {
-                              obj.off(event, events[event]);
-                          }
-                      }
-                  }
-              }
-              this._listening = [];
-          };
-      
-          /*
-           * VIEW
-           */
-      
-          View = function (attrs) {
-              View.__super__.constructor.apply(this, arguments);
-              include(this, attrs);
-      
-              if (!this.elements) {
-                  this.elements = {};
-              }
-      
-              if (!this.events) {
-                  this.events = {};
-              }
-      
-              if (this.el) {
-                  this.bind();
-              }
-          };
-      
-          // Load Events
-          inherit(View, Event);
-      
-          View.prototype.bind = function (el) {
-              var selector, query, action, split, name, event;
-      
-              // If el is not specified use this.el
-              if (!el) { el = this.el; }
-      
-              // Else set this.el if it isn't already set
-              else if (!this.el) { this.el = el; }
-      
-              // Cache elements
-              for (selector in this.elements) {
-                  if (this.elements.hasOwnProperty(selector)) {
-                      name = this.elements[selector];
-                      this[name] = el.find(selector);
-                  }
-              }
-      
-              // Bind events
-              for (query in this.events) {
-                  if (this.events.hasOwnProperty(query)) {
-                      action = this.events[query];
-                      split = query.indexOf(' ') + 1;
-                      event = query.slice(0, split || 9e9);
-                      if (split > 0) {
-                          selector = query.slice(split);
-                          el.on(event, selector, this[action]);
-                      } else {
-                          el.on(event, this[action]);
-                      }
-                  }
-              }
-      
-          };
-      
-          View.prototype.unbind = function (el) {
-              var selector, query, action, split, name, event;
-      
-              // If el is not specified use this.el
-              if (!el) { el = this.el; }
-      
-              // Delete elements
-              for (selector in this.elements) {
-                  if (this.elements.hasOwnProperty(selector)) {
-                      name = this.elements[selector];
-                      delete this[name];
-                  }
-              }
-      
-              // Unbind events
-              for (query in this.events) {
-                  if (this.events.hasOwnProperty(query)) {
-                      action = this.events[query];
-                      split = query.indexOf(' ') + 1;
-                      event = query.slice(0, split || 9e9);
-                      if (split > 0) {
-                          selector = query.slice(split);
-                          el.off(event, selector);
-                      } else {
-                          el.off(event);
-                      }
-                  }
-              }
-      
-          };
-      
-          // Unbind the view and remove the element
-          View.prototype.release = function () {
-              this.unbind();
-              this.el.remove();
-              this.stopListening();
-          };
+        // Unbind the view and remove the element
+        View.prototype.release = function () {
+          this.unbind();
+          this.el.remove();
+          this.stopListening();
+        };
       
       
-          /*
-           * MODEL
-           */
+        /*
+         * MODEL
+         */
       
-          Model = function (attrs) {
-              var set, get, key, self = this;
+        Model = function (attrs) {
+          var set, get, key, self = this;
       
-              // Call super
-              Model.__super__.constructor.apply(this, arguments);
+          // Call super
+          Model.__super__.constructor.apply(this, arguments);
       
-              // Set attributes
-              if (!this.defaults) { this.defaults = {}; }
-              this._data = {};
-              include(this._data, this.defaults);
-              include(this._data, attrs);
+          // Set attributes
+          if (!this.defaults) { this.defaults = {}; }
+          this._data = {};
+          include(this._data, this.defaults);
       
-              set = function (key) {
-                  return function (value) {
-                      return self.set.call(self, key, value);
-                  };
-              };
-      
-              get = function (key) {
-                  return function () {
-                      return self.get(key);
-                  };
-              };
-      
-              for (key in this.defaults) {
-                  if (this.defaults.hasOwnProperty(key)) {
-                      this.__defineSetter__(key, set(key));
-                      this.__defineGetter__(key, get(key));
-                  }
-              }
-      
-          };
-      
-          // Load Events
-          inherit(Model, Event);
-      
-          // Change a value
-          Model.prototype.set = function (key, value, options) {
-              if (!this.defaults.hasOwnProperty(key)) {
-                  this[key] = value;
-                  return value;
-              }
-              if (value === this._data[key]) { return; }
-              this._data[key] = value;
-              if (!options || !options.silent) {
-                  this.trigger('change', key, value);
-                  this.trigger('change:' + key, value);
-              }
-          };
-      
-          // Get a value
-          Model.prototype.get = function(key) {
+          // Merge attributes into the correct object
+          // depending on whether the key is in the defaults object
+          for (key in attrs) {
+            if (attrs.hasOwnProperty(key)) {
               if (this.defaults.hasOwnProperty(key)) {
-                  return this._data[key];
-              }
-              return this[key];
-          };
-      
-          // Load data into the model
-          Model.prototype.refresh = function (data, replace) {
-              if (replace) {
-                  this._data = {};
-                  include(this._data, this.defaults);
-              }
-              include(this._data, data);
-              this.trigger('refresh', this);
-              return this;
-          };
-      
-          // Destroy the model
-          Model.prototype.destroy = function () {
-              this.trigger('before:destroy', this);
-              delete this._data;
-              this.trigger('destroy', this);
-              return this;
-          };
-      
-          // Convert the class instance into a simple object
-          Model.prototype.toJSON = function (strict) {
-              var key, json;
-              if (strict) {
-                  for (key in this.defaults) {
-                      if (this.defaults.hasOwnProperty(key)) {
-                          json[key] = this._data[key];
-                      }
-                  }
+                this._data[key] = attrs[key];
               } else {
-                  json = this._data;
+                this[key] = attrs[key];
               }
-              return json;
+            }
+          }
+      
+          set = function (key) {
+            return function (value) {
+              return self.set.call(self, key, value);
+            };
           };
       
-      
-          /*
-           * COLLECTION
-           */
-      
-          Collection = function () {
-              Collection.__super__.constructor.apply(this, arguments);
-              this.length  = 0;
-              this._index  = 0;
-              this._models = [];
-              this._lookup = {};
+          get = function (key) {
+            return function () {
+              return self.get(key);
+            };
           };
       
-          // Load Events
-          inherit(Collection, Event);
+          for (key in this.defaults) {
+            if (this.defaults.hasOwnProperty(key)) {
+              this.__defineSetter__(key, set(key));
+              this.__defineGetter__(key, get(key));
+            }
+          }
       
-          // Access all models
-          Collection.prototype.all = function () {
-              return this._models;
-          };
+        };
       
-          // Create a new instance of the model and add it to the collection
-          Collection.prototype.create = function (attrs, options) {
-              var model = new this.model(attrs);
-              this.add(model, options);
-              return model;
-          };
+        // Load Events
+        inherit(Model, Event);
       
-          // Add a model to the collection
-          Collection.prototype.add = function (model, options) {
+        // Change a value
+        Model.prototype.set = function (key, value, options) {
+          if (!this.defaults.hasOwnProperty(key)) {
+            this[key] = value;
+            return value;
+          }
+          if (value === this._data[key]) { return; }
+          this._data[key] = value;
+          if (!options || !options.silent) {
+            this.trigger('change', key, value);
+            this.trigger('change:' + key, value);
+          }
+        };
       
-              var id, number, index, self = this;
+        // Get a value
+        Model.prototype.get = function(key) {
+          if (this.defaults.hasOwnProperty(key)) {
+            return this._data[key];
+          }
+          return this[key];
+        };
       
-              // Set ID
-              if (model.id) {
-                  id = model.id;
-                  // Make sure we don't reuse an existing id
-                  number = parseInt(model.id.slice(2), 10);
-                  if (number> this._index) {
-                      this._index = number + 1;
-                  }
-              } else {
-                  id = 'c-' + this._index;
-                  this._index += 1;
-                  model.set('id', id, {silent: true});
+        // Load data into the model
+        Model.prototype.refresh = function (data, replace) {
+          if (replace) {
+            this._data = {};
+            include(this._data, this.defaults);
+          }
+          include(this._data, data);
+          this.trigger('refresh', this);
+          return this;
+        };
+      
+        // Destroy the model
+        Model.prototype.destroy = function () {
+          this.trigger('before:destroy', this);
+          delete this._data;
+          this.trigger('destroy', this);
+          return this;
+        };
+      
+        // Convert the class instance into a simple object
+        Model.prototype.toJSON = function (strict) {
+          var key, json;
+          if (strict) {
+            for (key in this.defaults) {
+              if (this.defaults.hasOwnProperty(key)) {
+                json[key] = this._data[key];
               }
-      
-              // Add to collection
-              model.collection = this;
-              index = this._models.push(model) - 1;
-              this._lookup[id] = index;
-              this.length += 1;
-      
-              // Bubble events
-              this.listen(model, {
-                  '*': function (event, args) {
-                      args = args.slice(0);
-                      args.unshift(event + ':model', model);
-                      self.trigger.apply(self, args);
-                  },
-                  'before:destroy': function () {
-                      self.remove(model);
-                  }
-              });
-      
-              // Only trigger create if silent is not set
-              if (!options || !options.silent) {
-                  this.trigger('create:model', model);
-                  this.trigger('change');
-              }
-      
-          };
-      
-          // Remove a model from the collection
-          // Does not destroy the model - just removes it from the array
-          Collection.prototype.remove = function (model) {
-              var index = this.indexOf(model);
-              this._models.splice(index, 1);
-              delete this._lookup[model.id];
-              this.length -= 1;
-              this.stopListening(model);
-              this.trigger('remove:model');
-              this.trigger('change');
-          };
-      
-          // Reorder the collection
-          Collection.prototype.move = function (model, pos) {
-              var index = this.indexOf(model);
-              this._models.splice(index, 1);
-              this._models.splice(pos, 0, model);
-              this._lookup[model.id] = index;
-              this.trigger('change:order');
-              this.trigger('change');
-          };
-      
-          // Append or replace the data in the collection
-          // Doesn't trigger any events when updating the array apart from 'refresh'
-          Collection.prototype.refresh = function (data, replace) {
-              var i, len;
-              if (replace) {
-                  this._models = [];
-                  this._lookup = {};
-              }
-              for (i = 0, len = data.length; i < len; i += 1) {
-                  this.create(data[i], { silent: true });
-              }
-              return this.trigger('refresh');
-          };
-      
-          // Loop over each record in the collection
-          Collection.prototype.forEach = function () {
-              return this._models.forEach.apply(this._models, arguments);
-          };
-      
-          // Filter the models
-          Collection.prototype.filter = function () {
-              return this._models.filter.apply(this._models, arguments);
-          };
-      
-          // Sort the models. Does not alter original order
-          Collection.prototype.sort = function () {
-              return this._models.sort.apply(this._models, arguments);
-          };
-      
-          // Get an array of all the properties from the models
-          Collection.prototype.pluck = function(property) {
-              var array = [];
-              this.forEach(function (task) {
-                  array.push(task[property]);
-              });
-              return array
-          };
-      
-          // Get the index of the item
-          Collection.prototype.indexOf = function (model) {
-              if (typeof model === 'string') {
-                  // Convert model id to actual model
-                  return this.indexOf(this.get(model));
-              }
-              return this._models.indexOf(model);
-          };
-      
-          // Convert the collection into an array of objects
-          Collection.prototype.toJSON = function () {
-              var i, len, record, results = [];
-              for (i = 0, len = this._models.length; i < len; i += 1) {
-                  record = this._models[i];
-                  results.push(record.toJSON());
-              }
-              return results;
-          };
-      
-          // Return the first record in the collection
-          Collection.prototype.first = function () {
-              return this.at(0);
-          };
-      
-          // Return the last record in the collection
-          Collection.prototype.last = function () {
-              return this.at(this.length - 1);
-          };
-      
-          // Return the record by the id
-          Collection.prototype.get = function (id) {
-              var index = this._lookup[id];
-              return this.at(index);
-          };
-      
-          // Return a specified record in the collection
-          Collection.prototype.at = function (index) {
-              return this._models[index];
-          };
-      
-          // Check if a model exists in the collection
-          Collection.prototype.exists = function (model) {
-              return this.indexOf(model) > -1;
-          };
+            }
+          } else {
+            json = this._data;
+          }
+          return json;
+        };
       
       
-          // Add the extend to method to all classes
-          Event.extend = View.extend = Model.extend = Collection.extend = extend;
+        /*
+         * COLLECTION
+         */
       
-          // Export all the classes
-          module.exports = {
-              Event: Event,
-              View: View,
-              Model: Model,
-              Collection: Collection
-          };
+        Collection = function () {
+          Collection.__super__.constructor.apply(this, arguments);
+          this.length  = 0;
+          this._index  = 0;
+          this._models = [];
+          this._lookup = {};
+        };
+      
+        // Load Events
+        inherit(Collection, Event);
+      
+        // Access all models
+        Collection.prototype.all = function () {
+          return this._models;
+        };
+      
+        // Create a new instance of the model and add it to the collection
+        Collection.prototype.create = function (attrs, options) {
+          var model = new this.model(attrs);
+          this.add(model, options);
+          return model;
+        };
+      
+        // Add a model to the collection
+        Collection.prototype.add = function (model, options) {
+      
+          var id, number, index, self = this;
+      
+          // Set ID
+          if (model.id !== null && model.id !== undefined) {
+            id = model.id;
+            // Make sure we don't reuse an existing id
+            number = parseInt(id.slice(1), 10);
+            if (!isNaN(number) && number >= this._index) {
+              this._index = number + 1;
+            }
+          } else {
+            id = 'c' + this._index;
+            this._index += 1;
+            model.set('id', id, {silent: true});
+          }
+      
+          // Add to collection
+          model.collection = this;
+          index = this._models.push(model) - 1;
+          this._lookup[id] = index;
+          this.length += 1;
+      
+          // Bubble events
+          this._bubble(model);
+      
+          // Only trigger create if silent is not set
+          if (!options || !options.silent) {
+            this.trigger('create:model', model);
+            this.trigger('change');
+          }
+      
+        };
+      
+      
+        // Hook into the events of a model and bubble them
+        // up to this collection
+        Collection.prototype._bubble = function (model) {
+      
+          var self = this;
+      
+          this.listen(model, {
+            '*': function (event, args) {
+              args = args.slice(0);
+              args.unshift(event + ':model', model);
+              self.trigger.apply(self, args);
+            },
+            'before:destroy': function () {
+              self.remove(model);
+            }
+          });
+      
+        };
+      
+        // Remove a model from the collection
+        // Does not destroy the model - just removes it from the array
+        Collection.prototype.remove = function (model) {
+          var index = this.indexOf(model);
+          this._models.splice(index, 1);
+          delete this._lookup[model.id];
+          this.length -= 1;
+          this.stopListening(model);
+          this.trigger('remove:model');
+          this.trigger('change');
+        };
+      
+        // Reorder the collection
+        Collection.prototype.move = function (model, pos, noindex) {
+          var index = this.indexOf(model);
+          this._models.splice(index, 1);
+          this._models.splice(pos, 0, model);
+      
+          if (! noindex) {
+            this.reindex();
+          }
+      
+          this.trigger('change:order');
+          this.trigger('change');
+        };
+      
+      
+        // Regenerate the lookup table
+        // Useful if you are moving lots of items around
+        Collection.prototype.reindex = function () {
+          var i, len;
+          len = this._models.length;
+          this._lookup = [];
+          for (i = 0; i < len; i++) {
+            this._lookup[this._models[i].id] = i;
+          }
+        };
+      
+        // Append or replace the data in the collection
+        // Doesn't trigger any events when updating the array apart from 'refresh'
+        Collection.prototype.refresh = function (data, replace) {
+          var i, len;
+          if (replace) {
+            this._models = [];
+            this._lookup = {};
+          }
+          for (i = 0, len = data.length; i < len; i += 1) {
+            this.create(data[i], { silent: true });
+          }
+          return this.trigger('refresh');
+        };
+      
+        // Get a range from the collection
+        Collection.prototype.slice = function (begin, end) {
+          return this._models.slice(begin, end);
+        };
+      
+        // Loop over each record in the collection
+        Collection.prototype.forEach = function (callback, _this) {
+          return this._models.forEach(callback, _this);
+        };
+      
+        // Filter the models
+        Collection.prototype.filter = function (callback, _this) {
+          return this._models.filter(callback, _this);
+        };
+      
+        // Sort the models. Does not alter original order
+        Collection.prototype.sort = function (fn) {
+          return this._models.sort(fn);
+        };
+      
+        // Get an array of all the properties from the models
+        Collection.prototype.pluck = function(property) {
+          var i, len = this.length, array = [];
+          for (i = 0; i < len; i += 1) {
+            array.push(this._models[i][property]);
+          }
+          return array;
+        };
+      
+        // Get the index of the item
+        Collection.prototype.indexOf = function (model) {
+          if (typeof model === 'string') {
+            // Convert model id to actual model
+            return this.indexOf(this.get(model));
+          }
+          return this._models.indexOf(model);
+        };
+      
+        // Convert the collection into an array of objects
+        Collection.prototype.toJSON = function () {
+          var i, len, record, results = [];
+          for (i = 0, len = this._models.length; i < len; i += 1) {
+            record = this._models[i];
+            results.push(record.toJSON());
+          }
+          return results;
+        };
+      
+        // Return the first record in the collection
+        Collection.prototype.first = function () {
+          return this.at(0);
+        };
+      
+        // Return the last record in the collection
+        Collection.prototype.last = function () {
+          return this.at(this.length - 1);
+        };
+      
+        // Return the record by the id
+        Collection.prototype.get = function (id) {
+          var index = this._lookup[id];
+          return this.at(index);
+        };
+      
+        // Return a specified record in the collection
+        Collection.prototype.at = function (index) {
+          return this._models[index];
+        };
+      
+        // Check if a model exists in the collection
+        Collection.prototype.exists = function (model) {
+          return this.indexOf(model) > -1;
+        };
+      
+      
+        // Add the extend to method to all classes
+        Event.extend = View.extend = Model.extend = Collection.extend = extend;
+      
+        // Export all the classes
+        module.exports = {
+          Event: Event,
+          View: View,
+          Model: Model,
+          Collection: Collection
+        };
       
       }());
       ;
@@ -10942,49 +11187,2434 @@
           /Volumes/Home/Projects/Groovy/app/source/js/client.coffee
         */
 
+        './lib/sockjs': 15,
         'base': 2,
-        'when': 15,
-        './settings': 16,
-        './lib/socket.io': 17
+        'when': 16,
+        'jandal': 17,
+        './settings': 19
       }, function(require, module, exports) {
-        var Base, METHODS, Promise, SocketIo, method, settings, _i, _len, _results;
+        var Base, Client, Jandal, METHODS, Promise, method, settings, _fn, _i, _len;
+        require('./lib/sockjs');
         Base = require('base');
         Promise = require('when');
+        Jandal = require('jandal');
         settings = require('./settings');
-        SocketIo = require('./lib/socket.io');
-        METHODS = ['getSongInfo', 'getSearchResults', 'getArtistsSongs', 'getAlbumSongs', 'getPlaylistSongs', 'getPlaylistByID', 'getTopBroadcasts', 'broadcastStatusPoll', 'albumGetAllSongs', 'userGetSongsInLibrary', 'getFavorites', 'getPopularSongs', 'markSongAsDownloaded', 'markStreamKeyOver30Seconds', 'markSongComplete', 'authenticateUser', 'logoutUser', 'initiateQueue', 'createPlaylist', 'playlistAddSongToExisting', 'userAddSongsToLibrary', 'favorite', 'userGetPlaylists', 'getSongUrl', 'getSongStream'];
-        module.exports = (function() {
-          function exports() {
+        Jandal.handle('sockjs');
+        METHODS = ['getSongInfo', 'getSearchResults', 'getArtistsSongs', 'getAlbumSongs', 'getPlaylistSongs', 'getPlaylistByID', 'getTopBroadcasts', 'broadcastStatusPoll', 'albumGetAllSongs', 'userGetSongsInLibrary', 'getFavorites', 'getPopularSongs', 'markSongAsDownloaded', 'markStreamKeyOver30Seconds', 'markSongComplete', 'authenticateUser', 'logoutUser', 'initiateQueue', 'createPlaylist', 'playlistAddSongToExisting', 'userAddSongsToLibrary', 'favorite', 'userGetPlaylists', 'getSongUrl', 'getSongStream', 'getBestOf'];
+        Client = (function() {
+          function Client() {
             this._callMethod = __bind(this._callMethod, this);
-            var _this = this;
-            this.socket = SocketIo.connect("http://" + settings.host + ":" + settings.port);
-            this.vent = new Base.Event();
-            this.socket.on('result', function(_arg) {
-              var data, method;
-              method = _arg[0], data = _arg[1];
-              return _this.vent.trigger('result', method, data);
-            });
+            this.conn = new SockJS("http://" + settings.host + ":" + settings.port + "/ws");
+            this.socket = new Jandal(this.conn);
           }
 
-          exports.prototype._callMethod = function(method, args) {
-            return this.socket.emit('call', [method, args]);
+          Client.prototype._callMethod = function(method, args) {
+            return this.socket.emit('call', method, args);
           };
 
-          return exports;
+          return Client;
 
         })();
-        _results = [];
+        _fn = function(method) {
+          return Client.prototype[method] = function() {
+            var args;
+            args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+            return this._callMethod(method, args);
+          };
+        };
         for (_i = 0, _len = METHODS.length; _i < _len; _i++) {
           method = METHODS[_i];
-          _results.push((function(method) {
-            return module.exports.prototype[method] = function() {
-              var args;
-              args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-              return this._callMethod(method, args);
-            };
-          })(method));
+          _fn(method);
         }
-        return _results;
+        return module.exports = Client;
+      }
+    ], [
+      {
+        /*
+          /Volumes/Home/Projects/Groovy/app/source/js/lib/sockjs.js
+        */
+
+      }, function(require, module, exports) {
+        /* SockJS client, version 0.3.4, http://sockjs.org, MIT License
+      
+      Copyright (c) 2011-2012 VMware, Inc.
+      
+      Permission is hereby granted, free of charge, to any person obtaining a copy
+      of this software and associated documentation files (the "Software"), to deal
+      in the Software without restriction, including without limitation the rights
+      to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+      copies of the Software, and to permit persons to whom the Software is
+      furnished to do so, subject to the following conditions:
+      
+      The above copyright notice and this permission notice shall be included in
+      all copies or substantial portions of the Software.
+      
+      THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+      IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+      FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+      AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+      LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+      THE SOFTWARE.
+      */
+      
+      // JSON2 by Douglas Crockford (minified).
+      var JSON;JSON||(JSON={}),function(){function str(a,b){var c,d,e,f,g=gap,h,i=b[a];i&&typeof i=="object"&&typeof i.toJSON=="function"&&(i=i.toJSON(a)),typeof rep=="function"&&(i=rep.call(b,a,i));switch(typeof i){case"string":return quote(i);case"number":return isFinite(i)?String(i):"null";case"boolean":case"null":return String(i);case"object":if(!i)return"null";gap+=indent,h=[];if(Object.prototype.toString.apply(i)==="[object Array]"){f=i.length;for(c=0;c<f;c+=1)h[c]=str(c,i)||"null";e=h.length===0?"[]":gap?"[\n"+gap+h.join(",\n"+gap)+"\n"+g+"]":"["+h.join(",")+"]",gap=g;return e}if(rep&&typeof rep=="object"){f=rep.length;for(c=0;c<f;c+=1)typeof rep[c]=="string"&&(d=rep[c],e=str(d,i),e&&h.push(quote(d)+(gap?": ":":")+e))}else for(d in i)Object.prototype.hasOwnProperty.call(i,d)&&(e=str(d,i),e&&h.push(quote(d)+(gap?": ":":")+e));e=h.length===0?"{}":gap?"{\n"+gap+h.join(",\n"+gap)+"\n"+g+"}":"{"+h.join(",")+"}",gap=g;return e}}function quote(a){escapable.lastIndex=0;return escapable.test(a)?'"'+a.replace(escapable,function(a){var b=meta[a];return typeof b=="string"?b:"\\u"+("0000"+a.charCodeAt(0).toString(16)).slice(-4)})+'"':'"'+a+'"'}function f(a){return a<10?"0"+a:a}"use strict",typeof Date.prototype.toJSON!="function"&&(Date.prototype.toJSON=function(a){return isFinite(this.valueOf())?this.getUTCFullYear()+"-"+f(this.getUTCMonth()+1)+"-"+f(this.getUTCDate())+"T"+f(this.getUTCHours())+":"+f(this.getUTCMinutes())+":"+f(this.getUTCSeconds())+"Z":null},String.prototype.toJSON=Number.prototype.toJSON=Boolean.prototype.toJSON=function(a){return this.valueOf()});var cx=/[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g,escapable=/[\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g,gap,indent,meta={"\b":"\\b","\t":"\\t","\n":"\\n","\f":"\\f","\r":"\\r",'"':'\\"',"\\":"\\\\"},rep;typeof JSON.stringify!="function"&&(JSON.stringify=function(a,b,c){var d;gap="",indent="";if(typeof c=="number")for(d=0;d<c;d+=1)indent+=" ";else typeof c=="string"&&(indent=c);rep=b;if(!b||typeof b=="function"||typeof b=="object"&&typeof b.length=="number")return str("",{"":a});throw new Error("JSON.stringify")}),typeof JSON.parse!="function"&&(JSON.parse=function(text,reviver){function walk(a,b){var c,d,e=a[b];if(e&&typeof e=="object")for(c in e)Object.prototype.hasOwnProperty.call(e,c)&&(d=walk(e,c),d!==undefined?e[c]=d:delete e[c]);return reviver.call(a,b,e)}var j;text=String(text),cx.lastIndex=0,cx.test(text)&&(text=text.replace(cx,function(a){return"\\u"+("0000"+a.charCodeAt(0).toString(16)).slice(-4)}));if(/^[\],:{}\s]*$/.test(text.replace(/\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g,"@").replace(/"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g,"]").replace(/(?:^|:|,)(?:\s*\[)+/g,""))){j=eval("("+text+")");return typeof reviver=="function"?walk({"":j},""):j}throw new SyntaxError("JSON.parse")})}()
+      
+      
+      //     [*] Including lib/index.js
+      // Public object
+      SockJS = (function(){
+                    var _document = document;
+                    var _window = window;
+                    var utils = {};
+      
+      
+      //         [*] Including lib/reventtarget.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      /* Simplified implementation of DOM2 EventTarget.
+       *   http://www.w3.org/TR/DOM-Level-2-Events/events.html#Events-EventTarget
+       */
+      var REventTarget = function() {};
+      REventTarget.prototype.addEventListener = function (eventType, listener) {
+          if(!this._listeners) {
+               this._listeners = {};
+          }
+          if(!(eventType in this._listeners)) {
+              this._listeners[eventType] = [];
+          }
+          var arr = this._listeners[eventType];
+          if(utils.arrIndexOf(arr, listener) === -1) {
+              arr.push(listener);
+          }
+          return;
+      };
+      
+      REventTarget.prototype.removeEventListener = function (eventType, listener) {
+          if(!(this._listeners && (eventType in this._listeners))) {
+              return;
+          }
+          var arr = this._listeners[eventType];
+          var idx = utils.arrIndexOf(arr, listener);
+          if (idx !== -1) {
+              if(arr.length > 1) {
+                  this._listeners[eventType] = arr.slice(0, idx).concat( arr.slice(idx+1) );
+              } else {
+                  delete this._listeners[eventType];
+              }
+              return;
+          }
+          return;
+      };
+      
+      REventTarget.prototype.dispatchEvent = function (event) {
+          var t = event.type;
+          var args = Array.prototype.slice.call(arguments, 0);
+          if (this['on'+t]) {
+              this['on'+t].apply(this, args);
+          }
+          if (this._listeners && t in this._listeners) {
+              for(var i=0; i < this._listeners[t].length; i++) {
+                  this._listeners[t][i].apply(this, args);
+              }
+          }
+      };
+      //         [*] End of lib/reventtarget.js
+      
+      
+      //         [*] Including lib/simpleevent.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var SimpleEvent = function(type, obj) {
+          this.type = type;
+          if (typeof obj !== 'undefined') {
+              for(var k in obj) {
+                  if (!obj.hasOwnProperty(k)) continue;
+                  this[k] = obj[k];
+              }
+          }
+      };
+      
+      SimpleEvent.prototype.toString = function() {
+          var r = [];
+          for(var k in this) {
+              if (!this.hasOwnProperty(k)) continue;
+              var v = this[k];
+              if (typeof v === 'function') v = '[function]';
+              r.push(k + '=' + v);
+          }
+          return 'SimpleEvent(' + r.join(', ') + ')';
+      };
+      //         [*] End of lib/simpleevent.js
+      
+      
+      //         [*] Including lib/eventemitter.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var EventEmitter = function(events) {
+          var that = this;
+          that._events = events || [];
+          that._listeners = {};
+      };
+      EventEmitter.prototype.emit = function(type) {
+          var that = this;
+          that._verifyType(type);
+          if (that._nuked) return;
+      
+          var args = Array.prototype.slice.call(arguments, 1);
+          if (that['on'+type]) {
+              that['on'+type].apply(that, args);
+          }
+          if (type in that._listeners) {
+              for(var i = 0; i < that._listeners[type].length; i++) {
+                  that._listeners[type][i].apply(that, args);
+              }
+          }
+      };
+      
+      EventEmitter.prototype.on = function(type, callback) {
+          var that = this;
+          that._verifyType(type);
+          if (that._nuked) return;
+      
+          if (!(type in that._listeners)) {
+              that._listeners[type] = [];
+          }
+          that._listeners[type].push(callback);
+      };
+      
+      EventEmitter.prototype._verifyType = function(type) {
+          var that = this;
+          if (utils.arrIndexOf(that._events, type) === -1) {
+              utils.log('Event ' + JSON.stringify(type) +
+                        ' not listed ' + JSON.stringify(that._events) +
+                        ' in ' + that);
+          }
+      };
+      
+      EventEmitter.prototype.nuke = function() {
+          var that = this;
+          that._nuked = true;
+          for(var i=0; i<that._events.length; i++) {
+              delete that[that._events[i]];
+          }
+          that._listeners = {};
+      };
+      //         [*] End of lib/eventemitter.js
+      
+      
+      //         [*] Including lib/utils.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var random_string_chars = 'abcdefghijklmnopqrstuvwxyz0123456789_';
+      utils.random_string = function(length, max) {
+          max = max || random_string_chars.length;
+          var i, ret = [];
+          for(i=0; i < length; i++) {
+              ret.push( random_string_chars.substr(Math.floor(Math.random() * max),1) );
+          }
+          return ret.join('');
+      };
+      utils.random_number = function(max) {
+          return Math.floor(Math.random() * max);
+      };
+      utils.random_number_string = function(max) {
+          var t = (''+(max - 1)).length;
+          var p = Array(t+1).join('0');
+          return (p + utils.random_number(max)).slice(-t);
+      };
+      
+      // Assuming that url looks like: http://asdasd:111/asd
+      utils.getOrigin = function(url) {
+          url += '/';
+          var parts = url.split('/').slice(0, 3);
+          return parts.join('/');
+      };
+      
+      utils.isSameOriginUrl = function(url_a, url_b) {
+          // location.origin would do, but it's not always available.
+          if (!url_b) url_b = _window.location.href;
+      
+          return (url_a.split('/').slice(0,3).join('/')
+                      ===
+                  url_b.split('/').slice(0,3).join('/'));
+      };
+      
+      utils.getParentDomain = function(url) {
+          // ipv4 ip address
+          if (/^[0-9.]*$/.test(url)) return url;
+          // ipv6 ip address
+          if (/^\[/.test(url)) return url;
+          // no dots
+          if (!(/[.]/.test(url))) return url;
+      
+          var parts = url.split('.').slice(1);
+          return parts.join('.');
+      };
+      
+      utils.objectExtend = function(dst, src) {
+          for(var k in src) {
+              if (src.hasOwnProperty(k)) {
+                  dst[k] = src[k];
+              }
+          }
+          return dst;
+      };
+      
+      var WPrefix = '_jp';
+      
+      utils.polluteGlobalNamespace = function() {
+          if (!(WPrefix in _window)) {
+              _window[WPrefix] = {};
+          }
+      };
+      
+      utils.closeFrame = function (code, reason) {
+          return 'c'+JSON.stringify([code, reason]);
+      };
+      
+      utils.userSetCode = function (code) {
+          return code === 1000 || (code >= 3000 && code <= 4999);
+      };
+      
+      // See: http://www.erg.abdn.ac.uk/~gerrit/dccp/notes/ccid2/rto_estimator/
+      // and RFC 2988.
+      utils.countRTO = function (rtt) {
+          var rto;
+          if (rtt > 100) {
+              rto = 3 * rtt; // rto > 300msec
+          } else {
+              rto = rtt + 200; // 200msec < rto <= 300msec
+          }
+          return rto;
+      }
+      
+      utils.log = function() {
+          if (_window.console && console.log && console.log.apply) {
+              console.log.apply(console, arguments);
+          }
+      };
+      
+      utils.bind = function(fun, that) {
+          if (fun.bind) {
+              return fun.bind(that);
+          } else {
+              return function() {
+                  return fun.apply(that, arguments);
+              };
+          }
+      };
+      
+      utils.flatUrl = function(url) {
+          return url.indexOf('?') === -1 && url.indexOf('#') === -1;
+      };
+      
+      utils.amendUrl = function(url) {
+          var dl = _document.location;
+          if (!url) {
+              throw new Error('Wrong url for SockJS');
+          }
+          if (!utils.flatUrl(url)) {
+              throw new Error('Only basic urls are supported in SockJS');
+          }
+      
+          //  '//abc' --> 'http://abc'
+          if (url.indexOf('//') === 0) {
+              url = dl.protocol + url;
+          }
+          // '/abc' --> 'http://localhost:80/abc'
+          if (url.indexOf('/') === 0) {
+              url = dl.protocol + '//' + dl.host + url;
+          }
+          // strip trailing slashes
+          url = url.replace(/[/]+$/,'');
+          return url;
+      };
+      
+      // IE doesn't support [].indexOf.
+      utils.arrIndexOf = function(arr, obj){
+          for(var i=0; i < arr.length; i++){
+              if(arr[i] === obj){
+                  return i;
+              }
+          }
+          return -1;
+      };
+      
+      utils.arrSkip = function(arr, obj) {
+          var idx = utils.arrIndexOf(arr, obj);
+          if (idx === -1) {
+              return arr.slice();
+          } else {
+              var dst = arr.slice(0, idx);
+              return dst.concat(arr.slice(idx+1));
+          }
+      };
+      
+      // Via: https://gist.github.com/1133122/2121c601c5549155483f50be3da5305e83b8c5df
+      utils.isArray = Array.isArray || function(value) {
+          return {}.toString.call(value).indexOf('Array') >= 0
+      };
+      
+      utils.delay = function(t, fun) {
+          if(typeof t === 'function') {
+              fun = t;
+              t = 0;
+          }
+          return setTimeout(fun, t);
+      };
+      
+      
+      // Chars worth escaping, as defined by Douglas Crockford:
+      //   https://github.com/douglascrockford/JSON-js/blob/47a9882cddeb1e8529e07af9736218075372b8ac/json2.js#L196
+      var json_escapable = /[\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g,
+          json_lookup = {
+      "\u0000":"\\u0000","\u0001":"\\u0001","\u0002":"\\u0002","\u0003":"\\u0003",
+      "\u0004":"\\u0004","\u0005":"\\u0005","\u0006":"\\u0006","\u0007":"\\u0007",
+      "\b":"\\b","\t":"\\t","\n":"\\n","\u000b":"\\u000b","\f":"\\f","\r":"\\r",
+      "\u000e":"\\u000e","\u000f":"\\u000f","\u0010":"\\u0010","\u0011":"\\u0011",
+      "\u0012":"\\u0012","\u0013":"\\u0013","\u0014":"\\u0014","\u0015":"\\u0015",
+      "\u0016":"\\u0016","\u0017":"\\u0017","\u0018":"\\u0018","\u0019":"\\u0019",
+      "\u001a":"\\u001a","\u001b":"\\u001b","\u001c":"\\u001c","\u001d":"\\u001d",
+      "\u001e":"\\u001e","\u001f":"\\u001f","\"":"\\\"","\\":"\\\\",
+      "\u007f":"\\u007f","\u0080":"\\u0080","\u0081":"\\u0081","\u0082":"\\u0082",
+      "\u0083":"\\u0083","\u0084":"\\u0084","\u0085":"\\u0085","\u0086":"\\u0086",
+      "\u0087":"\\u0087","\u0088":"\\u0088","\u0089":"\\u0089","\u008a":"\\u008a",
+      "\u008b":"\\u008b","\u008c":"\\u008c","\u008d":"\\u008d","\u008e":"\\u008e",
+      "\u008f":"\\u008f","\u0090":"\\u0090","\u0091":"\\u0091","\u0092":"\\u0092",
+      "\u0093":"\\u0093","\u0094":"\\u0094","\u0095":"\\u0095","\u0096":"\\u0096",
+      "\u0097":"\\u0097","\u0098":"\\u0098","\u0099":"\\u0099","\u009a":"\\u009a",
+      "\u009b":"\\u009b","\u009c":"\\u009c","\u009d":"\\u009d","\u009e":"\\u009e",
+      "\u009f":"\\u009f","\u00ad":"\\u00ad","\u0600":"\\u0600","\u0601":"\\u0601",
+      "\u0602":"\\u0602","\u0603":"\\u0603","\u0604":"\\u0604","\u070f":"\\u070f",
+      "\u17b4":"\\u17b4","\u17b5":"\\u17b5","\u200c":"\\u200c","\u200d":"\\u200d",
+      "\u200e":"\\u200e","\u200f":"\\u200f","\u2028":"\\u2028","\u2029":"\\u2029",
+      "\u202a":"\\u202a","\u202b":"\\u202b","\u202c":"\\u202c","\u202d":"\\u202d",
+      "\u202e":"\\u202e","\u202f":"\\u202f","\u2060":"\\u2060","\u2061":"\\u2061",
+      "\u2062":"\\u2062","\u2063":"\\u2063","\u2064":"\\u2064","\u2065":"\\u2065",
+      "\u2066":"\\u2066","\u2067":"\\u2067","\u2068":"\\u2068","\u2069":"\\u2069",
+      "\u206a":"\\u206a","\u206b":"\\u206b","\u206c":"\\u206c","\u206d":"\\u206d",
+      "\u206e":"\\u206e","\u206f":"\\u206f","\ufeff":"\\ufeff","\ufff0":"\\ufff0",
+      "\ufff1":"\\ufff1","\ufff2":"\\ufff2","\ufff3":"\\ufff3","\ufff4":"\\ufff4",
+      "\ufff5":"\\ufff5","\ufff6":"\\ufff6","\ufff7":"\\ufff7","\ufff8":"\\ufff8",
+      "\ufff9":"\\ufff9","\ufffa":"\\ufffa","\ufffb":"\\ufffb","\ufffc":"\\ufffc",
+      "\ufffd":"\\ufffd","\ufffe":"\\ufffe","\uffff":"\\uffff"};
+      
+      // Some extra characters that Chrome gets wrong, and substitutes with
+      // something else on the wire.
+      var extra_escapable = /[\x00-\x1f\ud800-\udfff\ufffe\uffff\u0300-\u0333\u033d-\u0346\u034a-\u034c\u0350-\u0352\u0357-\u0358\u035c-\u0362\u0374\u037e\u0387\u0591-\u05af\u05c4\u0610-\u0617\u0653-\u0654\u0657-\u065b\u065d-\u065e\u06df-\u06e2\u06eb-\u06ec\u0730\u0732-\u0733\u0735-\u0736\u073a\u073d\u073f-\u0741\u0743\u0745\u0747\u07eb-\u07f1\u0951\u0958-\u095f\u09dc-\u09dd\u09df\u0a33\u0a36\u0a59-\u0a5b\u0a5e\u0b5c-\u0b5d\u0e38-\u0e39\u0f43\u0f4d\u0f52\u0f57\u0f5c\u0f69\u0f72-\u0f76\u0f78\u0f80-\u0f83\u0f93\u0f9d\u0fa2\u0fa7\u0fac\u0fb9\u1939-\u193a\u1a17\u1b6b\u1cda-\u1cdb\u1dc0-\u1dcf\u1dfc\u1dfe\u1f71\u1f73\u1f75\u1f77\u1f79\u1f7b\u1f7d\u1fbb\u1fbe\u1fc9\u1fcb\u1fd3\u1fdb\u1fe3\u1feb\u1fee-\u1fef\u1ff9\u1ffb\u1ffd\u2000-\u2001\u20d0-\u20d1\u20d4-\u20d7\u20e7-\u20e9\u2126\u212a-\u212b\u2329-\u232a\u2adc\u302b-\u302c\uaab2-\uaab3\uf900-\ufa0d\ufa10\ufa12\ufa15-\ufa1e\ufa20\ufa22\ufa25-\ufa26\ufa2a-\ufa2d\ufa30-\ufa6d\ufa70-\ufad9\ufb1d\ufb1f\ufb2a-\ufb36\ufb38-\ufb3c\ufb3e\ufb40-\ufb41\ufb43-\ufb44\ufb46-\ufb4e\ufff0-\uffff]/g,
+          extra_lookup;
+      
+      // JSON Quote string. Use native implementation when possible.
+      var JSONQuote = (JSON && JSON.stringify) || function(string) {
+          json_escapable.lastIndex = 0;
+          if (json_escapable.test(string)) {
+              string = string.replace(json_escapable, function(a) {
+                  return json_lookup[a];
+              });
+          }
+          return '"' + string + '"';
+      };
+      
+      // This may be quite slow, so let's delay until user actually uses bad
+      // characters.
+      var unroll_lookup = function(escapable) {
+          var i;
+          var unrolled = {}
+          var c = []
+          for(i=0; i<65536; i++) {
+              c.push( String.fromCharCode(i) );
+          }
+          escapable.lastIndex = 0;
+          c.join('').replace(escapable, function (a) {
+              unrolled[ a ] = '\\u' + ('0000' + a.charCodeAt(0).toString(16)).slice(-4);
+              return '';
+          });
+          escapable.lastIndex = 0;
+          return unrolled;
+      };
+      
+      // Quote string, also taking care of unicode characters that browsers
+      // often break. Especially, take care of unicode surrogates:
+      //    http://en.wikipedia.org/wiki/Mapping_of_Unicode_characters#Surrogates
+      utils.quote = function(string) {
+          var quoted = JSONQuote(string);
+      
+          // In most cases this should be very fast and good enough.
+          extra_escapable.lastIndex = 0;
+          if(!extra_escapable.test(quoted)) {
+              return quoted;
+          }
+      
+          if(!extra_lookup) extra_lookup = unroll_lookup(extra_escapable);
+      
+          return quoted.replace(extra_escapable, function(a) {
+              return extra_lookup[a];
+          });
+      }
+      
+      var _all_protocols = ['websocket',
+                            'xdr-streaming',
+                            'xhr-streaming',
+                            'iframe-eventsource',
+                            'iframe-htmlfile',
+                            'xdr-polling',
+                            'xhr-polling',
+                            'iframe-xhr-polling',
+                            'jsonp-polling'];
+      
+      utils.probeProtocols = function() {
+          var probed = {};
+          for(var i=0; i<_all_protocols.length; i++) {
+              var protocol = _all_protocols[i];
+              // User can have a typo in protocol name.
+              probed[protocol] = SockJS[protocol] &&
+                                 SockJS[protocol].enabled();
+          }
+          return probed;
+      };
+      
+      utils.detectProtocols = function(probed, protocols_whitelist, info) {
+          var pe = {},
+              protocols = [];
+          if (!protocols_whitelist) protocols_whitelist = _all_protocols;
+          for(var i=0; i<protocols_whitelist.length; i++) {
+              var protocol = protocols_whitelist[i];
+              pe[protocol] = probed[protocol];
+          }
+          var maybe_push = function(protos) {
+              var proto = protos.shift();
+              if (pe[proto]) {
+                  protocols.push(proto);
+              } else {
+                  if (protos.length > 0) {
+                      maybe_push(protos);
+                  }
+              }
+          }
+      
+          // 1. Websocket
+          if (info.websocket !== false) {
+              maybe_push(['websocket']);
+          }
+      
+          // 2. Streaming
+          if (pe['xhr-streaming'] && !info.null_origin) {
+              protocols.push('xhr-streaming');
+          } else {
+              if (pe['xdr-streaming'] && !info.cookie_needed && !info.null_origin) {
+                  protocols.push('xdr-streaming');
+              } else {
+                  maybe_push(['iframe-eventsource',
+                              'iframe-htmlfile']);
+              }
+          }
+      
+          // 3. Polling
+          if (pe['xhr-polling'] && !info.null_origin) {
+              protocols.push('xhr-polling');
+          } else {
+              if (pe['xdr-polling'] && !info.cookie_needed && !info.null_origin) {
+                  protocols.push('xdr-polling');
+              } else {
+                  maybe_push(['iframe-xhr-polling',
+                              'jsonp-polling']);
+              }
+          }
+          return protocols;
+      }
+      //         [*] End of lib/utils.js
+      
+      
+      //         [*] Including lib/dom.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      // May be used by htmlfile jsonp and transports.
+      var MPrefix = '_sockjs_global';
+      utils.createHook = function() {
+          var window_id = 'a' + utils.random_string(8);
+          if (!(MPrefix in _window)) {
+              var map = {};
+              _window[MPrefix] = function(window_id) {
+                  if (!(window_id in map)) {
+                      map[window_id] = {
+                          id: window_id,
+                          del: function() {delete map[window_id];}
+                      };
+                  }
+                  return map[window_id];
+              }
+          }
+          return _window[MPrefix](window_id);
+      };
+      
+      
+      
+      utils.attachMessage = function(listener) {
+          utils.attachEvent('message', listener);
+      };
+      utils.attachEvent = function(event, listener) {
+          if (typeof _window.addEventListener !== 'undefined') {
+              _window.addEventListener(event, listener, false);
+          } else {
+              // IE quirks.
+              // According to: http://stevesouders.com/misc/test-postmessage.php
+              // the message gets delivered only to 'document', not 'window'.
+              _document.attachEvent("on" + event, listener);
+              // I get 'window' for ie8.
+              _window.attachEvent("on" + event, listener);
+          }
+      };
+      
+      utils.detachMessage = function(listener) {
+          utils.detachEvent('message', listener);
+      };
+      utils.detachEvent = function(event, listener) {
+          if (typeof _window.addEventListener !== 'undefined') {
+              _window.removeEventListener(event, listener, false);
+          } else {
+              _document.detachEvent("on" + event, listener);
+              _window.detachEvent("on" + event, listener);
+          }
+      };
+      
+      
+      var on_unload = {};
+      // Things registered after beforeunload are to be called immediately.
+      var after_unload = false;
+      
+      var trigger_unload_callbacks = function() {
+          for(var ref in on_unload) {
+              on_unload[ref]();
+              delete on_unload[ref];
+          };
+      };
+      
+      var unload_triggered = function() {
+          if(after_unload) return;
+          after_unload = true;
+          trigger_unload_callbacks();
+      };
+      
+      // 'unload' alone is not reliable in opera within an iframe, but we
+      // can't use `beforeunload` as IE fires it on javascript: links.
+      utils.attachEvent('unload', unload_triggered);
+      
+      utils.unload_add = function(listener) {
+          var ref = utils.random_string(8);
+          on_unload[ref] = listener;
+          if (after_unload) {
+              utils.delay(trigger_unload_callbacks);
+          }
+          return ref;
+      };
+      utils.unload_del = function(ref) {
+          if (ref in on_unload)
+              delete on_unload[ref];
+      };
+      
+      
+      utils.createIframe = function (iframe_url, error_callback) {
+          var iframe = _document.createElement('iframe');
+          var tref, unload_ref;
+          var unattach = function() {
+              clearTimeout(tref);
+              // Explorer had problems with that.
+              try {iframe.onload = null;} catch (x) {}
+              iframe.onerror = null;
+          };
+          var cleanup = function() {
+              if (iframe) {
+                  unattach();
+                  // This timeout makes chrome fire onbeforeunload event
+                  // within iframe. Without the timeout it goes straight to
+                  // onunload.
+                  setTimeout(function() {
+                      if(iframe) {
+                          iframe.parentNode.removeChild(iframe);
+                      }
+                      iframe = null;
+                  }, 0);
+                  utils.unload_del(unload_ref);
+              }
+          };
+          var onerror = function(r) {
+              if (iframe) {
+                  cleanup();
+                  error_callback(r);
+              }
+          };
+          var post = function(msg, origin) {
+              try {
+                  // When the iframe is not loaded, IE raises an exception
+                  // on 'contentWindow'.
+                  if (iframe && iframe.contentWindow) {
+                      iframe.contentWindow.postMessage(msg, origin);
+                  }
+              } catch (x) {};
+          };
+      
+          iframe.src = iframe_url;
+          iframe.style.display = 'none';
+          iframe.style.position = 'absolute';
+          iframe.onerror = function(){onerror('onerror');};
+          iframe.onload = function() {
+              // `onload` is triggered before scripts on the iframe are
+              // executed. Give it few seconds to actually load stuff.
+              clearTimeout(tref);
+              tref = setTimeout(function(){onerror('onload timeout');}, 2000);
+          };
+          _document.body.appendChild(iframe);
+          tref = setTimeout(function(){onerror('timeout');}, 15000);
+          unload_ref = utils.unload_add(cleanup);
+          return {
+              post: post,
+              cleanup: cleanup,
+              loaded: unattach
+          };
+      };
+      
+      utils.createHtmlfile = function (iframe_url, error_callback) {
+          var doc = new ActiveXObject('htmlfile');
+          var tref, unload_ref;
+          var iframe;
+          var unattach = function() {
+              clearTimeout(tref);
+          };
+          var cleanup = function() {
+              if (doc) {
+                  unattach();
+                  utils.unload_del(unload_ref);
+                  iframe.parentNode.removeChild(iframe);
+                  iframe = doc = null;
+                  CollectGarbage();
+              }
+          };
+          var onerror = function(r)  {
+              if (doc) {
+                  cleanup();
+                  error_callback(r);
+              }
+          };
+          var post = function(msg, origin) {
+              try {
+                  // When the iframe is not loaded, IE raises an exception
+                  // on 'contentWindow'.
+                  if (iframe && iframe.contentWindow) {
+                      iframe.contentWindow.postMessage(msg, origin);
+                  }
+              } catch (x) {};
+          };
+      
+          doc.open();
+          doc.write('<html><s' + 'cript>' +
+                    'document.domain="' + document.domain + '";' +
+                    '</s' + 'cript></html>');
+          doc.close();
+          doc.parentWindow[WPrefix] = _window[WPrefix];
+          var c = doc.createElement('div');
+          doc.body.appendChild(c);
+          iframe = doc.createElement('iframe');
+          c.appendChild(iframe);
+          iframe.src = iframe_url;
+          tref = setTimeout(function(){onerror('timeout');}, 15000);
+          unload_ref = utils.unload_add(cleanup);
+          return {
+              post: post,
+              cleanup: cleanup,
+              loaded: unattach
+          };
+      };
+      //         [*] End of lib/dom.js
+      
+      
+      //         [*] Including lib/dom2.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var AbstractXHRObject = function(){};
+      AbstractXHRObject.prototype = new EventEmitter(['chunk', 'finish']);
+      
+      AbstractXHRObject.prototype._start = function(method, url, payload, opts) {
+          var that = this;
+      
+          try {
+              that.xhr = new XMLHttpRequest();
+          } catch(x) {};
+      
+          if (!that.xhr) {
+              try {
+                  that.xhr = new _window.ActiveXObject('Microsoft.XMLHTTP');
+              } catch(x) {};
+          }
+          if (_window.ActiveXObject || _window.XDomainRequest) {
+              // IE8 caches even POSTs
+              url += ((url.indexOf('?') === -1) ? '?' : '&') + 't='+(+new Date);
+          }
+      
+          // Explorer tends to keep connection open, even after the
+          // tab gets closed: http://bugs.jquery.com/ticket/5280
+          that.unload_ref = utils.unload_add(function(){that._cleanup(true);});
+          try {
+              that.xhr.open(method, url, true);
+          } catch(e) {
+              // IE raises an exception on wrong port.
+              that.emit('finish', 0, '');
+              that._cleanup();
+              return;
+          };
+      
+          if (!opts || !opts.no_credentials) {
+              // Mozilla docs says https://developer.mozilla.org/en/XMLHttpRequest :
+              // "This never affects same-site requests."
+              that.xhr.withCredentials = 'true';
+          }
+          if (opts && opts.headers) {
+              for(var key in opts.headers) {
+                  that.xhr.setRequestHeader(key, opts.headers[key]);
+              }
+          }
+      
+          that.xhr.onreadystatechange = function() {
+              if (that.xhr) {
+                  var x = that.xhr;
+                  switch (x.readyState) {
+                  case 3:
+                      // IE doesn't like peeking into responseText or status
+                      // on Microsoft.XMLHTTP and readystate=3
+                      try {
+                          var status = x.status;
+                          var text = x.responseText;
+                      } catch (x) {};
+                      // IE returns 1223 for 204: http://bugs.jquery.com/ticket/1450
+                      if (status === 1223) status = 204;
+      
+                      // IE does return readystate == 3 for 404 answers.
+                      if (text && text.length > 0) {
+                          that.emit('chunk', status, text);
+                      }
+                      break;
+                  case 4:
+                      var status = x.status;
+                      // IE returns 1223 for 204: http://bugs.jquery.com/ticket/1450
+                      if (status === 1223) status = 204;
+      
+                      that.emit('finish', status, x.responseText);
+                      that._cleanup(false);
+                      break;
+                  }
+              }
+          };
+          that.xhr.send(payload);
+      };
+      
+      AbstractXHRObject.prototype._cleanup = function(abort) {
+          var that = this;
+          if (!that.xhr) return;
+          utils.unload_del(that.unload_ref);
+      
+          // IE needs this field to be a function
+          that.xhr.onreadystatechange = function(){};
+      
+          if (abort) {
+              try {
+                  that.xhr.abort();
+              } catch(x) {};
+          }
+          that.unload_ref = that.xhr = null;
+      };
+      
+      AbstractXHRObject.prototype.close = function() {
+          var that = this;
+          that.nuke();
+          that._cleanup(true);
+      };
+      
+      var XHRCorsObject = utils.XHRCorsObject = function() {
+          var that = this, args = arguments;
+          utils.delay(function(){that._start.apply(that, args);});
+      };
+      XHRCorsObject.prototype = new AbstractXHRObject();
+      
+      var XHRLocalObject = utils.XHRLocalObject = function(method, url, payload) {
+          var that = this;
+          utils.delay(function(){
+              that._start(method, url, payload, {
+                  no_credentials: true
+              });
+          });
+      };
+      XHRLocalObject.prototype = new AbstractXHRObject();
+      
+      
+      
+      // References:
+      //   http://ajaxian.com/archives/100-line-ajax-wrapper
+      //   http://msdn.microsoft.com/en-us/library/cc288060(v=VS.85).aspx
+      var XDRObject = utils.XDRObject = function(method, url, payload) {
+          var that = this;
+          utils.delay(function(){that._start(method, url, payload);});
+      };
+      XDRObject.prototype = new EventEmitter(['chunk', 'finish']);
+      XDRObject.prototype._start = function(method, url, payload) {
+          var that = this;
+          var xdr = new XDomainRequest();
+          // IE caches even POSTs
+          url += ((url.indexOf('?') === -1) ? '?' : '&') + 't='+(+new Date);
+      
+          var onerror = xdr.ontimeout = xdr.onerror = function() {
+              that.emit('finish', 0, '');
+              that._cleanup(false);
+          };
+          xdr.onprogress = function() {
+              that.emit('chunk', 200, xdr.responseText);
+          };
+          xdr.onload = function() {
+              that.emit('finish', 200, xdr.responseText);
+              that._cleanup(false);
+          };
+          that.xdr = xdr;
+          that.unload_ref = utils.unload_add(function(){that._cleanup(true);});
+          try {
+              // Fails with AccessDenied if port number is bogus
+              that.xdr.open(method, url);
+              that.xdr.send(payload);
+          } catch(x) {
+              onerror();
+          }
+      };
+      
+      XDRObject.prototype._cleanup = function(abort) {
+          var that = this;
+          if (!that.xdr) return;
+          utils.unload_del(that.unload_ref);
+      
+          that.xdr.ontimeout = that.xdr.onerror = that.xdr.onprogress =
+              that.xdr.onload = null;
+          if (abort) {
+              try {
+                  that.xdr.abort();
+              } catch(x) {};
+          }
+          that.unload_ref = that.xdr = null;
+      };
+      
+      XDRObject.prototype.close = function() {
+          var that = this;
+          that.nuke();
+          that._cleanup(true);
+      };
+      
+      // 1. Is natively via XHR
+      // 2. Is natively via XDR
+      // 3. Nope, but postMessage is there so it should work via the Iframe.
+      // 4. Nope, sorry.
+      utils.isXHRCorsCapable = function() {
+          if (_window.XMLHttpRequest && 'withCredentials' in new XMLHttpRequest()) {
+              return 1;
+          }
+          // XDomainRequest doesn't work if page is served from file://
+          if (_window.XDomainRequest && _document.domain) {
+              return 2;
+          }
+          if (IframeTransport.enabled()) {
+              return 3;
+          }
+          return 4;
+      };
+      //         [*] End of lib/dom2.js
+      
+      
+      //         [*] Including lib/sockjs.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var SockJS = function(url, dep_protocols_whitelist, options) {
+          if (this === _window) {
+              // makes `new` optional
+              return new SockJS(url, dep_protocols_whitelist, options);
+          }
+          
+          var that = this, protocols_whitelist;
+          that._options = {devel: false, debug: false, protocols_whitelist: [],
+                           info: undefined, rtt: undefined};
+          if (options) {
+              utils.objectExtend(that._options, options);
+          }
+          that._base_url = utils.amendUrl(url);
+          that._server = that._options.server || utils.random_number_string(1000);
+          if (that._options.protocols_whitelist &&
+              that._options.protocols_whitelist.length) {
+              protocols_whitelist = that._options.protocols_whitelist;
+          } else {
+              // Deprecated API
+              if (typeof dep_protocols_whitelist === 'string' &&
+                  dep_protocols_whitelist.length > 0) {
+                  protocols_whitelist = [dep_protocols_whitelist];
+              } else if (utils.isArray(dep_protocols_whitelist)) {
+                  protocols_whitelist = dep_protocols_whitelist
+              } else {
+                  protocols_whitelist = null;
+              }
+              if (protocols_whitelist) {
+                  that._debug('Deprecated API: Use "protocols_whitelist" option ' +
+                              'instead of supplying protocol list as a second ' +
+                              'parameter to SockJS constructor.');
+              }
+          }
+          that._protocols = [];
+          that.protocol = null;
+          that.readyState = SockJS.CONNECTING;
+          that._ir = createInfoReceiver(that._base_url);
+          that._ir.onfinish = function(info, rtt) {
+              that._ir = null;
+              if (info) {
+                  if (that._options.info) {
+                      // Override if user supplies the option
+                      info = utils.objectExtend(info, that._options.info);
+                  }
+                  if (that._options.rtt) {
+                      rtt = that._options.rtt;
+                  }
+                  that._applyInfo(info, rtt, protocols_whitelist);
+                  that._didClose();
+              } else {
+                  that._didClose(1002, 'Can\'t connect to server', true);
+              }
+          };
+      };
+      // Inheritance
+      SockJS.prototype = new REventTarget();
+      
+      SockJS.version = "0.3.4";
+      
+      SockJS.CONNECTING = 0;
+      SockJS.OPEN = 1;
+      SockJS.CLOSING = 2;
+      SockJS.CLOSED = 3;
+      
+      SockJS.prototype._debug = function() {
+          if (this._options.debug)
+              utils.log.apply(utils, arguments);
+      };
+      
+      SockJS.prototype._dispatchOpen = function() {
+          var that = this;
+          if (that.readyState === SockJS.CONNECTING) {
+              if (that._transport_tref) {
+                  clearTimeout(that._transport_tref);
+                  that._transport_tref = null;
+              }
+              that.readyState = SockJS.OPEN;
+              that.dispatchEvent(new SimpleEvent("open"));
+          } else {
+              // The server might have been restarted, and lost track of our
+              // connection.
+              that._didClose(1006, "Server lost session");
+          }
+      };
+      
+      SockJS.prototype._dispatchMessage = function(data) {
+          var that = this;
+          if (that.readyState !== SockJS.OPEN)
+                  return;
+          that.dispatchEvent(new SimpleEvent("message", {data: data}));
+      };
+      
+      SockJS.prototype._dispatchHeartbeat = function(data) {
+          var that = this;
+          if (that.readyState !== SockJS.OPEN)
+              return;
+          that.dispatchEvent(new SimpleEvent('heartbeat', {}));
+      };
+      
+      SockJS.prototype._didClose = function(code, reason, force) {
+          var that = this;
+          if (that.readyState !== SockJS.CONNECTING &&
+              that.readyState !== SockJS.OPEN &&
+              that.readyState !== SockJS.CLOSING)
+                  throw new Error('INVALID_STATE_ERR');
+          if (that._ir) {
+              that._ir.nuke();
+              that._ir = null;
+          }
+      
+          if (that._transport) {
+              that._transport.doCleanup();
+              that._transport = null;
+          }
+      
+          var close_event = new SimpleEvent("close", {
+              code: code,
+              reason: reason,
+              wasClean: utils.userSetCode(code)});
+      
+          if (!utils.userSetCode(code) &&
+              that.readyState === SockJS.CONNECTING && !force) {
+              if (that._try_next_protocol(close_event)) {
+                  return;
+              }
+              close_event = new SimpleEvent("close", {code: 2000,
+                                                      reason: "All transports failed",
+                                                      wasClean: false,
+                                                      last_event: close_event});
+          }
+          that.readyState = SockJS.CLOSED;
+      
+          utils.delay(function() {
+                         that.dispatchEvent(close_event);
+                      });
+      };
+      
+      SockJS.prototype._didMessage = function(data) {
+          var that = this;
+          var type = data.slice(0, 1);
+          switch(type) {
+          case 'o':
+              that._dispatchOpen();
+              break;
+          case 'a':
+              var payload = JSON.parse(data.slice(1) || '[]');
+              for(var i=0; i < payload.length; i++){
+                  that._dispatchMessage(payload[i]);
+              }
+              break;
+          case 'm':
+              var payload = JSON.parse(data.slice(1) || 'null');
+              that._dispatchMessage(payload);
+              break;
+          case 'c':
+              var payload = JSON.parse(data.slice(1) || '[]');
+              that._didClose(payload[0], payload[1]);
+              break;
+          case 'h':
+              that._dispatchHeartbeat();
+              break;
+          }
+      };
+      
+      SockJS.prototype._try_next_protocol = function(close_event) {
+          var that = this;
+          if (that.protocol) {
+              that._debug('Closed transport:', that.protocol, ''+close_event);
+              that.protocol = null;
+          }
+          if (that._transport_tref) {
+              clearTimeout(that._transport_tref);
+              that._transport_tref = null;
+          }
+      
+          while(1) {
+              var protocol = that.protocol = that._protocols.shift();
+              if (!protocol) {
+                  return false;
+              }
+              // Some protocols require access to `body`, what if were in
+              // the `head`?
+              if (SockJS[protocol] &&
+                  SockJS[protocol].need_body === true &&
+                  (!_document.body ||
+                   (typeof _document.readyState !== 'undefined'
+                    && _document.readyState !== 'complete'))) {
+                  that._protocols.unshift(protocol);
+                  that.protocol = 'waiting-for-load';
+                  utils.attachEvent('load', function(){
+                      that._try_next_protocol();
+                  });
+                  return true;
+              }
+      
+              if (!SockJS[protocol] ||
+                    !SockJS[protocol].enabled(that._options)) {
+                  that._debug('Skipping transport:', protocol);
+              } else {
+                  var roundTrips = SockJS[protocol].roundTrips || 1;
+                  var to = ((that._options.rto || 0) * roundTrips) || 5000;
+                  that._transport_tref = utils.delay(to, function() {
+                      if (that.readyState === SockJS.CONNECTING) {
+                          // I can't understand how it is possible to run
+                          // this timer, when the state is CLOSED, but
+                          // apparently in IE everythin is possible.
+                          that._didClose(2007, "Transport timeouted");
+                      }
+                  });
+      
+                  var connid = utils.random_string(8);
+                  var trans_url = that._base_url + '/' + that._server + '/' + connid;
+                  that._debug('Opening transport:', protocol, ' url:'+trans_url,
+                              ' RTO:'+that._options.rto);
+                  that._transport = new SockJS[protocol](that, trans_url,
+                                                         that._base_url);
+                  return true;
+              }
+          }
+      };
+      
+      SockJS.prototype.close = function(code, reason) {
+          var that = this;
+          if (code && !utils.userSetCode(code))
+              throw new Error("INVALID_ACCESS_ERR");
+          if(that.readyState !== SockJS.CONNECTING &&
+             that.readyState !== SockJS.OPEN) {
+              return false;
+          }
+          that.readyState = SockJS.CLOSING;
+          that._didClose(code || 1000, reason || "Normal closure");
+          return true;
+      };
+      
+      SockJS.prototype.send = function(data) {
+          var that = this;
+          if (that.readyState === SockJS.CONNECTING)
+              throw new Error('INVALID_STATE_ERR');
+          if (that.readyState === SockJS.OPEN) {
+              that._transport.doSend(utils.quote('' + data));
+          }
+          return true;
+      };
+      
+      SockJS.prototype._applyInfo = function(info, rtt, protocols_whitelist) {
+          var that = this;
+          that._options.info = info;
+          that._options.rtt = rtt;
+          that._options.rto = utils.countRTO(rtt);
+          that._options.info.null_origin = !_document.domain;
+          var probed = utils.probeProtocols();
+          that._protocols = utils.detectProtocols(probed, protocols_whitelist, info);
+      };
+      //         [*] End of lib/sockjs.js
+      
+      
+      //         [*] Including lib/trans-websocket.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var WebSocketTransport = SockJS.websocket = function(ri, trans_url) {
+          var that = this;
+          var url = trans_url + '/websocket';
+          if (url.slice(0, 5) === 'https') {
+              url = 'wss' + url.slice(5);
+          } else {
+              url = 'ws' + url.slice(4);
+          }
+          that.ri = ri;
+          that.url = url;
+          var Constructor = _window.WebSocket || _window.MozWebSocket;
+      
+          that.ws = new Constructor(that.url);
+          that.ws.onmessage = function(e) {
+              that.ri._didMessage(e.data);
+          };
+          // Firefox has an interesting bug. If a websocket connection is
+          // created after onunload, it stays alive even when user
+          // navigates away from the page. In such situation let's lie -
+          // let's not open the ws connection at all. See:
+          // https://github.com/sockjs/sockjs-client/issues/28
+          // https://bugzilla.mozilla.org/show_bug.cgi?id=696085
+          that.unload_ref = utils.unload_add(function(){that.ws.close()});
+          that.ws.onclose = function() {
+              that.ri._didMessage(utils.closeFrame(1006, "WebSocket connection broken"));
+          };
+      };
+      
+      WebSocketTransport.prototype.doSend = function(data) {
+          this.ws.send('[' + data + ']');
+      };
+      
+      WebSocketTransport.prototype.doCleanup = function() {
+          var that = this;
+          var ws = that.ws;
+          if (ws) {
+              ws.onmessage = ws.onclose = null;
+              ws.close();
+              utils.unload_del(that.unload_ref);
+              that.unload_ref = that.ri = that.ws = null;
+          }
+      };
+      
+      WebSocketTransport.enabled = function() {
+          return !!(_window.WebSocket || _window.MozWebSocket);
+      };
+      
+      // In theory, ws should require 1 round trip. But in chrome, this is
+      // not very stable over SSL. Most likely a ws connection requires a
+      // separate SSL connection, in which case 2 round trips are an
+      // absolute minumum.
+      WebSocketTransport.roundTrips = 2;
+      //         [*] End of lib/trans-websocket.js
+      
+      
+      //         [*] Including lib/trans-sender.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var BufferedSender = function() {};
+      BufferedSender.prototype.send_constructor = function(sender) {
+          var that = this;
+          that.send_buffer = [];
+          that.sender = sender;
+      };
+      BufferedSender.prototype.doSend = function(message) {
+          var that = this;
+          that.send_buffer.push(message);
+          if (!that.send_stop) {
+              that.send_schedule();
+          }
+      };
+      
+      // For polling transports in a situation when in the message callback,
+      // new message is being send. If the sending connection was started
+      // before receiving one, it is possible to saturate the network and
+      // timeout due to the lack of receiving socket. To avoid that we delay
+      // sending messages by some small time, in order to let receiving
+      // connection be started beforehand. This is only a halfmeasure and
+      // does not fix the big problem, but it does make the tests go more
+      // stable on slow networks.
+      BufferedSender.prototype.send_schedule_wait = function() {
+          var that = this;
+          var tref;
+          that.send_stop = function() {
+              that.send_stop = null;
+              clearTimeout(tref);
+          };
+          tref = utils.delay(25, function() {
+              that.send_stop = null;
+              that.send_schedule();
+          });
+      };
+      
+      BufferedSender.prototype.send_schedule = function() {
+          var that = this;
+          if (that.send_buffer.length > 0) {
+              var payload = '[' + that.send_buffer.join(',') + ']';
+              that.send_stop = that.sender(that.trans_url, payload, function(success, abort_reason) {
+                  that.send_stop = null;
+                  if (success === false) {
+                      that.ri._didClose(1006, 'Sending error ' + abort_reason);
+                  } else {
+                      that.send_schedule_wait();
+                  }
+              });
+              that.send_buffer = [];
+          }
+      };
+      
+      BufferedSender.prototype.send_destructor = function() {
+          var that = this;
+          if (that._send_stop) {
+              that._send_stop();
+          }
+          that._send_stop = null;
+      };
+      
+      var jsonPGenericSender = function(url, payload, callback) {
+          var that = this;
+      
+          if (!('_send_form' in that)) {
+              var form = that._send_form = _document.createElement('form');
+              var area = that._send_area = _document.createElement('textarea');
+              area.name = 'd';
+              form.style.display = 'none';
+              form.style.position = 'absolute';
+              form.method = 'POST';
+              form.enctype = 'application/x-www-form-urlencoded';
+              form.acceptCharset = "UTF-8";
+              form.appendChild(area);
+              _document.body.appendChild(form);
+          }
+          var form = that._send_form;
+          var area = that._send_area;
+          var id = 'a' + utils.random_string(8);
+          form.target = id;
+          form.action = url + '/jsonp_send?i=' + id;
+      
+          var iframe;
+          try {
+              // ie6 dynamic iframes with target="" support (thanks Chris Lambacher)
+              iframe = _document.createElement('<iframe name="'+ id +'">');
+          } catch(x) {
+              iframe = _document.createElement('iframe');
+              iframe.name = id;
+          }
+          iframe.id = id;
+          form.appendChild(iframe);
+          iframe.style.display = 'none';
+      
+          try {
+              area.value = payload;
+          } catch(e) {
+              utils.log('Your browser is seriously broken. Go home! ' + e.message);
+          }
+          form.submit();
+      
+          var completed = function(e) {
+              if (!iframe.onerror) return;
+              iframe.onreadystatechange = iframe.onerror = iframe.onload = null;
+              // Opera mini doesn't like if we GC iframe
+              // immediately, thus this timeout.
+              utils.delay(500, function() {
+                             iframe.parentNode.removeChild(iframe);
+                             iframe = null;
+                         });
+              area.value = '';
+              // It is not possible to detect if the iframe succeeded or
+              // failed to submit our form.
+              callback(true);
+          };
+          iframe.onerror = iframe.onload = completed;
+          iframe.onreadystatechange = function(e) {
+              if (iframe.readyState == 'complete') completed();
+          };
+          return completed;
+      };
+      
+      var createAjaxSender = function(AjaxObject) {
+          return function(url, payload, callback) {
+              var xo = new AjaxObject('POST', url + '/xhr_send', payload);
+              xo.onfinish = function(status, text) {
+                  callback(status === 200 || status === 204,
+                           'http status ' + status);
+              };
+              return function(abort_reason) {
+                  callback(false, abort_reason);
+              };
+          };
+      };
+      //         [*] End of lib/trans-sender.js
+      
+      
+      //         [*] Including lib/trans-jsonp-receiver.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      // Parts derived from Socket.io:
+      //    https://github.com/LearnBoost/socket.io/blob/0.6.17/lib/socket.io/transports/jsonp-polling.js
+      // and jQuery-JSONP:
+      //    https://code.google.com/p/jquery-jsonp/source/browse/trunk/core/jquery.jsonp.js
+      var jsonPGenericReceiver = function(url, callback) {
+          var tref;
+          var script = _document.createElement('script');
+          var script2;  // Opera synchronous load trick.
+          var close_script = function(frame) {
+              if (script2) {
+                  script2.parentNode.removeChild(script2);
+                  script2 = null;
+              }
+              if (script) {
+                  clearTimeout(tref);
+                  // Unfortunately, you can't really abort script loading of
+                  // the script.
+                  script.parentNode.removeChild(script);
+                  script.onreadystatechange = script.onerror =
+                      script.onload = script.onclick = null;
+                  script = null;
+                  callback(frame);
+                  callback = null;
+              }
+          };
+      
+          // IE9 fires 'error' event after orsc or before, in random order.
+          var loaded_okay = false;
+          var error_timer = null;
+      
+          script.id = 'a' + utils.random_string(8);
+          script.src = url;
+          script.type = 'text/javascript';
+          script.charset = 'UTF-8';
+          script.onerror = function(e) {
+              if (!error_timer) {
+                  // Delay firing close_script.
+                  error_timer = setTimeout(function() {
+                      if (!loaded_okay) {
+                          close_script(utils.closeFrame(
+                              1006,
+                              "JSONP script loaded abnormally (onerror)"));
+                      }
+                  }, 1000);
+              }
+          };
+          script.onload = function(e) {
+              close_script(utils.closeFrame(1006, "JSONP script loaded abnormally (onload)"));
+          };
+      
+          script.onreadystatechange = function(e) {
+              if (/loaded|closed/.test(script.readyState)) {
+                  if (script && script.htmlFor && script.onclick) {
+                      loaded_okay = true;
+                      try {
+                          // In IE, actually execute the script.
+                          script.onclick();
+                      } catch (x) {}
+                  }
+                  if (script) {
+                      close_script(utils.closeFrame(1006, "JSONP script loaded abnormally (onreadystatechange)"));
+                  }
+              }
+          };
+          // IE: event/htmlFor/onclick trick.
+          // One can't rely on proper order for onreadystatechange. In order to
+          // make sure, set a 'htmlFor' and 'event' properties, so that
+          // script code will be installed as 'onclick' handler for the
+          // script object. Later, onreadystatechange, manually execute this
+          // code. FF and Chrome doesn't work with 'event' and 'htmlFor'
+          // set. For reference see:
+          //   http://jaubourg.net/2010/07/loading-script-as-onclick-handler-of.html
+          // Also, read on that about script ordering:
+          //   http://wiki.whatwg.org/wiki/Dynamic_Script_Execution_Order
+          if (typeof script.async === 'undefined' && _document.attachEvent) {
+              // According to mozilla docs, in recent browsers script.async defaults
+              // to 'true', so we may use it to detect a good browser:
+              // https://developer.mozilla.org/en/HTML/Element/script
+              if (!/opera/i.test(navigator.userAgent)) {
+                  // Naively assume we're in IE
+                  try {
+                      script.htmlFor = script.id;
+                      script.event = "onclick";
+                  } catch (x) {}
+                  script.async = true;
+              } else {
+                  // Opera, second sync script hack
+                  script2 = _document.createElement('script');
+                  script2.text = "try{var a = document.getElementById('"+script.id+"'); if(a)a.onerror();}catch(x){};";
+                  script.async = script2.async = false;
+              }
+          }
+          if (typeof script.async !== 'undefined') {
+              script.async = true;
+          }
+      
+          // Fallback mostly for Konqueror - stupid timer, 35 seconds shall be plenty.
+          tref = setTimeout(function() {
+                                close_script(utils.closeFrame(1006, "JSONP script loaded abnormally (timeout)"));
+                            }, 35000);
+      
+          var head = _document.getElementsByTagName('head')[0];
+          head.insertBefore(script, head.firstChild);
+          if (script2) {
+              head.insertBefore(script2, head.firstChild);
+          }
+          return close_script;
+      };
+      //         [*] End of lib/trans-jsonp-receiver.js
+      
+      
+      //         [*] Including lib/trans-jsonp-polling.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      // The simplest and most robust transport, using the well-know cross
+      // domain hack - JSONP. This transport is quite inefficient - one
+      // mssage could use up to one http request. But at least it works almost
+      // everywhere.
+      // Known limitations:
+      //   o you will get a spinning cursor
+      //   o for Konqueror a dumb timer is needed to detect errors
+      
+      
+      var JsonPTransport = SockJS['jsonp-polling'] = function(ri, trans_url) {
+          utils.polluteGlobalNamespace();
+          var that = this;
+          that.ri = ri;
+          that.trans_url = trans_url;
+          that.send_constructor(jsonPGenericSender);
+          that._schedule_recv();
+      };
+      
+      // Inheritnace
+      JsonPTransport.prototype = new BufferedSender();
+      
+      JsonPTransport.prototype._schedule_recv = function() {
+          var that = this;
+          var callback = function(data) {
+              that._recv_stop = null;
+              if (data) {
+                  // no data - heartbeat;
+                  if (!that._is_closing) {
+                      that.ri._didMessage(data);
+                  }
+              }
+              // The message can be a close message, and change is_closing state.
+              if (!that._is_closing) {
+                  that._schedule_recv();
+              }
+          };
+          that._recv_stop = jsonPReceiverWrapper(that.trans_url + '/jsonp',
+                                                 jsonPGenericReceiver, callback);
+      };
+      
+      JsonPTransport.enabled = function() {
+          return true;
+      };
+      
+      JsonPTransport.need_body = true;
+      
+      
+      JsonPTransport.prototype.doCleanup = function() {
+          var that = this;
+          that._is_closing = true;
+          if (that._recv_stop) {
+              that._recv_stop();
+          }
+          that.ri = that._recv_stop = null;
+          that.send_destructor();
+      };
+      
+      
+      // Abstract away code that handles global namespace pollution.
+      var jsonPReceiverWrapper = function(url, constructReceiver, user_callback) {
+          var id = 'a' + utils.random_string(6);
+          var url_id = url + '?c=' + escape(WPrefix + '.' + id);
+      
+          // Unfortunately it is not possible to abort loading of the
+          // script. We need to keep track of frake close frames.
+          var aborting = 0;
+      
+          // Callback will be called exactly once.
+          var callback = function(frame) {
+              switch(aborting) {
+              case 0:
+                  // Normal behaviour - delete hook _and_ emit message.
+                  delete _window[WPrefix][id];
+                  user_callback(frame);
+                  break;
+              case 1:
+                  // Fake close frame - emit but don't delete hook.
+                  user_callback(frame);
+                  aborting = 2;
+                  break;
+              case 2:
+                  // Got frame after connection was closed, delete hook, don't emit.
+                  delete _window[WPrefix][id];
+                  break;
+              }
+          };
+      
+          var close_script = constructReceiver(url_id, callback);
+          _window[WPrefix][id] = close_script;
+          var stop = function() {
+              if (_window[WPrefix][id]) {
+                  aborting = 1;
+                  _window[WPrefix][id](utils.closeFrame(1000, "JSONP user aborted read"));
+              }
+          };
+          return stop;
+      };
+      //         [*] End of lib/trans-jsonp-polling.js
+      
+      
+      //         [*] Including lib/trans-xhr.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var AjaxBasedTransport = function() {};
+      AjaxBasedTransport.prototype = new BufferedSender();
+      
+      AjaxBasedTransport.prototype.run = function(ri, trans_url,
+                                                  url_suffix, Receiver, AjaxObject) {
+          var that = this;
+          that.ri = ri;
+          that.trans_url = trans_url;
+          that.send_constructor(createAjaxSender(AjaxObject));
+          that.poll = new Polling(ri, Receiver,
+                                  trans_url + url_suffix, AjaxObject);
+      };
+      
+      AjaxBasedTransport.prototype.doCleanup = function() {
+          var that = this;
+          if (that.poll) {
+              that.poll.abort();
+              that.poll = null;
+          }
+      };
+      
+      // xhr-streaming
+      var XhrStreamingTransport = SockJS['xhr-streaming'] = function(ri, trans_url) {
+          this.run(ri, trans_url, '/xhr_streaming', XhrReceiver, utils.XHRCorsObject);
+      };
+      
+      XhrStreamingTransport.prototype = new AjaxBasedTransport();
+      
+      XhrStreamingTransport.enabled = function() {
+          // Support for CORS Ajax aka Ajax2? Opera 12 claims CORS but
+          // doesn't do streaming.
+          return (_window.XMLHttpRequest &&
+                  'withCredentials' in new XMLHttpRequest() &&
+                  (!/opera/i.test(navigator.userAgent)));
+      };
+      XhrStreamingTransport.roundTrips = 2; // preflight, ajax
+      
+      // Safari gets confused when a streaming ajax request is started
+      // before onload. This causes the load indicator to spin indefinetely.
+      XhrStreamingTransport.need_body = true;
+      
+      
+      // According to:
+      //   http://stackoverflow.com/questions/1641507/detect-browser-support-for-cross-domain-xmlhttprequests
+      //   http://hacks.mozilla.org/2009/07/cross-site-xmlhttprequest-with-cors/
+      
+      
+      // xdr-streaming
+      var XdrStreamingTransport = SockJS['xdr-streaming'] = function(ri, trans_url) {
+          this.run(ri, trans_url, '/xhr_streaming', XhrReceiver, utils.XDRObject);
+      };
+      
+      XdrStreamingTransport.prototype = new AjaxBasedTransport();
+      
+      XdrStreamingTransport.enabled = function() {
+          return !!_window.XDomainRequest;
+      };
+      XdrStreamingTransport.roundTrips = 2; // preflight, ajax
+      
+      
+      
+      // xhr-polling
+      var XhrPollingTransport = SockJS['xhr-polling'] = function(ri, trans_url) {
+          this.run(ri, trans_url, '/xhr', XhrReceiver, utils.XHRCorsObject);
+      };
+      
+      XhrPollingTransport.prototype = new AjaxBasedTransport();
+      
+      XhrPollingTransport.enabled = XhrStreamingTransport.enabled;
+      XhrPollingTransport.roundTrips = 2; // preflight, ajax
+      
+      
+      // xdr-polling
+      var XdrPollingTransport = SockJS['xdr-polling'] = function(ri, trans_url) {
+          this.run(ri, trans_url, '/xhr', XhrReceiver, utils.XDRObject);
+      };
+      
+      XdrPollingTransport.prototype = new AjaxBasedTransport();
+      
+      XdrPollingTransport.enabled = XdrStreamingTransport.enabled;
+      XdrPollingTransport.roundTrips = 2; // preflight, ajax
+      //         [*] End of lib/trans-xhr.js
+      
+      
+      //         [*] Including lib/trans-iframe.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      // Few cool transports do work only for same-origin. In order to make
+      // them working cross-domain we shall use iframe, served form the
+      // remote domain. New browsers, have capabilities to communicate with
+      // cross domain iframe, using postMessage(). In IE it was implemented
+      // from IE 8+, but of course, IE got some details wrong:
+      //    http://msdn.microsoft.com/en-us/library/cc197015(v=VS.85).aspx
+      //    http://stevesouders.com/misc/test-postmessage.php
+      
+      var IframeTransport = function() {};
+      
+      IframeTransport.prototype.i_constructor = function(ri, trans_url, base_url) {
+          var that = this;
+          that.ri = ri;
+          that.origin = utils.getOrigin(base_url);
+          that.base_url = base_url;
+          that.trans_url = trans_url;
+      
+          var iframe_url = base_url + '/iframe.html';
+          if (that.ri._options.devel) {
+              iframe_url += '?t=' + (+new Date);
+          }
+          that.window_id = utils.random_string(8);
+          iframe_url += '#' + that.window_id;
+      
+          that.iframeObj = utils.createIframe(iframe_url, function(r) {
+                                                  that.ri._didClose(1006, "Unable to load an iframe (" + r + ")");
+                                              });
+      
+          that.onmessage_cb = utils.bind(that.onmessage, that);
+          utils.attachMessage(that.onmessage_cb);
+      };
+      
+      IframeTransport.prototype.doCleanup = function() {
+          var that = this;
+          if (that.iframeObj) {
+              utils.detachMessage(that.onmessage_cb);
+              try {
+                  // When the iframe is not loaded, IE raises an exception
+                  // on 'contentWindow'.
+                  if (that.iframeObj.iframe.contentWindow) {
+                      that.postMessage('c');
+                  }
+              } catch (x) {}
+              that.iframeObj.cleanup();
+              that.iframeObj = null;
+              that.onmessage_cb = that.iframeObj = null;
+          }
+      };
+      
+      IframeTransport.prototype.onmessage = function(e) {
+          var that = this;
+          if (e.origin !== that.origin) return;
+          var window_id = e.data.slice(0, 8);
+          var type = e.data.slice(8, 9);
+          var data = e.data.slice(9);
+      
+          if (window_id !== that.window_id) return;
+      
+          switch(type) {
+          case 's':
+              that.iframeObj.loaded();
+              that.postMessage('s', JSON.stringify([SockJS.version, that.protocol, that.trans_url, that.base_url]));
+              break;
+          case 't':
+              that.ri._didMessage(data);
+              break;
+          }
+      };
+      
+      IframeTransport.prototype.postMessage = function(type, data) {
+          var that = this;
+          that.iframeObj.post(that.window_id + type + (data || ''), that.origin);
+      };
+      
+      IframeTransport.prototype.doSend = function (message) {
+          this.postMessage('m', message);
+      };
+      
+      IframeTransport.enabled = function() {
+          // postMessage misbehaves in konqueror 4.6.5 - the messages are delivered with
+          // huge delay, or not at all.
+          var konqueror = navigator && navigator.userAgent && navigator.userAgent.indexOf('Konqueror') !== -1;
+          return ((typeof _window.postMessage === 'function' ||
+                  typeof _window.postMessage === 'object') && (!konqueror));
+      };
+      //         [*] End of lib/trans-iframe.js
+      
+      
+      //         [*] Including lib/trans-iframe-within.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var curr_window_id;
+      
+      var postMessage = function (type, data) {
+          if(parent !== _window) {
+              parent.postMessage(curr_window_id + type + (data || ''), '*');
+          } else {
+              utils.log("Can't postMessage, no parent window.", type, data);
+          }
+      };
+      
+      var FacadeJS = function() {};
+      FacadeJS.prototype._didClose = function (code, reason) {
+          postMessage('t', utils.closeFrame(code, reason));
+      };
+      FacadeJS.prototype._didMessage = function (frame) {
+          postMessage('t', frame);
+      };
+      FacadeJS.prototype._doSend = function (data) {
+          this._transport.doSend(data);
+      };
+      FacadeJS.prototype._doCleanup = function () {
+          this._transport.doCleanup();
+      };
+      
+      utils.parent_origin = undefined;
+      
+      SockJS.bootstrap_iframe = function() {
+          var facade;
+          curr_window_id = _document.location.hash.slice(1);
+          var onMessage = function(e) {
+              if(e.source !== parent) return;
+              if(typeof utils.parent_origin === 'undefined')
+                  utils.parent_origin = e.origin;
+              if (e.origin !== utils.parent_origin) return;
+      
+              var window_id = e.data.slice(0, 8);
+              var type = e.data.slice(8, 9);
+              var data = e.data.slice(9);
+              if (window_id !== curr_window_id) return;
+              switch(type) {
+              case 's':
+                  var p = JSON.parse(data);
+                  var version = p[0];
+                  var protocol = p[1];
+                  var trans_url = p[2];
+                  var base_url = p[3];
+                  if (version !== SockJS.version) {
+                      utils.log("Incompatibile SockJS! Main site uses:" +
+                                " \"" + version + "\", the iframe:" +
+                                " \"" + SockJS.version + "\".");
+                  }
+                  if (!utils.flatUrl(trans_url) || !utils.flatUrl(base_url)) {
+                      utils.log("Only basic urls are supported in SockJS");
+                      return;
+                  }
+      
+                  if (!utils.isSameOriginUrl(trans_url) ||
+                      !utils.isSameOriginUrl(base_url)) {
+                      utils.log("Can't connect to different domain from within an " +
+                                "iframe. (" + JSON.stringify([_window.location.href, trans_url, base_url]) +
+                                ")");
+                      return;
+                  }
+                  facade = new FacadeJS();
+                  facade._transport = new FacadeJS[protocol](facade, trans_url, base_url);
+                  break;
+              case 'm':
+                  facade._doSend(data);
+                  break;
+              case 'c':
+                  if (facade)
+                      facade._doCleanup();
+                  facade = null;
+                  break;
+              }
+          };
+      
+          // alert('test ticker');
+          // facade = new FacadeJS();
+          // facade._transport = new FacadeJS['w-iframe-xhr-polling'](facade, 'http://host.com:9999/ticker/12/basd');
+      
+          utils.attachMessage(onMessage);
+      
+          // Start
+          postMessage('s');
+      };
+      //         [*] End of lib/trans-iframe-within.js
+      
+      
+      //         [*] Including lib/info.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var InfoReceiver = function(base_url, AjaxObject) {
+          var that = this;
+          utils.delay(function(){that.doXhr(base_url, AjaxObject);});
+      };
+      
+      InfoReceiver.prototype = new EventEmitter(['finish']);
+      
+      InfoReceiver.prototype.doXhr = function(base_url, AjaxObject) {
+          var that = this;
+          var t0 = (new Date()).getTime();
+          var xo = new AjaxObject('GET', base_url + '/info');
+      
+          var tref = utils.delay(8000,
+                                 function(){xo.ontimeout();});
+      
+          xo.onfinish = function(status, text) {
+              clearTimeout(tref);
+              tref = null;
+              if (status === 200) {
+                  var rtt = (new Date()).getTime() - t0;
+                  var info = JSON.parse(text);
+                  if (typeof info !== 'object') info = {};
+                  that.emit('finish', info, rtt);
+              } else {
+                  that.emit('finish');
+              }
+          };
+          xo.ontimeout = function() {
+              xo.close();
+              that.emit('finish');
+          };
+      };
+      
+      var InfoReceiverIframe = function(base_url) {
+          var that = this;
+          var go = function() {
+              var ifr = new IframeTransport();
+              ifr.protocol = 'w-iframe-info-receiver';
+              var fun = function(r) {
+                  if (typeof r === 'string' && r.substr(0,1) === 'm') {
+                      var d = JSON.parse(r.substr(1));
+                      var info = d[0], rtt = d[1];
+                      that.emit('finish', info, rtt);
+                  } else {
+                      that.emit('finish');
+                  }
+                  ifr.doCleanup();
+                  ifr = null;
+              };
+              var mock_ri = {
+                  _options: {},
+                  _didClose: fun,
+                  _didMessage: fun
+              };
+              ifr.i_constructor(mock_ri, base_url, base_url);
+          }
+          if(!_document.body) {
+              utils.attachEvent('load', go);
+          } else {
+              go();
+          }
+      };
+      InfoReceiverIframe.prototype = new EventEmitter(['finish']);
+      
+      
+      var InfoReceiverFake = function() {
+          // It may not be possible to do cross domain AJAX to get the info
+          // data, for example for IE7. But we want to run JSONP, so let's
+          // fake the response, with rtt=2s (rto=6s).
+          var that = this;
+          utils.delay(function() {
+              that.emit('finish', {}, 2000);
+          });
+      };
+      InfoReceiverFake.prototype = new EventEmitter(['finish']);
+      
+      var createInfoReceiver = function(base_url) {
+          if (utils.isSameOriginUrl(base_url)) {
+              // If, for some reason, we have SockJS locally - there's no
+              // need to start up the complex machinery. Just use ajax.
+              return new InfoReceiver(base_url, utils.XHRLocalObject);
+          }
+          switch (utils.isXHRCorsCapable()) {
+          case 1:
+              // XHRLocalObject -> no_credentials=true
+              return new InfoReceiver(base_url, utils.XHRLocalObject);
+          case 2:
+              return new InfoReceiver(base_url, utils.XDRObject);
+          case 3:
+              // Opera
+              return new InfoReceiverIframe(base_url);
+          default:
+              // IE 7
+              return new InfoReceiverFake();
+          };
+      };
+      
+      
+      var WInfoReceiverIframe = FacadeJS['w-iframe-info-receiver'] = function(ri, _trans_url, base_url) {
+          var ir = new InfoReceiver(base_url, utils.XHRLocalObject);
+          ir.onfinish = function(info, rtt) {
+              ri._didMessage('m'+JSON.stringify([info, rtt]));
+              ri._didClose();
+          }
+      };
+      WInfoReceiverIframe.prototype.doCleanup = function() {};
+      //         [*] End of lib/info.js
+      
+      
+      //         [*] Including lib/trans-iframe-eventsource.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var EventSourceIframeTransport = SockJS['iframe-eventsource'] = function () {
+          var that = this;
+          that.protocol = 'w-iframe-eventsource';
+          that.i_constructor.apply(that, arguments);
+      };
+      
+      EventSourceIframeTransport.prototype = new IframeTransport();
+      
+      EventSourceIframeTransport.enabled = function () {
+          return ('EventSource' in _window) && IframeTransport.enabled();
+      };
+      
+      EventSourceIframeTransport.need_body = true;
+      EventSourceIframeTransport.roundTrips = 3; // html, javascript, eventsource
+      
+      
+      // w-iframe-eventsource
+      var EventSourceTransport = FacadeJS['w-iframe-eventsource'] = function(ri, trans_url) {
+          this.run(ri, trans_url, '/eventsource', EventSourceReceiver, utils.XHRLocalObject);
+      }
+      EventSourceTransport.prototype = new AjaxBasedTransport();
+      //         [*] End of lib/trans-iframe-eventsource.js
+      
+      
+      //         [*] Including lib/trans-iframe-xhr-polling.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var XhrPollingIframeTransport = SockJS['iframe-xhr-polling'] = function () {
+          var that = this;
+          that.protocol = 'w-iframe-xhr-polling';
+          that.i_constructor.apply(that, arguments);
+      };
+      
+      XhrPollingIframeTransport.prototype = new IframeTransport();
+      
+      XhrPollingIframeTransport.enabled = function () {
+          return _window.XMLHttpRequest && IframeTransport.enabled();
+      };
+      
+      XhrPollingIframeTransport.need_body = true;
+      XhrPollingIframeTransport.roundTrips = 3; // html, javascript, xhr
+      
+      
+      // w-iframe-xhr-polling
+      var XhrPollingITransport = FacadeJS['w-iframe-xhr-polling'] = function(ri, trans_url) {
+          this.run(ri, trans_url, '/xhr', XhrReceiver, utils.XHRLocalObject);
+      };
+      
+      XhrPollingITransport.prototype = new AjaxBasedTransport();
+      //         [*] End of lib/trans-iframe-xhr-polling.js
+      
+      
+      //         [*] Including lib/trans-iframe-htmlfile.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      // This transport generally works in any browser, but will cause a
+      // spinning cursor to appear in any browser other than IE.
+      // We may test this transport in all browsers - why not, but in
+      // production it should be only run in IE.
+      
+      var HtmlFileIframeTransport = SockJS['iframe-htmlfile'] = function () {
+          var that = this;
+          that.protocol = 'w-iframe-htmlfile';
+          that.i_constructor.apply(that, arguments);
+      };
+      
+      // Inheritance.
+      HtmlFileIframeTransport.prototype = new IframeTransport();
+      
+      HtmlFileIframeTransport.enabled = function() {
+          return IframeTransport.enabled();
+      };
+      
+      HtmlFileIframeTransport.need_body = true;
+      HtmlFileIframeTransport.roundTrips = 3; // html, javascript, htmlfile
+      
+      
+      // w-iframe-htmlfile
+      var HtmlFileTransport = FacadeJS['w-iframe-htmlfile'] = function(ri, trans_url) {
+          this.run(ri, trans_url, '/htmlfile', HtmlfileReceiver, utils.XHRLocalObject);
+      };
+      HtmlFileTransport.prototype = new AjaxBasedTransport();
+      //         [*] End of lib/trans-iframe-htmlfile.js
+      
+      
+      //         [*] Including lib/trans-polling.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var Polling = function(ri, Receiver, recv_url, AjaxObject) {
+          var that = this;
+          that.ri = ri;
+          that.Receiver = Receiver;
+          that.recv_url = recv_url;
+          that.AjaxObject = AjaxObject;
+          that._scheduleRecv();
+      };
+      
+      Polling.prototype._scheduleRecv = function() {
+          var that = this;
+          var poll = that.poll = new that.Receiver(that.recv_url, that.AjaxObject);
+          var msg_counter = 0;
+          poll.onmessage = function(e) {
+              msg_counter += 1;
+              that.ri._didMessage(e.data);
+          };
+          poll.onclose = function(e) {
+              that.poll = poll = poll.onmessage = poll.onclose = null;
+              if (!that.poll_is_closing) {
+                  if (e.reason === 'permanent') {
+                      that.ri._didClose(1006, 'Polling error (' + e.reason + ')');
+                  } else {
+                      that._scheduleRecv();
+                  }
+              }
+          };
+      };
+      
+      Polling.prototype.abort = function() {
+          var that = this;
+          that.poll_is_closing = true;
+          if (that.poll) {
+              that.poll.abort();
+          }
+      };
+      //         [*] End of lib/trans-polling.js
+      
+      
+      //         [*] Including lib/trans-receiver-eventsource.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var EventSourceReceiver = function(url) {
+          var that = this;
+          var es = new EventSource(url);
+          es.onmessage = function(e) {
+              that.dispatchEvent(new SimpleEvent('message',
+                                                 {'data': unescape(e.data)}));
+          };
+          that.es_close = es.onerror = function(e, abort_reason) {
+              // ES on reconnection has readyState = 0 or 1.
+              // on network error it's CLOSED = 2
+              var reason = abort_reason ? 'user' :
+                  (es.readyState !== 2 ? 'network' : 'permanent');
+              that.es_close = es.onmessage = es.onerror = null;
+              // EventSource reconnects automatically.
+              es.close();
+              es = null;
+              // Safari and chrome < 15 crash if we close window before
+              // waiting for ES cleanup. See:
+              //   https://code.google.com/p/chromium/issues/detail?id=89155
+              utils.delay(200, function() {
+                              that.dispatchEvent(new SimpleEvent('close', {reason: reason}));
+                          });
+          };
+      };
+      
+      EventSourceReceiver.prototype = new REventTarget();
+      
+      EventSourceReceiver.prototype.abort = function() {
+          var that = this;
+          if (that.es_close) {
+              that.es_close({}, true);
+          }
+      };
+      //         [*] End of lib/trans-receiver-eventsource.js
+      
+      
+      //         [*] Including lib/trans-receiver-htmlfile.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var _is_ie_htmlfile_capable;
+      var isIeHtmlfileCapable = function() {
+          if (_is_ie_htmlfile_capable === undefined) {
+              if ('ActiveXObject' in _window) {
+                  try {
+                      _is_ie_htmlfile_capable = !!new ActiveXObject('htmlfile');
+                  } catch (x) {}
+              } else {
+                  _is_ie_htmlfile_capable = false;
+              }
+          }
+          return _is_ie_htmlfile_capable;
+      };
+      
+      
+      var HtmlfileReceiver = function(url) {
+          var that = this;
+          utils.polluteGlobalNamespace();
+      
+          that.id = 'a' + utils.random_string(6, 26);
+          url += ((url.indexOf('?') === -1) ? '?' : '&') +
+              'c=' + escape(WPrefix + '.' + that.id);
+      
+          var constructor = isIeHtmlfileCapable() ?
+              utils.createHtmlfile : utils.createIframe;
+      
+          var iframeObj;
+          _window[WPrefix][that.id] = {
+              start: function () {
+                  iframeObj.loaded();
+              },
+              message: function (data) {
+                  that.dispatchEvent(new SimpleEvent('message', {'data': data}));
+              },
+              stop: function () {
+                  that.iframe_close({}, 'network');
+              }
+          };
+          that.iframe_close = function(e, abort_reason) {
+              iframeObj.cleanup();
+              that.iframe_close = iframeObj = null;
+              delete _window[WPrefix][that.id];
+              that.dispatchEvent(new SimpleEvent('close', {reason: abort_reason}));
+          };
+          iframeObj = constructor(url, function(e) {
+                                      that.iframe_close({}, 'permanent');
+                                  });
+      };
+      
+      HtmlfileReceiver.prototype = new REventTarget();
+      
+      HtmlfileReceiver.prototype.abort = function() {
+          var that = this;
+          if (that.iframe_close) {
+              that.iframe_close({}, 'user');
+          }
+      };
+      //         [*] End of lib/trans-receiver-htmlfile.js
+      
+      
+      //         [*] Including lib/trans-receiver-xhr.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      var XhrReceiver = function(url, AjaxObject) {
+          var that = this;
+          var buf_pos = 0;
+      
+          that.xo = new AjaxObject('POST', url, null);
+          that.xo.onchunk = function(status, text) {
+              if (status !== 200) return;
+              while (1) {
+                  var buf = text.slice(buf_pos);
+                  var p = buf.indexOf('\n');
+                  if (p === -1) break;
+                  buf_pos += p+1;
+                  var msg = buf.slice(0, p);
+                  that.dispatchEvent(new SimpleEvent('message', {data: msg}));
+              }
+          };
+          that.xo.onfinish = function(status, text) {
+              that.xo.onchunk(status, text);
+              that.xo = null;
+              var reason = status === 200 ? 'network' : 'permanent';
+              that.dispatchEvent(new SimpleEvent('close', {reason: reason}));
+          }
+      };
+      
+      XhrReceiver.prototype = new REventTarget();
+      
+      XhrReceiver.prototype.abort = function() {
+          var that = this;
+          if (that.xo) {
+              that.xo.close();
+              that.dispatchEvent(new SimpleEvent('close', {reason: 'user'}));
+              that.xo = null;
+          }
+      };
+      //         [*] End of lib/trans-receiver-xhr.js
+      
+      
+      //         [*] Including lib/test-hooks.js
+      /*
+       * ***** BEGIN LICENSE BLOCK *****
+       * Copyright (c) 2011-2012 VMware, Inc.
+       *
+       * For the license see COPYING.
+       * ***** END LICENSE BLOCK *****
+       */
+      
+      // For testing
+      SockJS.getUtils = function(){
+          return utils;
+      };
+      
+      SockJS.getIframeTransport = function(){
+          return IframeTransport;
+      };
+      //         [*] End of lib/test-hooks.js
+      
+                        return SockJS;
+                })();
+      if ('_sockjs_onload' in window) setTimeout(_sockjs_onload, 1);
+      
+      // AMD compliance
+      if (typeof define === 'function' && define.amd) {
+          define('sockjs', [], function(){return SockJS;});
+      }
+      //     [*] End of lib/index.js
+      
+      // [*] End of lib/all.js
+      
+      ;
       }
     ], [
       {
@@ -11004,9 +13634,9 @@
        *
        * @author Brian Cavalier
        * @author John Hann
-       * @version 2.5.1
+       * @version 2.7.0
        */
-      (function(define, global) { 'use strict';
+      (function(define) { 'use strict';
       define(function (require) {
       
       	// Public API
@@ -11068,102 +13698,116 @@
       		this.inspect = inspect;
       	}
       
-      	Promise.prototype = {
-      		/**
-      		 * Register handlers for this promise.
-      		 * @param [onFulfilled] {Function} fulfillment handler
-      		 * @param [onRejected] {Function} rejection handler
-      		 * @param [onProgress] {Function} progress handler
-      		 * @return {Promise} new Promise
-      		 */
-      		then: function(onFulfilled, onRejected, onProgress) {
-      			/*jshint unused:false*/
-      			var args, sendMessage;
+      	var promisePrototype = Promise.prototype;
       
-      			args = arguments;
-      			sendMessage = this._message;
+      	/**
+      	 * Register handlers for this promise.
+      	 * @param [onFulfilled] {Function} fulfillment handler
+      	 * @param [onRejected] {Function} rejection handler
+      	 * @param [onProgress] {Function} progress handler
+      	 * @return {Promise} new Promise
+      	 */
+      	promisePrototype.then = function(onFulfilled, onRejected, onProgress) {
+      		/*jshint unused:false*/
+      		var args, sendMessage;
       
-      			return _promise(function(resolve, reject, notify) {
-      				sendMessage('when', args, resolve, notify);
-      			}, this._status && this._status.observed());
-      		},
+      		args = arguments;
+      		sendMessage = this._message;
       
-      		/**
-      		 * Register a rejection handler.  Shortcut for .then(undefined, onRejected)
-      		 * @param {function?} onRejected
-      		 * @return {Promise}
-      		 */
-      		otherwise: function(onRejected) {
-      			return this.then(undef, onRejected);
-      		},
+      		return _promise(function(resolve, reject, notify) {
+      			sendMessage('when', args, resolve, notify);
+      		}, this._status && this._status.observed());
+      	};
       
-      		/**
-      		 * Ensures that onFulfilledOrRejected will be called regardless of whether
-      		 * this promise is fulfilled or rejected.  onFulfilledOrRejected WILL NOT
-      		 * receive the promises' value or reason.  Any returned value will be disregarded.
-      		 * onFulfilledOrRejected may throw or return a rejected promise to signal
-      		 * an additional error.
-      		 * @param {function} onFulfilledOrRejected handler to be called regardless of
-      		 *  fulfillment or rejection
-      		 * @returns {Promise}
-      		 */
-      		ensure: function(onFulfilledOrRejected) {
-      			return typeof onFulfilledOrRejected === 'function'
-      				? this.then(injectHandler, injectHandler)['yield'](this)
-      				: this;
+      	/**
+      	 * Register a rejection handler.  Shortcut for .then(undefined, onRejected)
+      	 * @param {function?} onRejected
+      	 * @return {Promise}
+      	 */
+      	promisePrototype['catch'] = promisePrototype.otherwise = function(onRejected) {
+      		return this.then(undef, onRejected);
+      	};
       
-      			function injectHandler() {
-      				return resolve(onFulfilledOrRejected());
-      			}
-      		},
+      	/**
+      	 * Ensures that onFulfilledOrRejected will be called regardless of whether
+      	 * this promise is fulfilled or rejected.  onFulfilledOrRejected WILL NOT
+      	 * receive the promises' value or reason.  Any returned value will be disregarded.
+      	 * onFulfilledOrRejected may throw or return a rejected promise to signal
+      	 * an additional error.
+      	 * @param {function} onFulfilledOrRejected handler to be called regardless of
+      	 *  fulfillment or rejection
+      	 * @returns {Promise}
+      	 */
+      	promisePrototype['finally'] = promisePrototype.ensure = function(onFulfilledOrRejected) {
+      		return typeof onFulfilledOrRejected === 'function'
+      			? this.then(injectHandler, injectHandler)['yield'](this)
+      			: this;
       
-      		/**
-      		 * Shortcut for .then(function() { return value; })
-      		 * @param  {*} value
-      		 * @return {Promise} a promise that:
-      		 *  - is fulfilled if value is not a promise, or
-      		 *  - if value is a promise, will fulfill with its value, or reject
-      		 *    with its reason.
-      		 */
-      		'yield': function(value) {
-      			return this.then(function() {
-      				return value;
-      			});
-      		},
-      
-      		/**
-      		 * Runs a side effect when this promise fulfills, without changing the
-      		 * fulfillment value.
-      		 * @param {function} onFulfilledSideEffect
-      		 * @returns {Promise}
-      		 */
-      		tap: function(onFulfilledSideEffect) {
-      			return this.then(onFulfilledSideEffect)['yield'](this);
-      		},
-      
-      		/**
-      		 * Assumes that this promise will fulfill with an array, and arranges
-      		 * for the onFulfilled to be called with the array as its argument list
-      		 * i.e. onFulfilled.apply(undefined, array).
-      		 * @param {function} onFulfilled function to receive spread arguments
-      		 * @return {Promise}
-      		 */
-      		spread: function(onFulfilled) {
-      			return this.then(function(array) {
-      				// array may contain promises, so resolve its contents.
-      				return all(array, function(array) {
-      					return onFulfilled.apply(undef, array);
-      				});
-      			});
-      		},
-      
-      		/**
-      		 * Shortcut for .then(onFulfilledOrRejected, onFulfilledOrRejected)
-      		 * @deprecated
-      		 */
-      		always: function(onFulfilledOrRejected, onProgress) {
-      			return this.then(onFulfilledOrRejected, onFulfilledOrRejected, onProgress);
+      		function injectHandler() {
+      			return resolve(onFulfilledOrRejected());
       		}
+      	};
+      
+      	/**
+      	 * Terminate a promise chain by handling the ultimate fulfillment value or
+      	 * rejection reason, and assuming responsibility for all errors.  if an
+      	 * error propagates out of handleResult or handleFatalError, it will be
+      	 * rethrown to the host, resulting in a loud stack track on most platforms
+      	 * and a crash on some.
+      	 * @param {function?} handleResult
+      	 * @param {function?} handleError
+      	 * @returns {undefined}
+      	 */
+      	promisePrototype.done = function(handleResult, handleError) {
+      		this.then(handleResult, handleError).otherwise(crash);
+      	};
+      
+      	/**
+      	 * Shortcut for .then(function() { return value; })
+      	 * @param  {*} value
+      	 * @return {Promise} a promise that:
+      	 *  - is fulfilled if value is not a promise, or
+      	 *  - if value is a promise, will fulfill with its value, or reject
+      	 *    with its reason.
+      	 */
+      	promisePrototype['yield'] = function(value) {
+      		return this.then(function() {
+      			return value;
+      		});
+      	};
+      
+      	/**
+      	 * Runs a side effect when this promise fulfills, without changing the
+      	 * fulfillment value.
+      	 * @param {function} onFulfilledSideEffect
+      	 * @returns {Promise}
+      	 */
+      	promisePrototype.tap = function(onFulfilledSideEffect) {
+      		return this.then(onFulfilledSideEffect)['yield'](this);
+      	};
+      
+      	/**
+      	 * Assumes that this promise will fulfill with an array, and arranges
+      	 * for the onFulfilled to be called with the array as its argument list
+      	 * i.e. onFulfilled.apply(undefined, array).
+      	 * @param {function} onFulfilled function to receive spread arguments
+      	 * @return {Promise}
+      	 */
+      	promisePrototype.spread = function(onFulfilled) {
+      		return this.then(function(array) {
+      			// array may contain promises, so resolve its contents.
+      			return all(array, function(array) {
+      				return onFulfilled.apply(undef, array);
+      			});
+      		});
+      	};
+      
+      	/**
+      	 * Shortcut for .then(onFulfilledOrRejected, onFulfilledOrRejected)
+      	 * @deprecated
+      	 */
+      	promisePrototype.always = function(onFulfilledOrRejected, onProgress) {
+      		return this.then(onFulfilledOrRejected, onFulfilledOrRejected, onProgress);
       	};
       
       	/**
@@ -11783,8 +14427,8 @@
       	//
       
       	var reduceArray, slice, fcall, nextTick, handlerQueue,
-      		setTimeout, funcProto, call, arrayProto, monitorApi,
-      		cjsRequire, MutationObserver, undef;
+      		funcProto, call, arrayProto, monitorApi,
+      		capturedSetTimeout, cjsRequire, MutationObs, undef;
       
       	cjsRequire = require;
       
@@ -11818,20 +14462,18 @@
       		handlerQueue = [];
       	}
       
-      	// capture setTimeout to avoid being caught by fake timers
-      	// used in time based tests
-      	setTimeout = global.setTimeout;
-      
       	// Allow attaching the monitor to when() if env has no console
-      	monitorApi = typeof console != 'undefined' ? console : when;
+      	monitorApi = typeof console !== 'undefined' ? console : when;
       
       	// Sniff "best" async scheduling option
       	// Prefer process.nextTick or MutationObserver, then check for
       	// vertx and finally fall back to setTimeout
-      	/*global process*/
+      	/*global process,document,setTimeout,MutationObserver,WebKitMutationObserver*/
       	if (typeof process === 'object' && process.nextTick) {
       		nextTick = process.nextTick;
-      	} else if(MutationObserver = global.MutationObserver || global.WebKitMutationObserver) {
+      	} else if(MutationObs =
+      		(typeof MutationObserver === 'function' && MutationObserver) ||
+      			(typeof WebKitMutationObserver === 'function' && WebKitMutationObserver)) {
       		nextTick = (function(document, MutationObserver, drainQueue) {
       			var el = document.createElement('div');
       			new MutationObserver(drainQueue).observe(el, { attributes: true });
@@ -11839,13 +14481,16 @@
       			return function() {
       				el.setAttribute('x', 'x');
       			};
-      		}(document, MutationObserver, drainQueue));
+      		}(document, MutationObs, drainQueue));
       	} else {
       		try {
       			// vert.x 1.x || 2.x
       			nextTick = cjsRequire('vertx').runOnLoop || cjsRequire('vertx').runOnContext;
       		} catch(ignore) {
-      			nextTick = function(t) { setTimeout(t, 0); };
+      			// capture setTimeout to avoid being caught by fake timers
+      			// used in time based tests
+      			capturedSetTimeout = setTimeout;
+      			nextTick = function(t) { capturedSetTimeout(t, 0); };
       		}
       	}
       
@@ -11916,9 +14561,720 @@
       		return x;
       	}
       
+      	function crash(fatalError) {
+      		if(typeof monitorApi.reportUnhandled === 'function') {
+      			monitorApi.reportUnhandled();
+      		} else {
+      			enqueue(function() {
+      				throw fatalError;
+      			});
+      		}
+      
+      		throw fatalError;
+      	}
+      
       	return when;
       });
-      })(typeof define === 'function' && define.amd ? define : function (factory) { module.exports = factory(require); }, this);
+      })(typeof define === 'function' && define.amd ? define : function (factory) { module.exports = factory(require); });
+      ;
+      }
+    ], [
+      {
+        /*
+          /Volumes/Home/Projects/Groovy/node_modules/jandal/jandal.js
+        */
+
+        'events': 18
+      }, function(require, module, exports) {
+        (function () {
+      
+        'use strict';
+      
+        var Jandal, Namespace, Callbacks, jandalHandles,
+            EventEmitter, inherits, root, previousJandal,
+            EVENT_ARGS, NS_EVENT, CALLBACK;
+      
+        /*
+         * Setup
+         */
+      
+        root = this;
+        previousJandal = root.Jandal;
+      
+        /*
+         * Dependencies
+         */
+        
+        EventEmitter = require('events').EventEmitter;
+      
+      
+        /*
+         * util.inheris
+         */
+      
+        inherits = function(ctor, superCtor) {
+          ctor.super_ = superCtor;
+          ctor.prototype = Object.create(superCtor.prototype, {
+            constructor: {
+              value: ctor,
+              enumerable: false,
+              writable: true,
+              configurable: true
+            }
+          });
+        };
+      
+      
+        /*
+         * Constants
+         */
+      
+        EVENT_ARGS = /^([^\(]+)\((.*)\)$/;
+        NS_EVENT = /^([\w-]+\.)?([^\(]+)$/;
+        CALLBACK = /__fn__(\d+)/;
+      
+      
+        /*
+         * Can you handle the jandal?
+         */
+      
+        jandalHandles = {
+      
+          node: {
+            write: function (socket, message) {
+              socket.write(message);
+            },
+            read: function (socket, fn) {
+              socket.on('data', fn);
+            }
+          },
+      
+          sockjs: {
+            write: function (socket, message) {
+              socket.send(message);
+            },
+            read: function (socket, fn) {
+              socket.onmessage = function (e) {
+                fn(e.data);
+              };
+            }
+          }
+      
+        };
+      
+      
+        /*
+         * Callbacks Constructor
+         */
+      
+        Callbacks = function () {
+          this.collection = {};
+          this.index = 0;
+        };
+      
+      
+        /*
+         * Register
+         *
+         * - fn (function) : the callback
+         * > callback id (int)
+         */
+      
+        Callbacks.prototype.register = function (fn) {
+          this.collection[this.index] = fn;
+          return this.index++;
+        };
+      
+      
+        /*
+         * Exec
+         * Deletes the callback afterwards so it can only be executed once.
+         *
+         * - id (int) : callback id
+         * - args (array) : arguments
+         */
+      
+        Callbacks.prototype.exec = function (id, args) {
+          this.collection[id].apply(this, args);
+          delete this.collection[id];
+        };
+      
+      
+        /*
+         * Namespace Constructor
+         */
+      
+        Namespace = function (name, jandal) {
+          Namespace.super_.call(this);
+      
+          this.name = name;
+          this.jandal = jandal;
+        };
+      
+      
+        /*
+         * Inherit from EventEmitter
+         */
+      
+        inherits(Namespace, EventEmitter);
+        Namespace.prototype._emit = EventEmitter.prototype.emit;
+      
+      
+        /*
+         * Emit
+         *
+         * - event (string)
+         * - args... (mixed) : any other data you want to send
+         */
+      
+        Namespace.prototype.emit = function (event) {
+          var args;
+      
+          args = Array.prototype.slice.call(arguments);
+          args[0] = this.name + '.' + event;
+      
+          this.jandal.emit.apply(this.jandal, args);
+        };
+      
+      
+      
+        /*
+         * Jandal Constructor
+         */
+      
+        Jandal = function (socket) {
+          Jandal.super_.call(this);
+      
+          this.socket = socket;
+          this.namespaces = {};
+          this.callbacks = new Callbacks();
+      
+          var self = this;
+          Jandal._handle.read(this.socket, function (message) {
+            self._process(message);
+          });
+        };
+      
+      
+        /*
+         * Inherit from EventEmitter
+         */
+      
+        inherits(Jandal, EventEmitter);
+        Jandal.prototype._emit = EventEmitter.prototype.emit;
+      
+      
+        /*
+         * (Static) Handle
+         * Choose how to attach to the socket
+         *
+         * - name (string) : a key from jandalHandles (currently 'node' or 'sockjs')
+         */
+      
+        Jandal.handle = function (name) {
+          var handle = jandalHandles[name];
+          if (! handle) {
+            throw new Error('Jandal handler "' + name + '"could not be found');
+          }
+          this._handle = handle;
+        };
+      
+      
+        /*
+         * (Static) noConflict
+         *
+         * > this
+         */
+      
+        Jandal.noConflict = function () {
+          root.Jandal = previousJandal;
+          return Jandal;
+        };
+      
+      
+      
+        /*
+         * (Private) Process
+         * Processes messages received on the socket
+         *
+         * - data (string)
+         */
+      
+        Jandal.prototype._process = function (data) {
+          var message, namespace, callback;
+      
+          message = this.parse(data);
+      
+          callback = message.event.match(CALLBACK);
+          if (callback) {
+            return this.callbacks.exec(callback[1], message.args);
+          }
+      
+          message.args.unshift(message.event);
+          namespace = this.namespaces[message.namespace];
+      
+          if (message.namespace && namespace) {
+            namespace._emit.apply(namespace, message.args);
+          } else {
+            this._emit.apply(this, message.args);
+          }
+        };
+      
+      
+        /*
+         * (Private) Callback
+         *
+         * - id (int) : the callback id
+         * > function
+         */
+      
+        Jandal.prototype._callback = function (id) {
+          var self = this;
+          return function () {
+            var args = Array.prototype.slice.call(arguments);
+            args.unshift('__fn__' + id);
+            self.emit.apply(self, args);
+          };
+        };
+      
+      
+        /*
+         * Namespace
+         * If the namespace already exists it will be used instead
+         *
+         * - name (string)
+         * > namespace
+         */
+      
+        Jandal.prototype.namespace = function (name) {
+          var namespace;
+      
+          namespace = this.namespaces[name];
+      
+          if (! namespace) {
+            namespace = new Namespace(name, this);
+            this.namespaces[name] = namespace;
+          }
+      
+          return namespace;
+        };
+      
+      
+        /*
+         * Serialize
+         *
+         * - message (object)
+         * > string
+         */
+      
+        Jandal.prototype.serialize = function (message) {
+          var string, args, len, i, arg;
+      
+          args = message.args;
+          len = args.length;
+      
+          for (i = 0; i < len; i++) {
+            arg = args[i];
+            if (typeof arg === 'function') {
+              args[i] = '__fn__' + this.callbacks.register(arg);
+            }
+          }
+      
+          string = message.event + '(';
+          args = JSON.stringify(args);
+          string += args.slice(1, -1) + ')';
+      
+          return string;
+        };
+      
+      
+        /*
+         * Parse
+         *
+         * - message (string)
+         * > object
+         */
+      
+        Jandal.prototype.parse = function (message) {
+          var namespace, event, args, len, i, arg, match;
+      
+          match = message.match(EVENT_ARGS);
+      
+          if (! match) {
+            throw new Error('Could not parse', message);
+          }
+      
+          args  = match[2];
+          match = match[1].match(NS_EVENT);
+          event = match[2];
+      
+          namespace = match[1];
+          namespace = namespace ? namespace.slice(0, -1) : false;
+      
+          args = JSON.parse('[' + args + ']');
+          len = args.length;
+      
+          // Replace callback ids with functions
+          for (i = 0; i < len; i++) {
+            arg = args[i];
+            if (typeof arg === 'string') {
+              match = arg.match(CALLBACK);
+              if (match) {
+                args[i] = this._callback(match[1]);
+              }
+            }
+          }
+      
+          return {
+            namespace: namespace,
+            event: event,
+            args: args
+          };
+      
+        };
+      
+      
+        /*
+         * Send a message through the socket
+         *
+         * - event (string)
+         * - args... (mixed) : any data you want to send
+         */
+      
+        Jandal.prototype.emit = function (event) {
+      
+          // EventEmitter events are proxied
+          if (event === 'newListener' || event === 'removeListener') {
+            return this._emit.apply(this, arguments);
+          }
+      
+          Jandal._handle.write(this.socket, this.serialize({
+            event: event,
+            args: Array.prototype.slice.call(arguments, 1)
+          }));
+        };
+      
+      
+        /*
+         * Exporting Jandal through module.exports or window.Jandal
+         */
+      
+        if (typeof module !== 'undefined') {
+          module.exports = Jandal;
+        } else {
+          root.Jandal = Jandal;
+        }
+      
+      }).call(this);
+      ;
+      }
+    ], [
+      {
+        /*
+          /Volumes/Home/Projects/Groovy/node_modules/jandal/node_modules/events/events.js
+        */
+
+      }, function(require, module, exports) {
+        // Copyright Joyent, Inc. and other Node contributors.
+      //
+      // Permission is hereby granted, free of charge, to any person obtaining a
+      // copy of this software and associated documentation files (the
+      // "Software"), to deal in the Software without restriction, including
+      // without limitation the rights to use, copy, modify, merge, publish,
+      // distribute, sublicense, and/or sell copies of the Software, and to permit
+      // persons to whom the Software is furnished to do so, subject to the
+      // following conditions:
+      //
+      // The above copyright notice and this permission notice shall be included
+      // in all copies or substantial portions of the Software.
+      //
+      // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+      // OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+      // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+      // NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+      // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+      // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+      // USE OR OTHER DEALINGS IN THE SOFTWARE.
+      
+      function EventEmitter() {
+        this._events = this._events || {};
+        this._maxListeners = this._maxListeners || undefined;
+      }
+      module.exports = EventEmitter;
+      
+      // Backwards-compat with node 0.10.x
+      EventEmitter.EventEmitter = EventEmitter;
+      
+      EventEmitter.prototype._events = undefined;
+      EventEmitter.prototype._maxListeners = undefined;
+      
+      // By default EventEmitters will print a warning if more than 10 listeners are
+      // added to it. This is a useful default which helps finding memory leaks.
+      EventEmitter.defaultMaxListeners = 10;
+      
+      // Obviously not all Emitters should be limited to 10. This function allows
+      // that to be increased. Set to zero for unlimited.
+      EventEmitter.prototype.setMaxListeners = function(n) {
+        if (!isNumber(n) || n < 0 || isNaN(n))
+          throw TypeError('n must be a positive number');
+        this._maxListeners = n;
+        return this;
+      };
+      
+      EventEmitter.prototype.emit = function(type) {
+        var er, handler, len, args, i, listeners;
+      
+        if (!this._events)
+          this._events = {};
+      
+        // If there is no 'error' event listener then throw.
+        if (type === 'error') {
+          if (!this._events.error ||
+              (isObject(this._events.error) && !this._events.error.length)) {
+            er = arguments[1];
+            if (er instanceof Error) {
+              throw er; // Unhandled 'error' event
+            } else {
+              throw TypeError('Uncaught, unspecified "error" event.');
+            }
+            return false;
+          }
+        }
+      
+        handler = this._events[type];
+      
+        if (isUndefined(handler))
+          return false;
+      
+        if (isFunction(handler)) {
+          switch (arguments.length) {
+            // fast cases
+            case 1:
+              handler.call(this);
+              break;
+            case 2:
+              handler.call(this, arguments[1]);
+              break;
+            case 3:
+              handler.call(this, arguments[1], arguments[2]);
+              break;
+            // slower
+            default:
+              len = arguments.length;
+              args = new Array(len - 1);
+              for (i = 1; i < len; i++)
+                args[i - 1] = arguments[i];
+              handler.apply(this, args);
+          }
+        } else if (isObject(handler)) {
+          len = arguments.length;
+          args = new Array(len - 1);
+          for (i = 1; i < len; i++)
+            args[i - 1] = arguments[i];
+      
+          listeners = handler.slice();
+          len = listeners.length;
+          for (i = 0; i < len; i++)
+            listeners[i].apply(this, args);
+        }
+      
+        return true;
+      };
+      
+      EventEmitter.prototype.addListener = function(type, listener) {
+        var m;
+      
+        if (!isFunction(listener))
+          throw TypeError('listener must be a function');
+      
+        if (!this._events)
+          this._events = {};
+      
+        // To avoid recursion in the case that type === "newListener"! Before
+        // adding it to the listeners, first emit "newListener".
+        if (this._events.newListener)
+          this.emit('newListener', type,
+                    isFunction(listener.listener) ?
+                    listener.listener : listener);
+      
+        if (!this._events[type])
+          // Optimize the case of one listener. Don't need the extra array object.
+          this._events[type] = listener;
+        else if (isObject(this._events[type]))
+          // If we've already got an array, just append.
+          this._events[type].push(listener);
+        else
+          // Adding the second element, need to change to array.
+          this._events[type] = [this._events[type], listener];
+      
+        // Check for listener leak
+        if (isObject(this._events[type]) && !this._events[type].warned) {
+          var m;
+          if (!isUndefined(this._maxListeners)) {
+            m = this._maxListeners;
+          } else {
+            m = EventEmitter.defaultMaxListeners;
+          }
+      
+          if (m && m > 0 && this._events[type].length > m) {
+            this._events[type].warned = true;
+            console.error('(node) warning: possible EventEmitter memory ' +
+                          'leak detected. %d listeners added. ' +
+                          'Use emitter.setMaxListeners() to increase limit.',
+                          this._events[type].length);
+            console.trace();
+          }
+        }
+      
+        return this;
+      };
+      
+      EventEmitter.prototype.on = EventEmitter.prototype.addListener;
+      
+      EventEmitter.prototype.once = function(type, listener) {
+        if (!isFunction(listener))
+          throw TypeError('listener must be a function');
+      
+        var fired = false;
+      
+        function g() {
+          this.removeListener(type, g);
+      
+          if (!fired) {
+            fired = true;
+            listener.apply(this, arguments);
+          }
+        }
+      
+        g.listener = listener;
+        this.on(type, g);
+      
+        return this;
+      };
+      
+      // emits a 'removeListener' event iff the listener was removed
+      EventEmitter.prototype.removeListener = function(type, listener) {
+        var list, position, length, i;
+      
+        if (!isFunction(listener))
+          throw TypeError('listener must be a function');
+      
+        if (!this._events || !this._events[type])
+          return this;
+      
+        list = this._events[type];
+        length = list.length;
+        position = -1;
+      
+        if (list === listener ||
+            (isFunction(list.listener) && list.listener === listener)) {
+          delete this._events[type];
+          if (this._events.removeListener)
+            this.emit('removeListener', type, listener);
+      
+        } else if (isObject(list)) {
+          for (i = length; i-- > 0;) {
+            if (list[i] === listener ||
+                (list[i].listener && list[i].listener === listener)) {
+              position = i;
+              break;
+            }
+          }
+      
+          if (position < 0)
+            return this;
+      
+          if (list.length === 1) {
+            list.length = 0;
+            delete this._events[type];
+          } else {
+            list.splice(position, 1);
+          }
+      
+          if (this._events.removeListener)
+            this.emit('removeListener', type, listener);
+        }
+      
+        return this;
+      };
+      
+      EventEmitter.prototype.removeAllListeners = function(type) {
+        var key, listeners;
+      
+        if (!this._events)
+          return this;
+      
+        // not listening for removeListener, no need to emit
+        if (!this._events.removeListener) {
+          if (arguments.length === 0)
+            this._events = {};
+          else if (this._events[type])
+            delete this._events[type];
+          return this;
+        }
+      
+        // emit removeListener for all listeners on all events
+        if (arguments.length === 0) {
+          for (key in this._events) {
+            if (key === 'removeListener') continue;
+            this.removeAllListeners(key);
+          }
+          this.removeAllListeners('removeListener');
+          this._events = {};
+          return this;
+        }
+      
+        listeners = this._events[type];
+      
+        if (isFunction(listeners)) {
+          this.removeListener(type, listeners);
+        } else {
+          // LIFO order
+          while (listeners.length)
+            this.removeListener(type, listeners[listeners.length - 1]);
+        }
+        delete this._events[type];
+      
+        return this;
+      };
+      
+      EventEmitter.prototype.listeners = function(type) {
+        var ret;
+        if (!this._events || !this._events[type])
+          ret = [];
+        else if (isFunction(this._events[type]))
+          ret = [this._events[type]];
+        else
+          ret = this._events[type].slice();
+        return ret;
+      };
+      
+      EventEmitter.listenerCount = function(emitter, type) {
+        var ret;
+        if (!emitter._events || !emitter._events[type])
+          ret = 0;
+        else if (isFunction(emitter._events[type]))
+          ret = 1;
+        else
+          ret = emitter._events[type].length;
+        return ret;
+      };
+      
+      function isFunction(arg) {
+        return typeof arg === 'function';
+      }
+      
+      function isNumber(arg) {
+        return typeof arg === 'number';
+      }
+      
+      function isObject(arg) {
+        return typeof arg === 'object' && arg !== null;
+      }
+      
+      function isUndefined(arg) {
+        return arg === void 0;
+      }
       ;
       }
     ], [
@@ -11952,3348 +15308,13 @@
     ], [
       {
         /*
-          /Volumes/Home/Projects/Groovy/app/source/js/lib/socket.io.js
-        */
-
-      }, function(require, module, exports) {
-        /*! Socket.IO.js build:0.9.16, development. Copyright(c) 2011 LearnBoost <dev@learnboost.com> MIT Licensed */
-      
-      var io = ('undefined' === typeof module ? {} : module.exports);
-      (function() {
-      
-      /**
-       * socket.io
-       * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
-       * MIT Licensed
-       */
-      
-      (function (exports, global) {
-      
-        /**
-         * IO namespace.
-         *
-         * @namespace
-         */
-      
-        var io = exports;
-      
-        /**
-         * Socket.IO version
-         *
-         * @api public
-         */
-      
-        io.version = '0.9.16';
-      
-        /**
-         * Protocol implemented.
-         *
-         * @api public
-         */
-      
-        io.protocol = 1;
-      
-        /**
-         * Available transports, these will be populated with the available transports
-         *
-         * @api public
-         */
-      
-        io.transports = [];
-      
-        /**
-         * Keep track of jsonp callbacks.
-         *
-         * @api private
-         */
-      
-        io.j = [];
-      
-        /**
-         * Keep track of our io.Sockets
-         *
-         * @api private
-         */
-        io.sockets = {};
-      
-      
-        /**
-         * Manages connections to hosts.
-         *
-         * @param {String} uri
-         * @Param {Boolean} force creation of new socket (defaults to false)
-         * @api public
-         */
-      
-        io.connect = function (host, details) {
-          var uri = io.util.parseUri(host)
-            , uuri
-            , socket;
-      
-          if (global && global.location) {
-            uri.protocol = uri.protocol || global.location.protocol.slice(0, -1);
-            uri.host = uri.host || (global.document
-              ? global.document.domain : global.location.hostname);
-            uri.port = uri.port || global.location.port;
-          }
-      
-          uuri = io.util.uniqueUri(uri);
-      
-          var options = {
-              host: uri.host
-            , secure: 'https' == uri.protocol
-            , port: uri.port || ('https' == uri.protocol ? 443 : 80)
-            , query: uri.query || ''
-          };
-      
-          io.util.merge(options, details);
-      
-          if (options['force new connection'] || !io.sockets[uuri]) {
-            socket = new io.Socket(options);
-          }
-      
-          if (!options['force new connection'] && socket) {
-            io.sockets[uuri] = socket;
-          }
-      
-          socket = socket || io.sockets[uuri];
-      
-          // if path is different from '' or /
-          return socket.of(uri.path.length > 1 ? uri.path : '');
-        };
-      
-      })('object' === typeof module ? module.exports : (this.io = {}), this);
-      /**
-       * socket.io
-       * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
-       * MIT Licensed
-       */
-      
-      (function (exports, global) {
-      
-        /**
-         * Utilities namespace.
-         *
-         * @namespace
-         */
-      
-        var util = exports.util = {};
-      
-        /**
-         * Parses an URI
-         *
-         * @author Steven Levithan <stevenlevithan.com> (MIT license)
-         * @api public
-         */
-      
-        var re = /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/;
-      
-        var parts = ['source', 'protocol', 'authority', 'userInfo', 'user', 'password',
-                     'host', 'port', 'relative', 'path', 'directory', 'file', 'query',
-                     'anchor'];
-      
-        util.parseUri = function (str) {
-          var m = re.exec(str || '')
-            , uri = {}
-            , i = 14;
-      
-          while (i--) {
-            uri[parts[i]] = m[i] || '';
-          }
-      
-          return uri;
-        };
-      
-        /**
-         * Produces a unique url that identifies a Socket.IO connection.
-         *
-         * @param {Object} uri
-         * @api public
-         */
-      
-        util.uniqueUri = function (uri) {
-          var protocol = uri.protocol
-            , host = uri.host
-            , port = uri.port;
-      
-          if ('document' in global) {
-            host = host || document.domain;
-            port = port || (protocol == 'https'
-              && document.location.protocol !== 'https:' ? 443 : document.location.port);
-          } else {
-            host = host || 'localhost';
-      
-            if (!port && protocol == 'https') {
-              port = 443;
-            }
-          }
-      
-          return (protocol || 'http') + '://' + host + ':' + (port || 80);
-        };
-      
-        /**
-         * Mergest 2 query strings in to once unique query string
-         *
-         * @param {String} base
-         * @param {String} addition
-         * @api public
-         */
-      
-        util.query = function (base, addition) {
-          var query = util.chunkQuery(base || '')
-            , components = [];
-      
-          util.merge(query, util.chunkQuery(addition || ''));
-          for (var part in query) {
-            if (query.hasOwnProperty(part)) {
-              components.push(part + '=' + query[part]);
-            }
-          }
-      
-          return components.length ? '?' + components.join('&') : '';
-        };
-      
-        /**
-         * Transforms a querystring in to an object
-         *
-         * @param {String} qs
-         * @api public
-         */
-      
-        util.chunkQuery = function (qs) {
-          var query = {}
-            , params = qs.split('&')
-            , i = 0
-            , l = params.length
-            , kv;
-      
-          for (; i < l; ++i) {
-            kv = params[i].split('=');
-            if (kv[0]) {
-              query[kv[0]] = kv[1];
-            }
-          }
-      
-          return query;
-        };
-      
-        /**
-         * Executes the given function when the page is loaded.
-         *
-         *     io.util.load(function () { console.log('page loaded'); });
-         *
-         * @param {Function} fn
-         * @api public
-         */
-      
-        var pageLoaded = false;
-      
-        util.load = function (fn) {
-          if ('document' in global && document.readyState === 'complete' || pageLoaded) {
-            return fn();
-          }
-      
-          util.on(global, 'load', fn, false);
-        };
-      
-        /**
-         * Adds an event.
-         *
-         * @api private
-         */
-      
-        util.on = function (element, event, fn, capture) {
-          if (element.attachEvent) {
-            element.attachEvent('on' + event, fn);
-          } else if (element.addEventListener) {
-            element.addEventListener(event, fn, capture);
-          }
-        };
-      
-        /**
-         * Generates the correct `XMLHttpRequest` for regular and cross domain requests.
-         *
-         * @param {Boolean} [xdomain] Create a request that can be used cross domain.
-         * @returns {XMLHttpRequest|false} If we can create a XMLHttpRequest.
-         * @api private
-         */
-      
-        util.request = function (xdomain) {
-      
-          if (xdomain && 'undefined' != typeof XDomainRequest && !util.ua.hasCORS) {
-            return new XDomainRequest();
-          }
-      
-          if ('undefined' != typeof XMLHttpRequest && (!xdomain || util.ua.hasCORS)) {
-            return new XMLHttpRequest();
-          }
-      
-          if (!xdomain) {
-            try {
-              return new window[(['Active'].concat('Object').join('X'))]('Microsoft.XMLHTTP');
-            } catch(e) { }
-          }
-      
-          return null;
-        };
-      
-        /**
-         * XHR based transport constructor.
-         *
-         * @constructor
-         * @api public
-         */
-      
-        /**
-         * Change the internal pageLoaded value.
-         */
-      
-        if ('undefined' != typeof window) {
-          util.load(function () {
-            pageLoaded = true;
-          });
-        }
-      
-        /**
-         * Defers a function to ensure a spinner is not displayed by the browser
-         *
-         * @param {Function} fn
-         * @api public
-         */
-      
-        util.defer = function (fn) {
-          if (!util.ua.webkit || 'undefined' != typeof importScripts) {
-            return fn();
-          }
-      
-          util.load(function () {
-            setTimeout(fn, 100);
-          });
-        };
-      
-        /**
-         * Merges two objects.
-         *
-         * @api public
-         */
-      
-        util.merge = function merge (target, additional, deep, lastseen) {
-          var seen = lastseen || []
-            , depth = typeof deep == 'undefined' ? 2 : deep
-            , prop;
-      
-          for (prop in additional) {
-            if (additional.hasOwnProperty(prop) && util.indexOf(seen, prop) < 0) {
-              if (typeof target[prop] !== 'object' || !depth) {
-                target[prop] = additional[prop];
-                seen.push(additional[prop]);
-              } else {
-                util.merge(target[prop], additional[prop], depth - 1, seen);
-              }
-            }
-          }
-      
-          return target;
-        };
-      
-        /**
-         * Merges prototypes from objects
-         *
-         * @api public
-         */
-      
-        util.mixin = function (ctor, ctor2) {
-          util.merge(ctor.prototype, ctor2.prototype);
-        };
-      
-        /**
-         * Shortcut for prototypical and static inheritance.
-         *
-         * @api private
-         */
-      
-        util.inherit = function (ctor, ctor2) {
-          function f() {};
-          f.prototype = ctor2.prototype;
-          ctor.prototype = new f;
-        };
-      
-        /**
-         * Checks if the given object is an Array.
-         *
-         *     io.util.isArray([]); // true
-         *     io.util.isArray({}); // false
-         *
-         * @param Object obj
-         * @api public
-         */
-      
-        util.isArray = Array.isArray || function (obj) {
-          return Object.prototype.toString.call(obj) === '[object Array]';
-        };
-      
-        /**
-         * Intersects values of two arrays into a third
-         *
-         * @api public
-         */
-      
-        util.intersect = function (arr, arr2) {
-          var ret = []
-            , longest = arr.length > arr2.length ? arr : arr2
-            , shortest = arr.length > arr2.length ? arr2 : arr;
-      
-          for (var i = 0, l = shortest.length; i < l; i++) {
-            if (~util.indexOf(longest, shortest[i]))
-              ret.push(shortest[i]);
-          }
-      
-          return ret;
-        };
-      
-        /**
-         * Array indexOf compatibility.
-         *
-         * @see bit.ly/a5Dxa2
-         * @api public
-         */
-      
-        util.indexOf = function (arr, o, i) {
-      
-          for (var j = arr.length, i = i < 0 ? i + j < 0 ? 0 : i + j : i || 0;
-               i < j && arr[i] !== o; i++) {}
-      
-          return j <= i ? -1 : i;
-        };
-      
-        /**
-         * Converts enumerables to array.
-         *
-         * @api public
-         */
-      
-        util.toArray = function (enu) {
-          var arr = [];
-      
-          for (var i = 0, l = enu.length; i < l; i++)
-            arr.push(enu[i]);
-      
-          return arr;
-        };
-      
-        /**
-         * UA / engines detection namespace.
-         *
-         * @namespace
-         */
-      
-        util.ua = {};
-      
-        /**
-         * Whether the UA supports CORS for XHR.
-         *
-         * @api public
-         */
-      
-        util.ua.hasCORS = 'undefined' != typeof XMLHttpRequest && (function () {
-          try {
-            var a = new XMLHttpRequest();
-          } catch (e) {
-            return false;
-          }
-      
-          return a.withCredentials != undefined;
-        })();
-      
-        /**
-         * Detect webkit.
-         *
-         * @api public
-         */
-      
-        util.ua.webkit = 'undefined' != typeof navigator
-          && /webkit/i.test(navigator.userAgent);
-      
-         /**
-         * Detect iPad/iPhone/iPod.
-         *
-         * @api public
-         */
-      
-        util.ua.iDevice = 'undefined' != typeof navigator
-            && /iPad|iPhone|iPod/i.test(navigator.userAgent);
-      
-      })('undefined' != typeof io ? io : module.exports, this);
-      /**
-       * socket.io
-       * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
-       * MIT Licensed
-       */
-      
-      (function (exports, io) {
-      
-        /**
-         * Expose constructor.
-         */
-      
-        exports.EventEmitter = EventEmitter;
-      
-        /**
-         * Event emitter constructor.
-         *
-         * @api public.
-         */
-      
-        function EventEmitter () {};
-      
-        /**
-         * Adds a listener
-         *
-         * @api public
-         */
-      
-        EventEmitter.prototype.on = function (name, fn) {
-          if (!this.$events) {
-            this.$events = {};
-          }
-      
-          if (!this.$events[name]) {
-            this.$events[name] = fn;
-          } else if (io.util.isArray(this.$events[name])) {
-            this.$events[name].push(fn);
-          } else {
-            this.$events[name] = [this.$events[name], fn];
-          }
-      
-          return this;
-        };
-      
-        EventEmitter.prototype.addListener = EventEmitter.prototype.on;
-      
-        /**
-         * Adds a volatile listener.
-         *
-         * @api public
-         */
-      
-        EventEmitter.prototype.once = function (name, fn) {
-          var self = this;
-      
-          function on () {
-            self.removeListener(name, on);
-            fn.apply(this, arguments);
-          };
-      
-          on.listener = fn;
-          this.on(name, on);
-      
-          return this;
-        };
-      
-        /**
-         * Removes a listener.
-         *
-         * @api public
-         */
-      
-        EventEmitter.prototype.removeListener = function (name, fn) {
-          if (this.$events && this.$events[name]) {
-            var list = this.$events[name];
-      
-            if (io.util.isArray(list)) {
-              var pos = -1;
-      
-              for (var i = 0, l = list.length; i < l; i++) {
-                if (list[i] === fn || (list[i].listener && list[i].listener === fn)) {
-                  pos = i;
-                  break;
-                }
-              }
-      
-              if (pos < 0) {
-                return this;
-              }
-      
-              list.splice(pos, 1);
-      
-              if (!list.length) {
-                delete this.$events[name];
-              }
-            } else if (list === fn || (list.listener && list.listener === fn)) {
-              delete this.$events[name];
-            }
-          }
-      
-          return this;
-        };
-      
-        /**
-         * Removes all listeners for an event.
-         *
-         * @api public
-         */
-      
-        EventEmitter.prototype.removeAllListeners = function (name) {
-          if (name === undefined) {
-            this.$events = {};
-            return this;
-          }
-      
-          if (this.$events && this.$events[name]) {
-            this.$events[name] = null;
-          }
-      
-          return this;
-        };
-      
-        /**
-         * Gets all listeners for a certain event.
-         *
-         * @api publci
-         */
-      
-        EventEmitter.prototype.listeners = function (name) {
-          if (!this.$events) {
-            this.$events = {};
-          }
-      
-          if (!this.$events[name]) {
-            this.$events[name] = [];
-          }
-      
-          if (!io.util.isArray(this.$events[name])) {
-            this.$events[name] = [this.$events[name]];
-          }
-      
-          return this.$events[name];
-        };
-      
-        /**
-         * Emits an event.
-         *
-         * @api public
-         */
-      
-        EventEmitter.prototype.emit = function (name) {
-          if (!this.$events) {
-            return false;
-          }
-      
-          var handler = this.$events[name];
-      
-          if (!handler) {
-            return false;
-          }
-      
-          var args = Array.prototype.slice.call(arguments, 1);
-      
-          if ('function' == typeof handler) {
-            handler.apply(this, args);
-          } else if (io.util.isArray(handler)) {
-            var listeners = handler.slice();
-      
-            for (var i = 0, l = listeners.length; i < l; i++) {
-              listeners[i].apply(this, args);
-            }
-          } else {
-            return false;
-          }
-      
-          return true;
-        };
-      
-      })(
-          'undefined' != typeof io ? io : module.exports
-        , 'undefined' != typeof io ? io : module.parent.exports
-      );
-      
-      /**
-       * socket.io
-       * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
-       * MIT Licensed
-       */
-      
-      /**
-       * Based on JSON2 (http://www.JSON.org/js.html).
-       */
-      
-      (function (exports, nativeJSON) {
-        "use strict";
-      
-        // use native JSON if it's available
-        if (nativeJSON && nativeJSON.parse){
-          return exports.JSON = {
-            parse: nativeJSON.parse
-          , stringify: nativeJSON.stringify
-          };
-        }
-      
-        var JSON = exports.JSON = {};
-      
-        function f(n) {
-            // Format integers to have at least two digits.
-            return n < 10 ? '0' + n : n;
-        }
-      
-        function date(d, key) {
-          return isFinite(d.valueOf()) ?
-              d.getUTCFullYear()     + '-' +
-              f(d.getUTCMonth() + 1) + '-' +
-              f(d.getUTCDate())      + 'T' +
-              f(d.getUTCHours())     + ':' +
-              f(d.getUTCMinutes())   + ':' +
-              f(d.getUTCSeconds())   + 'Z' : null;
-        };
-      
-        var cx = /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g,
-            escapable = /[\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g,
-            gap,
-            indent,
-            meta = {    // table of character substitutions
-                '\b': '\\b',
-                '\t': '\\t',
-                '\n': '\\n',
-                '\f': '\\f',
-                '\r': '\\r',
-                '"' : '\\"',
-                '\\': '\\\\'
-            },
-            rep;
-      
-      
-        function quote(string) {
-      
-      // If the string contains no control characters, no quote characters, and no
-      // backslash characters, then we can safely slap some quotes around it.
-      // Otherwise we must also replace the offending characters with safe escape
-      // sequences.
-      
-            escapable.lastIndex = 0;
-            return escapable.test(string) ? '"' + string.replace(escapable, function (a) {
-                var c = meta[a];
-                return typeof c === 'string' ? c :
-                    '\\u' + ('0000' + a.charCodeAt(0).toString(16)).slice(-4);
-            }) + '"' : '"' + string + '"';
-        }
-      
-      
-        function str(key, holder) {
-      
-      // Produce a string from holder[key].
-      
-            var i,          // The loop counter.
-                k,          // The member key.
-                v,          // The member value.
-                length,
-                mind = gap,
-                partial,
-                value = holder[key];
-      
-      // If the value has a toJSON method, call it to obtain a replacement value.
-      
-            if (value instanceof Date) {
-                value = date(key);
-            }
-      
-      // If we were called with a replacer function, then call the replacer to
-      // obtain a replacement value.
-      
-            if (typeof rep === 'function') {
-                value = rep.call(holder, key, value);
-            }
-      
-      // What happens next depends on the value's type.
-      
-            switch (typeof value) {
-            case 'string':
-                return quote(value);
-      
-            case 'number':
-      
-      // JSON numbers must be finite. Encode non-finite numbers as null.
-      
-                return isFinite(value) ? String(value) : 'null';
-      
-            case 'boolean':
-            case 'null':
-      
-      // If the value is a boolean or null, convert it to a string. Note:
-      // typeof null does not produce 'null'. The case is included here in
-      // the remote chance that this gets fixed someday.
-      
-                return String(value);
-      
-      // If the type is 'object', we might be dealing with an object or an array or
-      // null.
-      
-            case 'object':
-      
-      // Due to a specification blunder in ECMAScript, typeof null is 'object',
-      // so watch out for that case.
-      
-                if (!value) {
-                    return 'null';
-                }
-      
-      // Make an array to hold the partial results of stringifying this object value.
-      
-                gap += indent;
-                partial = [];
-      
-      // Is the value an array?
-      
-                if (Object.prototype.toString.apply(value) === '[object Array]') {
-      
-      // The value is an array. Stringify every element. Use null as a placeholder
-      // for non-JSON values.
-      
-                    length = value.length;
-                    for (i = 0; i < length; i += 1) {
-                        partial[i] = str(i, value) || 'null';
-                    }
-      
-      // Join all of the elements together, separated with commas, and wrap them in
-      // brackets.
-      
-                    v = partial.length === 0 ? '[]' : gap ?
-                        '[\n' + gap + partial.join(',\n' + gap) + '\n' + mind + ']' :
-                        '[' + partial.join(',') + ']';
-                    gap = mind;
-                    return v;
-                }
-      
-      // If the replacer is an array, use it to select the members to be stringified.
-      
-                if (rep && typeof rep === 'object') {
-                    length = rep.length;
-                    for (i = 0; i < length; i += 1) {
-                        if (typeof rep[i] === 'string') {
-                            k = rep[i];
-                            v = str(k, value);
-                            if (v) {
-                                partial.push(quote(k) + (gap ? ': ' : ':') + v);
-                            }
-                        }
-                    }
-                } else {
-      
-      // Otherwise, iterate through all of the keys in the object.
-      
-                    for (k in value) {
-                        if (Object.prototype.hasOwnProperty.call(value, k)) {
-                            v = str(k, value);
-                            if (v) {
-                                partial.push(quote(k) + (gap ? ': ' : ':') + v);
-                            }
-                        }
-                    }
-                }
-      
-      // Join all of the member texts together, separated with commas,
-      // and wrap them in braces.
-      
-                v = partial.length === 0 ? '{}' : gap ?
-                    '{\n' + gap + partial.join(',\n' + gap) + '\n' + mind + '}' :
-                    '{' + partial.join(',') + '}';
-                gap = mind;
-                return v;
-            }
-        }
-      
-      // If the JSON object does not yet have a stringify method, give it one.
-      
-        JSON.stringify = function (value, replacer, space) {
-      
-      // The stringify method takes a value and an optional replacer, and an optional
-      // space parameter, and returns a JSON text. The replacer can be a function
-      // that can replace values, or an array of strings that will select the keys.
-      // A default replacer method can be provided. Use of the space parameter can
-      // produce text that is more easily readable.
-      
-            var i;
-            gap = '';
-            indent = '';
-      
-      // If the space parameter is a number, make an indent string containing that
-      // many spaces.
-      
-            if (typeof space === 'number') {
-                for (i = 0; i < space; i += 1) {
-                    indent += ' ';
-                }
-      
-      // If the space parameter is a string, it will be used as the indent string.
-      
-            } else if (typeof space === 'string') {
-                indent = space;
-            }
-      
-      // If there is a replacer, it must be a function or an array.
-      // Otherwise, throw an error.
-      
-            rep = replacer;
-            if (replacer && typeof replacer !== 'function' &&
-                    (typeof replacer !== 'object' ||
-                    typeof replacer.length !== 'number')) {
-                throw new Error('JSON.stringify');
-            }
-      
-      // Make a fake root object containing our value under the key of ''.
-      // Return the result of stringifying the value.
-      
-            return str('', {'': value});
-        };
-      
-      // If the JSON object does not yet have a parse method, give it one.
-      
-        JSON.parse = function (text, reviver) {
-        // The parse method takes a text and an optional reviver function, and returns
-        // a JavaScript value if the text is a valid JSON text.
-      
-            var j;
-      
-            function walk(holder, key) {
-      
-        // The walk method is used to recursively walk the resulting structure so
-        // that modifications can be made.
-      
-                var k, v, value = holder[key];
-                if (value && typeof value === 'object') {
-                    for (k in value) {
-                        if (Object.prototype.hasOwnProperty.call(value, k)) {
-                            v = walk(value, k);
-                            if (v !== undefined) {
-                                value[k] = v;
-                            } else {
-                                delete value[k];
-                            }
-                        }
-                    }
-                }
-                return reviver.call(holder, key, value);
-            }
-      
-      
-        // Parsing happens in four stages. In the first stage, we replace certain
-        // Unicode characters with escape sequences. JavaScript handles many characters
-        // incorrectly, either silently deleting them, or treating them as line endings.
-      
-            text = String(text);
-            cx.lastIndex = 0;
-            if (cx.test(text)) {
-                text = text.replace(cx, function (a) {
-                    return '\\u' +
-                        ('0000' + a.charCodeAt(0).toString(16)).slice(-4);
-                });
-            }
-      
-        // In the second stage, we run the text against regular expressions that look
-        // for non-JSON patterns. We are especially concerned with '()' and 'new'
-        // because they can cause invocation, and '=' because it can cause mutation.
-        // But just to be safe, we want to reject all unexpected forms.
-      
-        // We split the second stage into 4 regexp operations in order to work around
-        // crippling inefficiencies in IE's and Safari's regexp engines. First we
-        // replace the JSON backslash pairs with '@' (a non-JSON character). Second, we
-        // replace all simple value tokens with ']' characters. Third, we delete all
-        // open brackets that follow a colon or comma or that begin the text. Finally,
-        // we look to see that the remaining characters are only whitespace or ']' or
-        // ',' or ':' or '{' or '}'. If that is so, then the text is safe for eval.
-      
-            if (/^[\],:{}\s]*$/
-                    .test(text.replace(/\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g, '@')
-                        .replace(/"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g, ']')
-                        .replace(/(?:^|:|,)(?:\s*\[)+/g, ''))) {
-      
-        // In the third stage we use the eval function to compile the text into a
-        // JavaScript structure. The '{' operator is subject to a syntactic ambiguity
-        // in JavaScript: it can begin a block or an object literal. We wrap the text
-        // in parens to eliminate the ambiguity.
-      
-                j = eval('(' + text + ')');
-      
-        // In the optional fourth stage, we recursively walk the new structure, passing
-        // each name/value pair to a reviver function for possible transformation.
-      
-                return typeof reviver === 'function' ?
-                    walk({'': j}, '') : j;
-            }
-      
-        // If the text is not JSON parseable, then a SyntaxError is thrown.
-      
-            throw new SyntaxError('JSON.parse');
-        };
-      
-      })(
-          'undefined' != typeof io ? io : module.exports
-        , typeof JSON !== 'undefined' ? JSON : undefined
-      );
-      
-      /**
-       * socket.io
-       * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
-       * MIT Licensed
-       */
-      
-      (function (exports, io) {
-      
-        /**
-         * Parser namespace.
-         *
-         * @namespace
-         */
-      
-        var parser = exports.parser = {};
-      
-        /**
-         * Packet types.
-         */
-      
-        var packets = parser.packets = [
-            'disconnect'
-          , 'connect'
-          , 'heartbeat'
-          , 'message'
-          , 'json'
-          , 'event'
-          , 'ack'
-          , 'error'
-          , 'noop'
-        ];
-      
-        /**
-         * Errors reasons.
-         */
-      
-        var reasons = parser.reasons = [
-            'transport not supported'
-          , 'client not handshaken'
-          , 'unauthorized'
-        ];
-      
-        /**
-         * Errors advice.
-         */
-      
-        var advice = parser.advice = [
-            'reconnect'
-        ];
-      
-        /**
-         * Shortcuts.
-         */
-      
-        var JSON = io.JSON
-          , indexOf = io.util.indexOf;
-      
-        /**
-         * Encodes a packet.
-         *
-         * @api private
-         */
-      
-        parser.encodePacket = function (packet) {
-          var type = indexOf(packets, packet.type)
-            , id = packet.id || ''
-            , endpoint = packet.endpoint || ''
-            , ack = packet.ack
-            , data = null;
-      
-          switch (packet.type) {
-            case 'error':
-              var reason = packet.reason ? indexOf(reasons, packet.reason) : ''
-                , adv = packet.advice ? indexOf(advice, packet.advice) : '';
-      
-              if (reason !== '' || adv !== '')
-                data = reason + (adv !== '' ? ('+' + adv) : '');
-      
-              break;
-      
-            case 'message':
-              if (packet.data !== '')
-                data = packet.data;
-              break;
-      
-            case 'event':
-              var ev = { name: packet.name };
-      
-              if (packet.args && packet.args.length) {
-                ev.args = packet.args;
-              }
-      
-              data = JSON.stringify(ev);
-              break;
-      
-            case 'json':
-              data = JSON.stringify(packet.data);
-              break;
-      
-            case 'connect':
-              if (packet.qs)
-                data = packet.qs;
-              break;
-      
-            case 'ack':
-              data = packet.ackId
-                + (packet.args && packet.args.length
-                    ? '+' + JSON.stringify(packet.args) : '');
-              break;
-          }
-      
-          // construct packet with required fragments
-          var encoded = [
-              type
-            , id + (ack == 'data' ? '+' : '')
-            , endpoint
-          ];
-      
-          // data fragment is optional
-          if (data !== null && data !== undefined)
-            encoded.push(data);
-      
-          return encoded.join(':');
-        };
-      
-        /**
-         * Encodes multiple messages (payload).
-         *
-         * @param {Array} messages
-         * @api private
-         */
-      
-        parser.encodePayload = function (packets) {
-          var decoded = '';
-      
-          if (packets.length == 1)
-            return packets[0];
-      
-          for (var i = 0, l = packets.length; i < l; i++) {
-            var packet = packets[i];
-            decoded += '\ufffd' + packet.length + '\ufffd' + packets[i];
-          }
-      
-          return decoded;
-        };
-      
-        /**
-         * Decodes a packet
-         *
-         * @api private
-         */
-      
-        var regexp = /([^:]+):([0-9]+)?(\+)?:([^:]+)?:?([\s\S]*)?/;
-      
-        parser.decodePacket = function (data) {
-          var pieces = data.match(regexp);
-      
-          if (!pieces) return {};
-      
-          var id = pieces[2] || ''
-            , data = pieces[5] || ''
-            , packet = {
-                  type: packets[pieces[1]]
-                , endpoint: pieces[4] || ''
-              };
-      
-          // whether we need to acknowledge the packet
-          if (id) {
-            packet.id = id;
-            if (pieces[3])
-              packet.ack = 'data';
-            else
-              packet.ack = true;
-          }
-      
-          // handle different packet types
-          switch (packet.type) {
-            case 'error':
-              var pieces = data.split('+');
-              packet.reason = reasons[pieces[0]] || '';
-              packet.advice = advice[pieces[1]] || '';
-              break;
-      
-            case 'message':
-              packet.data = data || '';
-              break;
-      
-            case 'event':
-              try {
-                var opts = JSON.parse(data);
-                packet.name = opts.name;
-                packet.args = opts.args;
-              } catch (e) { }
-      
-              packet.args = packet.args || [];
-              break;
-      
-            case 'json':
-              try {
-                packet.data = JSON.parse(data);
-              } catch (e) { }
-              break;
-      
-            case 'connect':
-              packet.qs = data || '';
-              break;
-      
-            case 'ack':
-              var pieces = data.match(/^([0-9]+)(\+)?(.*)/);
-              if (pieces) {
-                packet.ackId = pieces[1];
-                packet.args = [];
-      
-                if (pieces[3]) {
-                  try {
-                    packet.args = pieces[3] ? JSON.parse(pieces[3]) : [];
-                  } catch (e) { }
-                }
-              }
-              break;
-      
-            case 'disconnect':
-            case 'heartbeat':
-              break;
-          };
-      
-          return packet;
-        };
-      
-        /**
-         * Decodes data payload. Detects multiple messages
-         *
-         * @return {Array} messages
-         * @api public
-         */
-      
-        parser.decodePayload = function (data) {
-          // IE doesn't like data[i] for unicode chars, charAt works fine
-          if (data.charAt(0) == '\ufffd') {
-            var ret = [];
-      
-            for (var i = 1, length = ''; i < data.length; i++) {
-              if (data.charAt(i) == '\ufffd') {
-                ret.push(parser.decodePacket(data.substr(i + 1).substr(0, length)));
-                i += Number(length) + 1;
-                length = '';
-              } else {
-                length += data.charAt(i);
-              }
-            }
-      
-            return ret;
-          } else {
-            return [parser.decodePacket(data)];
-          }
-        };
-      
-      })(
-          'undefined' != typeof io ? io : module.exports
-        , 'undefined' != typeof io ? io : module.parent.exports
-      );
-      /**
-       * socket.io
-       * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
-       * MIT Licensed
-       */
-      
-      (function (exports, io) {
-      
-        /**
-         * Expose constructor.
-         */
-      
-        exports.Transport = Transport;
-      
-        /**
-         * This is the transport template for all supported transport methods.
-         *
-         * @constructor
-         * @api public
-         */
-      
-        function Transport (socket, sessid) {
-          this.socket = socket;
-          this.sessid = sessid;
-        };
-      
-        /**
-         * Apply EventEmitter mixin.
-         */
-      
-        io.util.mixin(Transport, io.EventEmitter);
-      
-      
-        /**
-         * Indicates whether heartbeats is enabled for this transport
-         *
-         * @api private
-         */
-      
-        Transport.prototype.heartbeats = function () {
-          return true;
-        };
-      
-        /**
-         * Handles the response from the server. When a new response is received
-         * it will automatically update the timeout, decode the message and
-         * forwards the response to the onMessage function for further processing.
-         *
-         * @param {String} data Response from the server.
-         * @api private
-         */
-      
-        Transport.prototype.onData = function (data) {
-          this.clearCloseTimeout();
-      
-          // If the connection in currently open (or in a reopening state) reset the close
-          // timeout since we have just received data. This check is necessary so
-          // that we don't reset the timeout on an explicitly disconnected connection.
-          if (this.socket.connected || this.socket.connecting || this.socket.reconnecting) {
-            this.setCloseTimeout();
-          }
-      
-          if (data !== '') {
-            // todo: we should only do decodePayload for xhr transports
-            var msgs = io.parser.decodePayload(data);
-      
-            if (msgs && msgs.length) {
-              for (var i = 0, l = msgs.length; i < l; i++) {
-                this.onPacket(msgs[i]);
-              }
-            }
-          }
-      
-          return this;
-        };
-      
-        /**
-         * Handles packets.
-         *
-         * @api private
-         */
-      
-        Transport.prototype.onPacket = function (packet) {
-          this.socket.setHeartbeatTimeout();
-      
-          if (packet.type == 'heartbeat') {
-            return this.onHeartbeat();
-          }
-      
-          if (packet.type == 'connect' && packet.endpoint == '') {
-            this.onConnect();
-          }
-      
-          if (packet.type == 'error' && packet.advice == 'reconnect') {
-            this.isOpen = false;
-          }
-      
-          this.socket.onPacket(packet);
-      
-          return this;
-        };
-      
-        /**
-         * Sets close timeout
-         *
-         * @api private
-         */
-      
-        Transport.prototype.setCloseTimeout = function () {
-          if (!this.closeTimeout) {
-            var self = this;
-      
-            this.closeTimeout = setTimeout(function () {
-              self.onDisconnect();
-            }, this.socket.closeTimeout);
-          }
-        };
-      
-        /**
-         * Called when transport disconnects.
-         *
-         * @api private
-         */
-      
-        Transport.prototype.onDisconnect = function () {
-          if (this.isOpen) this.close();
-          this.clearTimeouts();
-          this.socket.onDisconnect();
-          return this;
-        };
-      
-        /**
-         * Called when transport connects
-         *
-         * @api private
-         */
-      
-        Transport.prototype.onConnect = function () {
-          this.socket.onConnect();
-          return this;
-        };
-      
-        /**
-         * Clears close timeout
-         *
-         * @api private
-         */
-      
-        Transport.prototype.clearCloseTimeout = function () {
-          if (this.closeTimeout) {
-            clearTimeout(this.closeTimeout);
-            this.closeTimeout = null;
-          }
-        };
-      
-        /**
-         * Clear timeouts
-         *
-         * @api private
-         */
-      
-        Transport.prototype.clearTimeouts = function () {
-          this.clearCloseTimeout();
-      
-          if (this.reopenTimeout) {
-            clearTimeout(this.reopenTimeout);
-          }
-        };
-      
-        /**
-         * Sends a packet
-         *
-         * @param {Object} packet object.
-         * @api private
-         */
-      
-        Transport.prototype.packet = function (packet) {
-          this.send(io.parser.encodePacket(packet));
-        };
-      
-        /**
-         * Send the received heartbeat message back to server. So the server
-         * knows we are still connected.
-         *
-         * @param {String} heartbeat Heartbeat response from the server.
-         * @api private
-         */
-      
-        Transport.prototype.onHeartbeat = function (heartbeat) {
-          this.packet({ type: 'heartbeat' });
-        };
-      
-        /**
-         * Called when the transport opens.
-         *
-         * @api private
-         */
-      
-        Transport.prototype.onOpen = function () {
-          this.isOpen = true;
-          this.clearCloseTimeout();
-          this.socket.onOpen();
-        };
-      
-        /**
-         * Notifies the base when the connection with the Socket.IO server
-         * has been disconnected.
-         *
-         * @api private
-         */
-      
-        Transport.prototype.onClose = function () {
-          var self = this;
-      
-          /* FIXME: reopen delay causing a infinit loop
-          this.reopenTimeout = setTimeout(function () {
-            self.open();
-          }, this.socket.options['reopen delay']);*/
-      
-          this.isOpen = false;
-          this.socket.onClose();
-          this.onDisconnect();
-        };
-      
-        /**
-         * Generates a connection url based on the Socket.IO URL Protocol.
-         * See <https://github.com/learnboost/socket.io-node/> for more details.
-         *
-         * @returns {String} Connection url
-         * @api private
-         */
-      
-        Transport.prototype.prepareUrl = function () {
-          var options = this.socket.options;
-      
-          return this.scheme() + '://'
-            + options.host + ':' + options.port + '/'
-            + options.resource + '/' + io.protocol
-            + '/' + this.name + '/' + this.sessid;
-        };
-      
-        /**
-         * Checks if the transport is ready to start a connection.
-         *
-         * @param {Socket} socket The socket instance that needs a transport
-         * @param {Function} fn The callback
-         * @api private
-         */
-      
-        Transport.prototype.ready = function (socket, fn) {
-          fn.call(this);
-        };
-      })(
-          'undefined' != typeof io ? io : module.exports
-        , 'undefined' != typeof io ? io : module.parent.exports
-      );
-      /**
-       * socket.io
-       * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
-       * MIT Licensed
-       */
-      
-      (function (exports, io, global) {
-      
-        /**
-         * Expose constructor.
-         */
-      
-        exports.Socket = Socket;
-      
-        /**
-         * Create a new `Socket.IO client` which can establish a persistent
-         * connection with a Socket.IO enabled server.
-         *
-         * @api public
-         */
-      
-        function Socket (options) {
-          this.options = {
-              port: 80
-            , secure: false
-            , document: 'document' in global ? document : false
-            , resource: 'socket.io'
-            , transports: io.transports
-            , 'connect timeout': 10000
-            , 'try multiple transports': true
-            , 'reconnect': true
-            , 'reconnection delay': 500
-            , 'reconnection limit': Infinity
-            , 'reopen delay': 3000
-            , 'max reconnection attempts': 10
-            , 'sync disconnect on unload': false
-            , 'auto connect': true
-            , 'flash policy port': 10843
-            , 'manualFlush': false
-          };
-      
-          io.util.merge(this.options, options);
-      
-          this.connected = false;
-          this.open = false;
-          this.connecting = false;
-          this.reconnecting = false;
-          this.namespaces = {};
-          this.buffer = [];
-          this.doBuffer = false;
-      
-          if (this.options['sync disconnect on unload'] &&
-              (!this.isXDomain() || io.util.ua.hasCORS)) {
-            var self = this;
-            io.util.on(global, 'beforeunload', function () {
-              self.disconnectSync();
-            }, false);
-          }
-      
-          if (this.options['auto connect']) {
-            this.connect();
-          }
-      };
-      
-        /**
-         * Apply EventEmitter mixin.
-         */
-      
-        io.util.mixin(Socket, io.EventEmitter);
-      
-        /**
-         * Returns a namespace listener/emitter for this socket
-         *
-         * @api public
-         */
-      
-        Socket.prototype.of = function (name) {
-          if (!this.namespaces[name]) {
-            this.namespaces[name] = new io.SocketNamespace(this, name);
-      
-            if (name !== '') {
-              this.namespaces[name].packet({ type: 'connect' });
-            }
-          }
-      
-          return this.namespaces[name];
-        };
-      
-        /**
-         * Emits the given event to the Socket and all namespaces
-         *
-         * @api private
-         */
-      
-        Socket.prototype.publish = function () {
-          this.emit.apply(this, arguments);
-      
-          var nsp;
-      
-          for (var i in this.namespaces) {
-            if (this.namespaces.hasOwnProperty(i)) {
-              nsp = this.of(i);
-              nsp.$emit.apply(nsp, arguments);
-            }
-          }
-        };
-      
-        /**
-         * Performs the handshake
-         *
-         * @api private
-         */
-      
-        function empty () { };
-      
-        Socket.prototype.handshake = function (fn) {
-          var self = this
-            , options = this.options;
-      
-          function complete (data) {
-            if (data instanceof Error) {
-              self.connecting = false;
-              self.onError(data.message);
-            } else {
-              fn.apply(null, data.split(':'));
-            }
-          };
-      
-          var url = [
-                'http' + (options.secure ? 's' : '') + ':/'
-              , options.host + ':' + options.port
-              , options.resource
-              , io.protocol
-              , io.util.query(this.options.query, 't=' + +new Date)
-            ].join('/');
-      
-          if (this.isXDomain() && !io.util.ua.hasCORS) {
-            var insertAt = document.getElementsByTagName('script')[0]
-              , script = document.createElement('script');
-      
-            script.src = url + '&jsonp=' + io.j.length;
-            insertAt.parentNode.insertBefore(script, insertAt);
-      
-            io.j.push(function (data) {
-              complete(data);
-              script.parentNode.removeChild(script);
-            });
-          } else {
-            var xhr = io.util.request();
-      
-            xhr.open('GET', url, true);
-            if (this.isXDomain()) {
-              xhr.withCredentials = true;
-            }
-            xhr.onreadystatechange = function () {
-              if (xhr.readyState == 4) {
-                xhr.onreadystatechange = empty;
-      
-                if (xhr.status == 200) {
-                  complete(xhr.responseText);
-                } else if (xhr.status == 403) {
-                  self.onError(xhr.responseText);
-                } else {
-                  self.connecting = false;            
-                  !self.reconnecting && self.onError(xhr.responseText);
-                }
-              }
-            };
-            xhr.send(null);
-          }
-        };
-      
-        /**
-         * Find an available transport based on the options supplied in the constructor.
-         *
-         * @api private
-         */
-      
-        Socket.prototype.getTransport = function (override) {
-          var transports = override || this.transports, match;
-      
-          for (var i = 0, transport; transport = transports[i]; i++) {
-            if (io.Transport[transport]
-              && io.Transport[transport].check(this)
-              && (!this.isXDomain() || io.Transport[transport].xdomainCheck(this))) {
-              return new io.Transport[transport](this, this.sessionid);
-            }
-          }
-      
-          return null;
-        };
-      
-        /**
-         * Connects to the server.
-         *
-         * @param {Function} [fn] Callback.
-         * @returns {io.Socket}
-         * @api public
-         */
-      
-        Socket.prototype.connect = function (fn) {
-          if (this.connecting) {
-            return this;
-          }
-      
-          var self = this;
-          self.connecting = true;
-          
-          this.handshake(function (sid, heartbeat, close, transports) {
-            self.sessionid = sid;
-            self.closeTimeout = close * 1000;
-            self.heartbeatTimeout = heartbeat * 1000;
-            if(!self.transports)
-                self.transports = self.origTransports = (transports ? io.util.intersect(
-                    transports.split(',')
-                  , self.options.transports
-                ) : self.options.transports);
-      
-            self.setHeartbeatTimeout();
-      
-            function connect (transports){
-              if (self.transport) self.transport.clearTimeouts();
-      
-              self.transport = self.getTransport(transports);
-              if (!self.transport) return self.publish('connect_failed');
-      
-              // once the transport is ready
-              self.transport.ready(self, function () {
-                self.connecting = true;
-                self.publish('connecting', self.transport.name);
-                self.transport.open();
-      
-                if (self.options['connect timeout']) {
-                  self.connectTimeoutTimer = setTimeout(function () {
-                    if (!self.connected) {
-                      self.connecting = false;
-      
-                      if (self.options['try multiple transports']) {
-                        var remaining = self.transports;
-      
-                        while (remaining.length > 0 && remaining.splice(0,1)[0] !=
-                               self.transport.name) {}
-      
-                          if (remaining.length){
-                            connect(remaining);
-                          } else {
-                            self.publish('connect_failed');
-                          }
-                      }
-                    }
-                  }, self.options['connect timeout']);
-                }
-              });
-            }
-      
-            connect(self.transports);
-      
-            self.once('connect', function (){
-              clearTimeout(self.connectTimeoutTimer);
-      
-              fn && typeof fn == 'function' && fn();
-            });
-          });
-      
-          return this;
-        };
-      
-        /**
-         * Clears and sets a new heartbeat timeout using the value given by the
-         * server during the handshake.
-         *
-         * @api private
-         */
-      
-        Socket.prototype.setHeartbeatTimeout = function () {
-          clearTimeout(this.heartbeatTimeoutTimer);
-          if(this.transport && !this.transport.heartbeats()) return;
-      
-          var self = this;
-          this.heartbeatTimeoutTimer = setTimeout(function () {
-            self.transport.onClose();
-          }, this.heartbeatTimeout);
-        };
-      
-        /**
-         * Sends a message.
-         *
-         * @param {Object} data packet.
-         * @returns {io.Socket}
-         * @api public
-         */
-      
-        Socket.prototype.packet = function (data) {
-          if (this.connected && !this.doBuffer) {
-            this.transport.packet(data);
-          } else {
-            this.buffer.push(data);
-          }
-      
-          return this;
-        };
-      
-        /**
-         * Sets buffer state
-         *
-         * @api private
-         */
-      
-        Socket.prototype.setBuffer = function (v) {
-          this.doBuffer = v;
-      
-          if (!v && this.connected && this.buffer.length) {
-            if (!this.options['manualFlush']) {
-              this.flushBuffer();
-            }
-          }
-        };
-      
-        /**
-         * Flushes the buffer data over the wire.
-         * To be invoked manually when 'manualFlush' is set to true.
-         *
-         * @api public
-         */
-      
-        Socket.prototype.flushBuffer = function() {
-          this.transport.payload(this.buffer);
-          this.buffer = [];
-        };
-        
-      
-        /**
-         * Disconnect the established connect.
-         *
-         * @returns {io.Socket}
-         * @api public
-         */
-      
-        Socket.prototype.disconnect = function () {
-          if (this.connected || this.connecting) {
-            if (this.open) {
-              this.of('').packet({ type: 'disconnect' });
-            }
-      
-            // handle disconnection immediately
-            this.onDisconnect('booted');
-          }
-      
-          return this;
-        };
-      
-        /**
-         * Disconnects the socket with a sync XHR.
-         *
-         * @api private
-         */
-      
-        Socket.prototype.disconnectSync = function () {
-          // ensure disconnection
-          var xhr = io.util.request();
-          var uri = [
-              'http' + (this.options.secure ? 's' : '') + ':/'
-            , this.options.host + ':' + this.options.port
-            , this.options.resource
-            , io.protocol
-            , ''
-            , this.sessionid
-          ].join('/') + '/?disconnect=1';
-      
-          xhr.open('GET', uri, false);
-          xhr.send(null);
-      
-          // handle disconnection immediately
-          this.onDisconnect('booted');
-        };
-      
-        /**
-         * Check if we need to use cross domain enabled transports. Cross domain would
-         * be a different port or different domain name.
-         *
-         * @returns {Boolean}
-         * @api private
-         */
-      
-        Socket.prototype.isXDomain = function () {
-      
-          var port = global.location.port ||
-            ('https:' == global.location.protocol ? 443 : 80);
-      
-          return this.options.host !== global.location.hostname 
-            || this.options.port != port;
-        };
-      
-        /**
-         * Called upon handshake.
-         *
-         * @api private
-         */
-      
-        Socket.prototype.onConnect = function () {
-          if (!this.connected) {
-            this.connected = true;
-            this.connecting = false;
-            if (!this.doBuffer) {
-              // make sure to flush the buffer
-              this.setBuffer(false);
-            }
-            this.emit('connect');
-          }
-        };
-      
-        /**
-         * Called when the transport opens
-         *
-         * @api private
-         */
-      
-        Socket.prototype.onOpen = function () {
-          this.open = true;
-        };
-      
-        /**
-         * Called when the transport closes.
-         *
-         * @api private
-         */
-      
-        Socket.prototype.onClose = function () {
-          this.open = false;
-          clearTimeout(this.heartbeatTimeoutTimer);
-        };
-      
-        /**
-         * Called when the transport first opens a connection
-         *
-         * @param text
-         */
-      
-        Socket.prototype.onPacket = function (packet) {
-          this.of(packet.endpoint).onPacket(packet);
-        };
-      
-        /**
-         * Handles an error.
-         *
-         * @api private
-         */
-      
-        Socket.prototype.onError = function (err) {
-          if (err && err.advice) {
-            if (err.advice === 'reconnect' && (this.connected || this.connecting)) {
-              this.disconnect();
-              if (this.options.reconnect) {
-                this.reconnect();
-              }
-            }
-          }
-      
-          this.publish('error', err && err.reason ? err.reason : err);
-        };
-      
-        /**
-         * Called when the transport disconnects.
-         *
-         * @api private
-         */
-      
-        Socket.prototype.onDisconnect = function (reason) {
-          var wasConnected = this.connected
-            , wasConnecting = this.connecting;
-      
-          this.connected = false;
-          this.connecting = false;
-          this.open = false;
-      
-          if (wasConnected || wasConnecting) {
-            this.transport.close();
-            this.transport.clearTimeouts();
-            if (wasConnected) {
-              this.publish('disconnect', reason);
-      
-              if ('booted' != reason && this.options.reconnect && !this.reconnecting) {
-                this.reconnect();
-              }
-            }
-          }
-        };
-      
-        /**
-         * Called upon reconnection.
-         *
-         * @api private
-         */
-      
-        Socket.prototype.reconnect = function () {
-          this.reconnecting = true;
-          this.reconnectionAttempts = 0;
-          this.reconnectionDelay = this.options['reconnection delay'];
-      
-          var self = this
-            , maxAttempts = this.options['max reconnection attempts']
-            , tryMultiple = this.options['try multiple transports']
-            , limit = this.options['reconnection limit'];
-      
-          function reset () {
-            if (self.connected) {
-              for (var i in self.namespaces) {
-                if (self.namespaces.hasOwnProperty(i) && '' !== i) {
-                    self.namespaces[i].packet({ type: 'connect' });
-                }
-              }
-              self.publish('reconnect', self.transport.name, self.reconnectionAttempts);
-            }
-      
-            clearTimeout(self.reconnectionTimer);
-      
-            self.removeListener('connect_failed', maybeReconnect);
-            self.removeListener('connect', maybeReconnect);
-      
-            self.reconnecting = false;
-      
-            delete self.reconnectionAttempts;
-            delete self.reconnectionDelay;
-            delete self.reconnectionTimer;
-            delete self.redoTransports;
-      
-            self.options['try multiple transports'] = tryMultiple;
-          };
-      
-          function maybeReconnect () {
-            if (!self.reconnecting) {
-              return;
-            }
-      
-            if (self.connected) {
-              return reset();
-            };
-      
-            if (self.connecting && self.reconnecting) {
-              return self.reconnectionTimer = setTimeout(maybeReconnect, 1000);
-            }
-      
-            if (self.reconnectionAttempts++ >= maxAttempts) {
-              if (!self.redoTransports) {
-                self.on('connect_failed', maybeReconnect);
-                self.options['try multiple transports'] = true;
-                self.transports = self.origTransports;
-                self.transport = self.getTransport();
-                self.redoTransports = true;
-                self.connect();
-              } else {
-                self.publish('reconnect_failed');
-                reset();
-              }
-            } else {
-              if (self.reconnectionDelay < limit) {
-                self.reconnectionDelay *= 2; // exponential back off
-              }
-      
-              self.connect();
-              self.publish('reconnecting', self.reconnectionDelay, self.reconnectionAttempts);
-              self.reconnectionTimer = setTimeout(maybeReconnect, self.reconnectionDelay);
-            }
-          };
-      
-          this.options['try multiple transports'] = false;
-          this.reconnectionTimer = setTimeout(maybeReconnect, this.reconnectionDelay);
-      
-          this.on('connect', maybeReconnect);
-        };
-      
-      })(
-          'undefined' != typeof io ? io : module.exports
-        , 'undefined' != typeof io ? io : module.parent.exports
-        , this
-      );
-      /**
-       * socket.io
-       * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
-       * MIT Licensed
-       */
-      
-      (function (exports, io) {
-      
-        /**
-         * Expose constructor.
-         */
-      
-        exports.SocketNamespace = SocketNamespace;
-      
-        /**
-         * Socket namespace constructor.
-         *
-         * @constructor
-         * @api public
-         */
-      
-        function SocketNamespace (socket, name) {
-          this.socket = socket;
-          this.name = name || '';
-          this.flags = {};
-          this.json = new Flag(this, 'json');
-          this.ackPackets = 0;
-          this.acks = {};
-        };
-      
-        /**
-         * Apply EventEmitter mixin.
-         */
-      
-        io.util.mixin(SocketNamespace, io.EventEmitter);
-      
-        /**
-         * Copies emit since we override it
-         *
-         * @api private
-         */
-      
-        SocketNamespace.prototype.$emit = io.EventEmitter.prototype.emit;
-      
-        /**
-         * Creates a new namespace, by proxying the request to the socket. This
-         * allows us to use the synax as we do on the server.
-         *
-         * @api public
-         */
-      
-        SocketNamespace.prototype.of = function () {
-          return this.socket.of.apply(this.socket, arguments);
-        };
-      
-        /**
-         * Sends a packet.
-         *
-         * @api private
-         */
-      
-        SocketNamespace.prototype.packet = function (packet) {
-          packet.endpoint = this.name;
-          this.socket.packet(packet);
-          this.flags = {};
-          return this;
-        };
-      
-        /**
-         * Sends a message
-         *
-         * @api public
-         */
-      
-        SocketNamespace.prototype.send = function (data, fn) {
-          var packet = {
-              type: this.flags.json ? 'json' : 'message'
-            , data: data
-          };
-      
-          if ('function' == typeof fn) {
-            packet.id = ++this.ackPackets;
-            packet.ack = true;
-            this.acks[packet.id] = fn;
-          }
-      
-          return this.packet(packet);
-        };
-      
-        /**
-         * Emits an event
-         *
-         * @api public
-         */
-        
-        SocketNamespace.prototype.emit = function (name) {
-          var args = Array.prototype.slice.call(arguments, 1)
-            , lastArg = args[args.length - 1]
-            , packet = {
-                  type: 'event'
-                , name: name
-              };
-      
-          if ('function' == typeof lastArg) {
-            packet.id = ++this.ackPackets;
-            packet.ack = 'data';
-            this.acks[packet.id] = lastArg;
-            args = args.slice(0, args.length - 1);
-          }
-      
-          packet.args = args;
-      
-          return this.packet(packet);
-        };
-      
-        /**
-         * Disconnects the namespace
-         *
-         * @api private
-         */
-      
-        SocketNamespace.prototype.disconnect = function () {
-          if (this.name === '') {
-            this.socket.disconnect();
-          } else {
-            this.packet({ type: 'disconnect' });
-            this.$emit('disconnect');
-          }
-      
-          return this;
-        };
-      
-        /**
-         * Handles a packet
-         *
-         * @api private
-         */
-      
-        SocketNamespace.prototype.onPacket = function (packet) {
-          var self = this;
-      
-          function ack () {
-            self.packet({
-                type: 'ack'
-              , args: io.util.toArray(arguments)
-              , ackId: packet.id
-            });
-          };
-      
-          switch (packet.type) {
-            case 'connect':
-              this.$emit('connect');
-              break;
-      
-            case 'disconnect':
-              if (this.name === '') {
-                this.socket.onDisconnect(packet.reason || 'booted');
-              } else {
-                this.$emit('disconnect', packet.reason);
-              }
-              break;
-      
-            case 'message':
-            case 'json':
-              var params = ['message', packet.data];
-      
-              if (packet.ack == 'data') {
-                params.push(ack);
-              } else if (packet.ack) {
-                this.packet({ type: 'ack', ackId: packet.id });
-              }
-      
-              this.$emit.apply(this, params);
-              break;
-      
-            case 'event':
-              var params = [packet.name].concat(packet.args);
-      
-              if (packet.ack == 'data')
-                params.push(ack);
-      
-              this.$emit.apply(this, params);
-              break;
-      
-            case 'ack':
-              if (this.acks[packet.ackId]) {
-                this.acks[packet.ackId].apply(this, packet.args);
-                delete this.acks[packet.ackId];
-              }
-              break;
-      
-            case 'error':
-              if (packet.advice){
-                this.socket.onError(packet);
-              } else {
-                if (packet.reason == 'unauthorized') {
-                  this.$emit('connect_failed', packet.reason);
-                } else {
-                  this.$emit('error', packet.reason);
-                }
-              }
-              break;
-          }
-        };
-      
-        /**
-         * Flag interface.
-         *
-         * @api private
-         */
-      
-        function Flag (nsp, name) {
-          this.namespace = nsp;
-          this.name = name;
-        };
-      
-        /**
-         * Send a message
-         *
-         * @api public
-         */
-      
-        Flag.prototype.send = function () {
-          this.namespace.flags[this.name] = true;
-          this.namespace.send.apply(this.namespace, arguments);
-        };
-      
-        /**
-         * Emit an event
-         *
-         * @api public
-         */
-      
-        Flag.prototype.emit = function () {
-          this.namespace.flags[this.name] = true;
-          this.namespace.emit.apply(this.namespace, arguments);
-        };
-      
-      })(
-          'undefined' != typeof io ? io : module.exports
-        , 'undefined' != typeof io ? io : module.parent.exports
-      );
-      
-      /**
-       * socket.io
-       * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
-       * MIT Licensed
-       */
-      
-      (function (exports, io, global) {
-      
-        /**
-         * Expose constructor.
-         */
-      
-        exports.websocket = WS;
-      
-        /**
-         * The WebSocket transport uses the HTML5 WebSocket API to establish an
-         * persistent connection with the Socket.IO server. This transport will also
-         * be inherited by the FlashSocket fallback as it provides a API compatible
-         * polyfill for the WebSockets.
-         *
-         * @constructor
-         * @extends {io.Transport}
-         * @api public
-         */
-      
-        function WS (socket) {
-          io.Transport.apply(this, arguments);
-        };
-      
-        /**
-         * Inherits from Transport.
-         */
-      
-        io.util.inherit(WS, io.Transport);
-      
-        /**
-         * Transport name
-         *
-         * @api public
-         */
-      
-        WS.prototype.name = 'websocket';
-      
-        /**
-         * Initializes a new `WebSocket` connection with the Socket.IO server. We attach
-         * all the appropriate listeners to handle the responses from the server.
-         *
-         * @returns {Transport}
-         * @api public
-         */
-      
-        WS.prototype.open = function () {
-          var query = io.util.query(this.socket.options.query)
-            , self = this
-            , Socket
-      
-      
-          if (!Socket) {
-            Socket = global.MozWebSocket || global.WebSocket;
-          }
-      
-          this.websocket = new Socket(this.prepareUrl() + query);
-      
-          this.websocket.onopen = function () {
-            self.onOpen();
-            self.socket.setBuffer(false);
-          };
-          this.websocket.onmessage = function (ev) {
-            self.onData(ev.data);
-          };
-          this.websocket.onclose = function () {
-            self.onClose();
-            self.socket.setBuffer(true);
-          };
-          this.websocket.onerror = function (e) {
-            self.onError(e);
-          };
-      
-          return this;
-        };
-      
-        /**
-         * Send a message to the Socket.IO server. The message will automatically be
-         * encoded in the correct message format.
-         *
-         * @returns {Transport}
-         * @api public
-         */
-      
-        // Do to a bug in the current IDevices browser, we need to wrap the send in a 
-        // setTimeout, when they resume from sleeping the browser will crash if 
-        // we don't allow the browser time to detect the socket has been closed
-        if (io.util.ua.iDevice) {
-          WS.prototype.send = function (data) {
-            var self = this;
-            setTimeout(function() {
-               self.websocket.send(data);
-            },0);
-            return this;
-          };
-        } else {
-          WS.prototype.send = function (data) {
-            this.websocket.send(data);
-            return this;
-          };
-        }
-      
-        /**
-         * Payload
-         *
-         * @api private
-         */
-      
-        WS.prototype.payload = function (arr) {
-          for (var i = 0, l = arr.length; i < l; i++) {
-            this.packet(arr[i]);
-          }
-          return this;
-        };
-      
-        /**
-         * Disconnect the established `WebSocket` connection.
-         *
-         * @returns {Transport}
-         * @api public
-         */
-      
-        WS.prototype.close = function () {
-          this.websocket.close();
-          return this;
-        };
-      
-        /**
-         * Handle the errors that `WebSocket` might be giving when we
-         * are attempting to connect or send messages.
-         *
-         * @param {Error} e The error.
-         * @api private
-         */
-      
-        WS.prototype.onError = function (e) {
-          this.socket.onError(e);
-        };
-      
-        /**
-         * Returns the appropriate scheme for the URI generation.
-         *
-         * @api private
-         */
-        WS.prototype.scheme = function () {
-          return this.socket.options.secure ? 'wss' : 'ws';
-        };
-      
-        /**
-         * Checks if the browser has support for native `WebSockets` and that
-         * it's not the polyfill created for the FlashSocket transport.
-         *
-         * @return {Boolean}
-         * @api public
-         */
-      
-        WS.check = function () {
-          return ('WebSocket' in global && !('__addTask' in WebSocket))
-                || 'MozWebSocket' in global;
-        };
-      
-        /**
-         * Check if the `WebSocket` transport support cross domain communications.
-         *
-         * @returns {Boolean}
-         * @api public
-         */
-      
-        WS.xdomainCheck = function () {
-          return true;
-        };
-      
-        /**
-         * Add the transport to your public io.transports array.
-         *
-         * @api private
-         */
-      
-        io.transports.push('websocket');
-      
-      })(
-          'undefined' != typeof io ? io.Transport : module.exports
-        , 'undefined' != typeof io ? io : module.parent.exports
-        , this
-      );
-      
-      /**
-       * socket.io
-       * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
-       * MIT Licensed
-       */
-      
-      (function (exports, io, global) {
-      
-        /**
-         * Expose constructor.
-         *
-         * @api public
-         */
-      
-        exports.XHR = XHR;
-      
-        /**
-         * XHR constructor
-         *
-         * @costructor
-         * @api public
-         */
-      
-        function XHR (socket) {
-          if (!socket) return;
-      
-          io.Transport.apply(this, arguments);
-          this.sendBuffer = [];
-        };
-      
-        /**
-         * Inherits from Transport.
-         */
-      
-        io.util.inherit(XHR, io.Transport);
-      
-        /**
-         * Establish a connection
-         *
-         * @returns {Transport}
-         * @api public
-         */
-      
-        XHR.prototype.open = function () {
-          this.socket.setBuffer(false);
-          this.onOpen();
-          this.get();
-      
-          // we need to make sure the request succeeds since we have no indication
-          // whether the request opened or not until it succeeded.
-          this.setCloseTimeout();
-      
-          return this;
-        };
-      
-        /**
-         * Check if we need to send data to the Socket.IO server, if we have data in our
-         * buffer we encode it and forward it to the `post` method.
-         *
-         * @api private
-         */
-      
-        XHR.prototype.payload = function (payload) {
-          var msgs = [];
-      
-          for (var i = 0, l = payload.length; i < l; i++) {
-            msgs.push(io.parser.encodePacket(payload[i]));
-          }
-      
-          this.send(io.parser.encodePayload(msgs));
-        };
-      
-        /**
-         * Send data to the Socket.IO server.
-         *
-         * @param data The message
-         * @returns {Transport}
-         * @api public
-         */
-      
-        XHR.prototype.send = function (data) {
-          this.post(data);
-          return this;
-        };
-      
-        /**
-         * Posts a encoded message to the Socket.IO server.
-         *
-         * @param {String} data A encoded message.
-         * @api private
-         */
-      
-        function empty () { };
-      
-        XHR.prototype.post = function (data) {
-          var self = this;
-          this.socket.setBuffer(true);
-      
-          function stateChange () {
-            if (this.readyState == 4) {
-              this.onreadystatechange = empty;
-              self.posting = false;
-      
-              if (this.status == 200){
-                self.socket.setBuffer(false);
-              } else {
-                self.onClose();
-              }
-            }
-          }
-      
-          function onload () {
-            this.onload = empty;
-            self.socket.setBuffer(false);
-          };
-      
-          this.sendXHR = this.request('POST');
-      
-          if (global.XDomainRequest && this.sendXHR instanceof XDomainRequest) {
-            this.sendXHR.onload = this.sendXHR.onerror = onload;
-          } else {
-            this.sendXHR.onreadystatechange = stateChange;
-          }
-      
-          this.sendXHR.send(data);
-        };
-      
-        /**
-         * Disconnects the established `XHR` connection.
-         *
-         * @returns {Transport}
-         * @api public
-         */
-      
-        XHR.prototype.close = function () {
-          this.onClose();
-          return this;
-        };
-      
-        /**
-         * Generates a configured XHR request
-         *
-         * @param {String} url The url that needs to be requested.
-         * @param {String} method The method the request should use.
-         * @returns {XMLHttpRequest}
-         * @api private
-         */
-      
-        XHR.prototype.request = function (method) {
-          var req = io.util.request(this.socket.isXDomain())
-            , query = io.util.query(this.socket.options.query, 't=' + +new Date);
-      
-          req.open(method || 'GET', this.prepareUrl() + query, true);
-      
-          if (method == 'POST') {
-            try {
-              if (req.setRequestHeader) {
-                req.setRequestHeader('Content-type', 'text/plain;charset=UTF-8');
-              } else {
-                // XDomainRequest
-                req.contentType = 'text/plain';
-              }
-            } catch (e) {}
-          }
-      
-          return req;
-        };
-      
-        /**
-         * Returns the scheme to use for the transport URLs.
-         *
-         * @api private
-         */
-      
-        XHR.prototype.scheme = function () {
-          return this.socket.options.secure ? 'https' : 'http';
-        };
-      
-        /**
-         * Check if the XHR transports are supported
-         *
-         * @param {Boolean} xdomain Check if we support cross domain requests.
-         * @returns {Boolean}
-         * @api public
-         */
-      
-        XHR.check = function (socket, xdomain) {
-          try {
-            var request = io.util.request(xdomain),
-                usesXDomReq = (global.XDomainRequest && request instanceof XDomainRequest),
-                socketProtocol = (socket && socket.options && socket.options.secure ? 'https:' : 'http:'),
-                isXProtocol = (global.location && socketProtocol != global.location.protocol);
-            if (request && !(usesXDomReq && isXProtocol)) {
-              return true;
-            }
-          } catch(e) {}
-      
-          return false;
-        };
-      
-        /**
-         * Check if the XHR transport supports cross domain requests.
-         *
-         * @returns {Boolean}
-         * @api public
-         */
-      
-        XHR.xdomainCheck = function (socket) {
-          return XHR.check(socket, true);
-        };
-      
-      })(
-          'undefined' != typeof io ? io.Transport : module.exports
-        , 'undefined' != typeof io ? io : module.parent.exports
-        , this
-      );
-      /**
-       * socket.io
-       * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
-       * MIT Licensed
-       */
-      
-      (function (exports, io) {
-      
-        /**
-         * Expose constructor.
-         */
-      
-        exports.htmlfile = HTMLFile;
-      
-        /**
-         * The HTMLFile transport creates a `forever iframe` based transport
-         * for Internet Explorer. Regular forever iframe implementations will 
-         * continuously trigger the browsers buzy indicators. If the forever iframe
-         * is created inside a `htmlfile` these indicators will not be trigged.
-         *
-         * @constructor
-         * @extends {io.Transport.XHR}
-         * @api public
-         */
-      
-        function HTMLFile (socket) {
-          io.Transport.XHR.apply(this, arguments);
-        };
-      
-        /**
-         * Inherits from XHR transport.
-         */
-      
-        io.util.inherit(HTMLFile, io.Transport.XHR);
-      
-        /**
-         * Transport name
-         *
-         * @api public
-         */
-      
-        HTMLFile.prototype.name = 'htmlfile';
-      
-        /**
-         * Creates a new Ac...eX `htmlfile` with a forever loading iframe
-         * that can be used to listen to messages. Inside the generated
-         * `htmlfile` a reference will be made to the HTMLFile transport.
-         *
-         * @api private
-         */
-      
-        HTMLFile.prototype.get = function () {
-          this.doc = new window[(['Active'].concat('Object').join('X'))]('htmlfile');
-          this.doc.open();
-          this.doc.write('<html></html>');
-          this.doc.close();
-          this.doc.parentWindow.s = this;
-      
-          var iframeC = this.doc.createElement('div');
-          iframeC.className = 'socketio';
-      
-          this.doc.body.appendChild(iframeC);
-          this.iframe = this.doc.createElement('iframe');
-      
-          iframeC.appendChild(this.iframe);
-      
-          var self = this
-            , query = io.util.query(this.socket.options.query, 't='+ +new Date);
-      
-          this.iframe.src = this.prepareUrl() + query;
-      
-          io.util.on(window, 'unload', function () {
-            self.destroy();
-          });
-        };
-      
-        /**
-         * The Socket.IO server will write script tags inside the forever
-         * iframe, this function will be used as callback for the incoming
-         * information.
-         *
-         * @param {String} data The message
-         * @param {document} doc Reference to the context
-         * @api private
-         */
-      
-        HTMLFile.prototype._ = function (data, doc) {
-          // unescape all forward slashes. see GH-1251
-          data = data.replace(/\\\//g, '/');
-          this.onData(data);
-          try {
-            var script = doc.getElementsByTagName('script')[0];
-            script.parentNode.removeChild(script);
-          } catch (e) { }
-        };
-      
-        /**
-         * Destroy the established connection, iframe and `htmlfile`.
-         * And calls the `CollectGarbage` function of Internet Explorer
-         * to release the memory.
-         *
-         * @api private
-         */
-      
-        HTMLFile.prototype.destroy = function () {
-          if (this.iframe){
-            try {
-              this.iframe.src = 'about:blank';
-            } catch(e){}
-      
-            this.doc = null;
-            this.iframe.parentNode.removeChild(this.iframe);
-            this.iframe = null;
-      
-            CollectGarbage();
-          }
-        };
-      
-        /**
-         * Disconnects the established connection.
-         *
-         * @returns {Transport} Chaining.
-         * @api public
-         */
-      
-        HTMLFile.prototype.close = function () {
-          this.destroy();
-          return io.Transport.XHR.prototype.close.call(this);
-        };
-      
-        /**
-         * Checks if the browser supports this transport. The browser
-         * must have an `Ac...eXObject` implementation.
-         *
-         * @return {Boolean}
-         * @api public
-         */
-      
-        HTMLFile.check = function (socket) {
-          if (typeof window != "undefined" && (['Active'].concat('Object').join('X')) in window){
-            try {
-              var a = new window[(['Active'].concat('Object').join('X'))]('htmlfile');
-              return a && io.Transport.XHR.check(socket);
-            } catch(e){}
-          }
-          return false;
-        };
-      
-        /**
-         * Check if cross domain requests are supported.
-         *
-         * @returns {Boolean}
-         * @api public
-         */
-      
-        HTMLFile.xdomainCheck = function () {
-          // we can probably do handling for sub-domains, we should
-          // test that it's cross domain but a subdomain here
-          return false;
-        };
-      
-        /**
-         * Add the transport to your public io.transports array.
-         *
-         * @api private
-         */
-      
-        io.transports.push('htmlfile');
-      
-      })(
-          'undefined' != typeof io ? io.Transport : module.exports
-        , 'undefined' != typeof io ? io : module.parent.exports
-      );
-      
-      /**
-       * socket.io
-       * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
-       * MIT Licensed
-       */
-      
-      (function (exports, io, global) {
-      
-        /**
-         * Expose constructor.
-         */
-      
-        exports['xhr-polling'] = XHRPolling;
-      
-        /**
-         * The XHR-polling transport uses long polling XHR requests to create a
-         * "persistent" connection with the server.
-         *
-         * @constructor
-         * @api public
-         */
-      
-        function XHRPolling () {
-          io.Transport.XHR.apply(this, arguments);
-        };
-      
-        /**
-         * Inherits from XHR transport.
-         */
-      
-        io.util.inherit(XHRPolling, io.Transport.XHR);
-      
-        /**
-         * Merge the properties from XHR transport
-         */
-      
-        io.util.merge(XHRPolling, io.Transport.XHR);
-      
-        /**
-         * Transport name
-         *
-         * @api public
-         */
-      
-        XHRPolling.prototype.name = 'xhr-polling';
-      
-        /**
-         * Indicates whether heartbeats is enabled for this transport
-         *
-         * @api private
-         */
-      
-        XHRPolling.prototype.heartbeats = function () {
-          return false;
-        };
-      
-        /** 
-         * Establish a connection, for iPhone and Android this will be done once the page
-         * is loaded.
-         *
-         * @returns {Transport} Chaining.
-         * @api public
-         */
-      
-        XHRPolling.prototype.open = function () {
-          var self = this;
-      
-          io.Transport.XHR.prototype.open.call(self);
-          return false;
-        };
-      
-        /**
-         * Starts a XHR request to wait for incoming messages.
-         *
-         * @api private
-         */
-      
-        function empty () {};
-      
-        XHRPolling.prototype.get = function () {
-          if (!this.isOpen) return;
-      
-          var self = this;
-      
-          function stateChange () {
-            if (this.readyState == 4) {
-              this.onreadystatechange = empty;
-      
-              if (this.status == 200) {
-                self.onData(this.responseText);
-                self.get();
-              } else {
-                self.onClose();
-              }
-            }
-          };
-      
-          function onload () {
-            this.onload = empty;
-            this.onerror = empty;
-            self.retryCounter = 1;
-            self.onData(this.responseText);
-            self.get();
-          };
-      
-          function onerror () {
-            self.retryCounter ++;
-            if(!self.retryCounter || self.retryCounter > 3) {
-              self.onClose();  
-            } else {
-              self.get();
-            }
-          };
-      
-          this.xhr = this.request();
-      
-          if (global.XDomainRequest && this.xhr instanceof XDomainRequest) {
-            this.xhr.onload = onload;
-            this.xhr.onerror = onerror;
-          } else {
-            this.xhr.onreadystatechange = stateChange;
-          }
-      
-          this.xhr.send(null);
-        };
-      
-        /**
-         * Handle the unclean close behavior.
-         *
-         * @api private
-         */
-      
-        XHRPolling.prototype.onClose = function () {
-          io.Transport.XHR.prototype.onClose.call(this);
-      
-          if (this.xhr) {
-            this.xhr.onreadystatechange = this.xhr.onload = this.xhr.onerror = empty;
-            try {
-              this.xhr.abort();
-            } catch(e){}
-            this.xhr = null;
-          }
-        };
-      
-        /**
-         * Webkit based browsers show a infinit spinner when you start a XHR request
-         * before the browsers onload event is called so we need to defer opening of
-         * the transport until the onload event is called. Wrapping the cb in our
-         * defer method solve this.
-         *
-         * @param {Socket} socket The socket instance that needs a transport
-         * @param {Function} fn The callback
-         * @api private
-         */
-      
-        XHRPolling.prototype.ready = function (socket, fn) {
-          var self = this;
-      
-          io.util.defer(function () {
-            fn.call(self);
-          });
-        };
-      
-        /**
-         * Add the transport to your public io.transports array.
-         *
-         * @api private
-         */
-      
-        io.transports.push('xhr-polling');
-      
-      })(
-          'undefined' != typeof io ? io.Transport : module.exports
-        , 'undefined' != typeof io ? io : module.parent.exports
-        , this
-      );
-      
-      /**
-       * socket.io
-       * Copyright(c) 2011 LearnBoost <dev@learnboost.com>
-       * MIT Licensed
-       */
-      
-      (function (exports, io, global) {
-        /**
-         * There is a way to hide the loading indicator in Firefox. If you create and
-         * remove a iframe it will stop showing the current loading indicator.
-         * Unfortunately we can't feature detect that and UA sniffing is evil.
-         *
-         * @api private
-         */
-      
-        var indicator = global.document && "MozAppearance" in
-          global.document.documentElement.style;
-      
-        /**
-         * Expose constructor.
-         */
-      
-        exports['jsonp-polling'] = JSONPPolling;
-      
-        /**
-         * The JSONP transport creates an persistent connection by dynamically
-         * inserting a script tag in the page. This script tag will receive the
-         * information of the Socket.IO server. When new information is received
-         * it creates a new script tag for the new data stream.
-         *
-         * @constructor
-         * @extends {io.Transport.xhr-polling}
-         * @api public
-         */
-      
-        function JSONPPolling (socket) {
-          io.Transport['xhr-polling'].apply(this, arguments);
-      
-          this.index = io.j.length;
-      
-          var self = this;
-      
-          io.j.push(function (msg) {
-            self._(msg);
-          });
-        };
-      
-        /**
-         * Inherits from XHR polling transport.
-         */
-      
-        io.util.inherit(JSONPPolling, io.Transport['xhr-polling']);
-      
-        /**
-         * Transport name
-         *
-         * @api public
-         */
-      
-        JSONPPolling.prototype.name = 'jsonp-polling';
-      
-        /**
-         * Posts a encoded message to the Socket.IO server using an iframe.
-         * The iframe is used because script tags can create POST based requests.
-         * The iframe is positioned outside of the view so the user does not
-         * notice it's existence.
-         *
-         * @param {String} data A encoded message.
-         * @api private
-         */
-      
-        JSONPPolling.prototype.post = function (data) {
-          var self = this
-            , query = io.util.query(
-                   this.socket.options.query
-                , 't='+ (+new Date) + '&i=' + this.index
-              );
-      
-          if (!this.form) {
-            var form = document.createElement('form')
-              , area = document.createElement('textarea')
-              , id = this.iframeId = 'socketio_iframe_' + this.index
-              , iframe;
-      
-            form.className = 'socketio';
-            form.style.position = 'absolute';
-            form.style.top = '0px';
-            form.style.left = '0px';
-            form.style.display = 'none';
-            form.target = id;
-            form.method = 'POST';
-            form.setAttribute('accept-charset', 'utf-8');
-            area.name = 'd';
-            form.appendChild(area);
-            document.body.appendChild(form);
-      
-            this.form = form;
-            this.area = area;
-          }
-      
-          this.form.action = this.prepareUrl() + query;
-      
-          function complete () {
-            initIframe();
-            self.socket.setBuffer(false);
-          };
-      
-          function initIframe () {
-            if (self.iframe) {
-              self.form.removeChild(self.iframe);
-            }
-      
-            try {
-              // ie6 dynamic iframes with target="" support (thanks Chris Lambacher)
-              iframe = document.createElement('<iframe name="'+ self.iframeId +'">');
-            } catch (e) {
-              iframe = document.createElement('iframe');
-              iframe.name = self.iframeId;
-            }
-      
-            iframe.id = self.iframeId;
-      
-            self.form.appendChild(iframe);
-            self.iframe = iframe;
-          };
-      
-          initIframe();
-      
-          // we temporarily stringify until we figure out how to prevent
-          // browsers from turning `\n` into `\r\n` in form inputs
-          this.area.value = io.JSON.stringify(data);
-      
-          try {
-            this.form.submit();
-          } catch(e) {}
-      
-          if (this.iframe.attachEvent) {
-            iframe.onreadystatechange = function () {
-              if (self.iframe.readyState == 'complete') {
-                complete();
-              }
-            };
-          } else {
-            this.iframe.onload = complete;
-          }
-      
-          this.socket.setBuffer(true);
-        };
-      
-        /**
-         * Creates a new JSONP poll that can be used to listen
-         * for messages from the Socket.IO server.
-         *
-         * @api private
-         */
-      
-        JSONPPolling.prototype.get = function () {
-          var self = this
-            , script = document.createElement('script')
-            , query = io.util.query(
-                   this.socket.options.query
-                , 't='+ (+new Date) + '&i=' + this.index
-              );
-      
-          if (this.script) {
-            this.script.parentNode.removeChild(this.script);
-            this.script = null;
-          }
-      
-          script.async = true;
-          script.src = this.prepareUrl() + query;
-          script.onerror = function () {
-            self.onClose();
-          };
-      
-          var insertAt = document.getElementsByTagName('script')[0];
-          insertAt.parentNode.insertBefore(script, insertAt);
-          this.script = script;
-      
-          if (indicator) {
-            setTimeout(function () {
-              var iframe = document.createElement('iframe');
-              document.body.appendChild(iframe);
-              document.body.removeChild(iframe);
-            }, 100);
-          }
-        };
-      
-        /**
-         * Callback function for the incoming message stream from the Socket.IO server.
-         *
-         * @param {String} data The message
-         * @api private
-         */
-      
-        JSONPPolling.prototype._ = function (msg) {
-          this.onData(msg);
-          if (this.isOpen) {
-            this.get();
-          }
-          return this;
-        };
-      
-        /**
-         * The indicator hack only works after onload
-         *
-         * @param {Socket} socket The socket instance that needs a transport
-         * @param {Function} fn The callback
-         * @api private
-         */
-      
-        JSONPPolling.prototype.ready = function (socket, fn) {
-          var self = this;
-          if (!indicator) return fn.call(this);
-      
-          io.util.load(function () {
-            fn.call(self);
-          });
-        };
-      
-        /**
-         * Checks if browser supports this transport.
-         *
-         * @return {Boolean}
-         * @api public
-         */
-      
-        JSONPPolling.check = function () {
-          return 'document' in global;
-        };
-      
-        /**
-         * Check if cross domain requests are supported
-         *
-         * @returns {Boolean}
-         * @api public
-         */
-      
-        JSONPPolling.xdomainCheck = function () {
-          return true;
-        };
-      
-        /**
-         * Add the transport to your public io.transports array.
-         *
-         * @api private
-         */
-      
-        io.transports.push('jsonp-polling');
-      
-      })(
-          'undefined' != typeof io ? io.Transport : module.exports
-        , 'undefined' != typeof io ? io : module.parent.exports
-        , this
-      );
-      
-      if (typeof define === "function" && define.amd) {
-        define([], function () { return io; });
-      }
-      })();;
-      }
-    ], [
-      {
-        /*
           /Volumes/Home/Projects/Groovy/app/source/js/player.coffee
         */
 
         'jqueryify': 13,
         'base': 2,
-        './track': 19,
-        './settings': 16
+        './track': 21,
+        './settings': 19
       }, function(require, module, exports) {
         var $, Base, Player, Track, settings;
         $ = require('jqueryify');
@@ -15309,9 +15330,8 @@
             'click .play-pause': 'toggle'
           };
 
-          Player.prototype.elements = {
-            '.track': 'track',
-            '.now-playing': 'nowPlaying'
+          Player.prototype.ui = {
+            track: '.track'
           };
 
           Player.prototype.audioEvents = {
@@ -15342,8 +15362,8 @@
               controls: true
             });
             this.context = this.audio.get(0);
-            track = this.track = new Track({
-              el: this.track
+            track = this.ui.track = new Track({
+              el: this.ui.track
             });
             _ref = this.audioEvents;
             for (event in _ref) {
@@ -15377,14 +15397,14 @@
             var percent;
             if (this.context.buffered.length > 0) {
               percent = this._percent(this.context.buffered.end(0));
-              return this.track.setBuffer(percent);
+              return this.ui.track.setBuffer(percent);
             }
           };
 
           Player.prototype.showCurrentProgress = function() {
             var percent;
             percent = this._percent(this.context.currentTime);
-            return this.track.setPlaying(percent);
+            return this.ui.track.setPlaying(percent);
           };
 
           Player.prototype.setVolume = function(volume) {
@@ -15395,7 +15415,6 @@
             var url;
             this.trigger('change', song);
             url = "http://" + settings.host + ":" + settings.port + "/song/" + song.SongID + ".mp3?t=" + (Date.now());
-            console.log('loading', url);
             return this.setSource(url);
           };
 
@@ -15429,9 +15448,9 @@
         Track = (function(_super) {
           __extends(Track, _super);
 
-          Track.prototype.elements = {
-            '.playing': 'playing',
-            '.buffer': 'buffer'
+          Track.prototype.ui = {
+            playing: '.playing',
+            buffer: '.buffer'
           };
 
           function Track() {
@@ -15439,11 +15458,11 @@
           }
 
           Track.prototype.setPlaying = function(percent) {
-            return this.playing.css('width', percent + '%');
+            return this.ui.playing.css('width', percent + '%');
           };
 
           Track.prototype.setBuffer = function(percent) {
-            return this.buffer.css('width', percent + '%');
+            return this.ui.buffer.css('width', percent + '%');
           };
 
           return Track;
@@ -15464,19 +15483,22 @@
         Search = (function(_super) {
           __extends(Search, _super);
 
-          Search.prototype.elements = {
-            '.search input': 'input',
-            '.dropdown': 'dropdown',
-            '.dropdown button': 'chosenType'
+          Search.prototype.ui = {
+            input: '.search input',
+            dropdown: '.dropdown',
+            type: '.dropdown button'
           };
 
           Search.prototype.events = {
             'keydown .search': 'open',
+            'click .dropdown button': 'openMenu',
             'click .dropdown ul li': 'chooseItem'
           };
 
           function Search() {
             this.chooseItem = __bind(this.chooseItem, this);
+            this.hideMenu = __bind(this.hideMenu, this);
+            this.openMenu = __bind(this.openMenu, this);
             this.play = __bind(this.play, this);
             this.open = __bind(this.open, this);
             Search.__super__.constructor.apply(this, arguments);
@@ -15492,12 +15514,20 @@
 
           Search.prototype.play = function() {
             var query;
-            query = this.input.val();
-            if (!isNaN(parseInt(query))) {
+            query = this.ui.input.val();
+            if (this.type === 'Songs' && !isNaN(parseInt(query))) {
               return this.trigger('playlist', query);
             } else {
               return this.trigger('search', query, this.type);
             }
+          };
+
+          Search.prototype.openMenu = function() {
+            return this.ui.dropdown.addClass('show');
+          };
+
+          Search.prototype.hideMenu = function() {
+            return this.ui.dropdown.removeClass('show');
           };
 
           Search.prototype.chooseItem = function(event) {
@@ -15518,12 +15548,14 @@
                   return 'User';
                 case 5:
                   return 'Broadcast';
+                case 6:
+                  return 'Best Of';
               }
             })();
-            this.chosenType.text(name);
-            this.dropdown.find('.active').removeClass('active');
+            this.ui.type.text(name);
+            this.ui.dropdown.find('.active').removeClass('active');
             element.toggleClass('active');
-            return console.log('chosing type', this.type);
+            return this.hideMenu();
           };
 
           return Search;
@@ -15544,9 +15576,9 @@
         Bar = (function(_super) {
           __extends(Bar, _super);
 
-          Bar.prototype.elements = {
-            '.now-playing .artist': 'nowPlayingArtist',
-            '.now-playing .song': 'nowPlayingSong'
+          Bar.prototype.ui = {
+            artist: '.now-playing .artist',
+            song: '.now-playing .song'
           };
 
           function Bar() {
@@ -15554,8 +15586,8 @@
           }
 
           Bar.prototype.setSong = function(song) {
-            this.nowPlayingArtist.text(song.ArtistName);
-            return this.nowPlayingSong.text(song.SongName);
+            this.ui.artist.text(song.ArtistName);
+            return this.ui.song.text(song.SongName);
           };
 
           return Bar;

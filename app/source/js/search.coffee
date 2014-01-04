@@ -3,13 +3,14 @@ Base = require 'base'
 
 class Search extends Base.View
 
-  elements:
-    '.search input': 'input'
-    '.dropdown': 'dropdown'
-    '.dropdown button': 'chosenType'
+  ui:
+    input: '.search input'
+    dropdown: '.dropdown'
+    type: '.dropdown button'
 
   events:
     'keydown .search': 'open'
+    'click .dropdown button': 'openMenu'
     'click .dropdown ul li': 'chooseItem'
 
   constructor: ->
@@ -21,11 +22,17 @@ class Search extends Base.View
     @play()
 
   play: =>
-    query = @input.val()
-    if not isNaN parseInt(query)
+    query = @ui.input.val()
+    if @type is 'Songs' and not isNaN parseInt(query)
       @trigger 'playlist', query
     else
       @trigger 'search', query, @type
+
+  openMenu: =>
+    @ui.dropdown.addClass 'show'
+
+  hideMenu: =>
+    @ui.dropdown.removeClass 'show'
 
   chooseItem: (event) =>
     element = $(event.target)
@@ -37,9 +44,10 @@ class Search extends Base.View
       when 3 then 'Albums'
       when 4 then 'User'
       when 5 then 'Broadcast'
-    @chosenType.text(name)
-    @dropdown.find('.active').removeClass('active')
+      when 6 then 'Best Of'
+    @ui.type.text(name)
+    @ui.dropdown.find('.active').removeClass('active')
     element.toggleClass('active')
-    console.log 'chosing type', @type
+    @hideMenu()
 
 module.exports = Search

@@ -1,7 +1,9 @@
-
 Song = require './models/song'
 request = require 'request'
 Promise = require 'when'
+
+# Plugins
+bestOf = require './plugins/bestof'
 
 class Methods
 
@@ -10,6 +12,8 @@ class Methods
   ###
   constructor: (@core) ->
 
+    # Add plugins
+    bestOf(this)
 
   # Get a list of the top broadcasts
   getTopBroadcasts: =>
@@ -32,9 +36,10 @@ class Methods
   ###*
    * Returns the results of a search from the result of calling Grooveshark's
    * method getSearchResultsEx
-   * @param {string} query - Words to search
-   * @param {string} type - The type of result you want (Songs, Artists, Albums, Playlists, Users, Events...)
-   * @return {object} Json object will all info of the response
+   * - query (string) : Words to search
+   * - type (string) : The type of result you want (Songs, Artists, Albums,
+   *   Playlists, Users, Events...)
+   * > (object) Json object will all info of the response
   ###
   getSearchResults: (query, type) =>
 
@@ -97,20 +102,8 @@ class Methods
   ###*
    * Returns the songs of the playlist given its ID
    * @param {string} listID - ID of the playlist
-   * @param {int} offset - Displacement of the songs (Starting song)
-   * @param {boolean} isVerified - Songs verified or not
    * @return {object} Contains playlist song list
   ###
-  getPlaylistSongs: (listID, offset=0, isVerified=false) =>
-
-    pattern = '!.result.Songs.*'
-
-    parameters =
-      offset: offset
-      playlistID: listID
-      isVerified: isVerified
-
-    @core.callMethod(parameters, 'playlistGetSongs', pattern)
 
   getPlaylistByID: (playlistID) =>
 
@@ -153,7 +146,8 @@ class Methods
   ###*
    * Get the users favorites
    * @param {string} userID - The users ID
-   * @param {string} ofWhat='Songs' - What you want to get the favorites for (songs, artists)
+   * @param {string} ofWhat='Songs' - What you want to get the
+   *   favorites for (songs, artists)
    * @promises {object} Array of song data
   ###
   getFavorites: (userID, ofWhat='Songs') =>
@@ -267,7 +261,8 @@ class Methods
    * Haven't tested it though.
    * @params {string} playlistName - The name of the playlist
    * @params {string} playlistAbout - The description
-   * @params {array} ids - An array of song IDs to put in the playlist. Can be empty.
+   * @params {array} ids - An array of song IDs to put in the playlist.
+   *   Can be empty.
   ###
   createPlaylist: (playlistName, playlistAbout, ids) =>
 
@@ -294,6 +289,7 @@ class Methods
 
   ###*
    * Add a song to the users library collection
+   * TODO: Replace arguments with a single object
   ###
   userAddSongsToLibrary: (songID, songName, albumID, albumName, artistID, artistName, artFilename, trackNum) =>
 
@@ -314,6 +310,7 @@ class Methods
 
   ###*
    * Add a song to the users favorites
+   * TODO: Replace arguments with a single object
   ###
   favorite: (songID, songName, albumID, albumName, artistID, artistName, artFilename, trackNum) =>
 
@@ -381,6 +378,7 @@ class Methods
     @getSongUrl(songID)
       .then (response) =>
         {ip, streamKey} = response.result
+        console.log ip, streamKey
         timer = setTimeout(=>
           console.log '> It has been 30 seconds...'
           past30seconds = true
@@ -394,8 +392,9 @@ class Methods
         stream.on 'end', =>
           clearTimeout(timer)
           if past30seconds then @markSongComplete(ip, streamKey, songID)
+      .otherwise (err) ->
+        console.log err
 
     return deferred.promise
-
 
 module.exports = Methods

@@ -50,6 +50,16 @@ header.panel {
     text-align: center;
     margin-top: $button_margin;
 
+    &.show {
+      button {
+        border-bottom-left-radius: 0;
+        border-bottom: 1px solid darken($yay_threadless, 10);
+      }
+      ul {
+        display: block;
+      }
+    }
+
     button {
       width: 100%;
       outline: none;
@@ -62,6 +72,7 @@ header.panel {
       border-radius: 4px 0 0 4px;
       @include transition(background 0.3s);
       font-weight: bold;
+      margin: 0;
 
       &:hover {
         background: lighten($yay_threadless, 10);
@@ -69,7 +80,7 @@ header.panel {
     }
 
     ul {
-      // display: none;
+      display: none;
       background: $yay_threadless;
       width: 100%;
       border-radius: 0 0 4px 4px;

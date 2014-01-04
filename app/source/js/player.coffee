@@ -10,9 +10,8 @@ class Player extends Base.View
     'click .next': 'next'
     'click .play-pause': 'toggle'
 
-  elements:
-    '.track': 'track'
-    '.now-playing': 'nowPlaying'
+  ui:
+    track: '.track'
 
   audioEvents:
     'durationchange': 'setDuration'
@@ -33,7 +32,7 @@ class Player extends Base.View
     @context = @audio.get(0)
 
     # Create track
-    track = @track = new Track(el: @track)
+    track = @ui.track = new Track(el: @ui.track)
 
     # Bind audio events
     for event, method of @audioEvents
@@ -59,11 +58,11 @@ class Player extends Base.View
   showBufferProgress: =>
     if @context.buffered.length > 0
       percent = @_percent @context.buffered.end(0)
-      @track.setBuffer(percent)
+      @ui.track.setBuffer(percent)
 
   showCurrentProgress: =>
     percent = @_percent @context.currentTime
-    @track.setPlaying(percent)
+    @ui.track.setPlaying(percent)
 
   setVolume: (volume) =>
     @context.volume = volume
@@ -71,7 +70,6 @@ class Player extends Base.View
   setSong: (song) =>
     @trigger 'change', song
     url = "http://#{ settings.host }:#{ settings.port }/song/#{ song.SongID }.mp3?t=#{ Date.now() }"
-    console.log 'loading', url
     @setSource(url)
 
   setSource: (url) =>

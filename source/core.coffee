@@ -18,8 +18,8 @@ crypto   = require 'crypto'
 uuid     = require 'uuid'
 jsonPost = require './jsonPost'
 Song     = require './models/song'
-mimic    = require './mimic'
-log      = require('./log')('core', 'green')
+mimic    = require './mimic_flash'
+log      = require('./log')('Core', 'green')
 
 
 class Core
@@ -54,15 +54,9 @@ class Core
   ###
   init: =>
 
-    mimic.init().then (session) =>
-      @client  = session.client
-      @country = session.country
-      @sessionID = session.id
-
-      log '[sessionID]', @sessionID
-      @getToken()
-        .then (token) ->
-          log 'We are online'
+    mimic.init().then (data) =>
+      @[key] = value for key, value of data
+      log 'we are online'
 
 
   ###*
@@ -84,36 +78,9 @@ class Core
     return @secretKey
 
 
-  ###*
-   * Returns the communication token needed to communicate with GrooveShark.
-   * @promises (string): Communication token
-  ###
-  getToken: =>
-
-    log '[getToken] start'
-
-    deferred = Promise.defer()
-
-    timeNow = Date.now()
-
-    # If we have a valid token, use that instead of getting a new one
-    if @token.length > 0 and (timeNow - @lastTokenTime) < @newTokenTime
-      log '[getToken] end (cache)'
-      deferred.resolve @token
-      return deferred.promise
-
-    parameters = secretKey: @getSecretKey()
-    @callMethod(parameters, 'getCommunicationToken', null, 'https').then (response) =>
-      @token = response.result
-      @lastTokenTime = timeNow
-      log '[getToken] end'
-      deferred.resolve @token
-
-    return deferred.promise
-
 
   ###*
-   * Generate the TokenKey using Grooveshark's hacked password and the method
+   * Generate the TokenKey using the client secret and the method
    * to call a service correctly.
    * @param  {string} method The service to call
    * @promises {string} The hashed token
@@ -124,20 +91,18 @@ class Core
 
     log "[#{ method }] Generating key"
 
-    @getToken().then (token) =>
+    # Generate a random token made of 6 hex digits
+    randomhex = ''
+    while randomhex.length < 6
+      pos = Math.floor Math.random() * 16
+      randomhex += '0123456789abcdef'.charAt(pos)
 
-      # Generate a random token made of 6 hex digits
-      randomhex = ''
-      while randomhex.length < 6
-        pos = Math.floor Math.random() * 16
-        randomhex += '0123456789abcdef'.charAt(pos)
+    # Hash the data using SHA1
+    pass = "#{ method }:#{ @token }:#{ @salt }:#{ randomhex }"
+    sha1 = crypto.createHash('sha1')
+    hashhex = sha1.update(pass).digest('hex')
 
-      # Hash the data using SHA1
-      pass = "#{ method }:#{ token }:#{ @client.salt }:#{ randomhex }"
-      sha1 = crypto.createHash('sha1')
-      hashhex = sha1.update(pass).digest('hex')
-
-      deferred.resolve "#{ randomhex }#{ hashhex }"
+    deferred.resolve "#{ randomhex }#{ hashhex }"
 
     return deferred.promise
 
@@ -150,10 +115,7 @@ class Core
   ###
   callMethod: (parameters, method, pattern, protocol='http') =>
 
-    log "[#{ method }] starting"
-
     deferred = Promise.defer()
-
     start = Date.now()
 
     # Assemble URL
@@ -213,7 +175,6 @@ class Core
         headers: mimic.headers
 
       request options, (err, res, body) ->
-        console.log err
         if err then return deferred.reject(err)
         try
           results = JSON.parse body
@@ -248,7 +209,7 @@ class Core
         'Cache-Control': 'no-cache'
         'Pragma': 'no-cache'
         'Accept-Encoding': 'identity;q=1, *;q=0'
-        'User-Agent': mimic.headers['User-Agent']
+        'User-Agent': mimic.agent
         'Accept': '*/*'
         'Referer': @referer
         'Accept-Language': 'en-US,en;q=0.8'

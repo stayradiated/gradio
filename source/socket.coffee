@@ -1,16 +1,17 @@
-
-SocketIo = require 'socket.io'
+sockjs = require 'sockjs'
+Jandal = require 'jandal'
 log = require('./log')('Socket', 'blue')
+
+Jandal.handle 'node'
 
 class Socket
 
   @init = (server, methods) ->
-    io = SocketIo.listen(server)
-    io.set 'log level', 1
-    io.sockets.on 'connection', (socket) ->
-      console.log 'Got new connection'
-      new Socket(socket, methods)
-      return true
+    conn = sockjs.createServer()
+    conn.installHandlers server, prefix: '/ws'
+    conn.on 'connection', (socket) ->
+      jandal = new Jandal(socket)
+      new Socket(jandal, methods)
 
   events:
     'call': 'callMethod'
@@ -26,7 +27,7 @@ class Socket
     if data.toJSON? then data = data.toJSON()
     @socket.emit event, data
 
-  callMethod: ([method, args]) =>
+  callMethod: (method, args) =>
     @methods[method].apply(@methods[method], args).then null, null, (result) =>
       @emit 'result', [method, result]
 

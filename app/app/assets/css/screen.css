@@ -102,6 +102,11 @@ header.panel {
     width: 100px;
     text-align: center;
     margin-top: 13px; }
+    header.panel .dropdown.show button {
+      border-bottom-left-radius: 0;
+      border-bottom: 1px solid #2d6ea3; }
+    header.panel .dropdown.show ul {
+      display: block; }
     header.panel .dropdown button {
       width: 100%;
       outline: none;
@@ -116,10 +121,12 @@ header.panel {
       -moz-transition: background 0.3s;
       -o-transition: background 0.3s;
       transition: background 0.3s;
-      font-weight: bold; }
+      font-weight: bold;
+      margin: 0; }
       header.panel .dropdown button:hover {
         background: #62a1d4; }
     header.panel .dropdown ul {
+      display: none;
       background: #3a89c9;
       width: 100%;
       border-radius: 0 0 4px 4px;

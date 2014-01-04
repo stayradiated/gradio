@@ -1,7 +1,10 @@
+require './lib/sockjs'
 Base     = require 'base'
 Promise  = require 'when'
+Jandal   = require 'jandal'
 settings = require './settings'
-SocketIo = require './lib/socket.io'
+
+Jandal.handle 'sockjs'
 
 METHODS = [
   'getSongInfo',
@@ -28,21 +31,21 @@ METHODS = [
   'favorite',
   'userGetPlaylists',
   'getSongUrl',
-  'getSongStream'
+  'getSongStream',
+  'getBestOf'
 ]
 
-class module.exports
+class Client
 
   constructor: ->
-    @socket = SocketIo.connect "http://#{ settings.host }:#{ settings.port }"
-    @vent = new Base.Event()
-
-    @socket.on 'result', ([method, data]) =>
-      @vent.trigger 'result', method, data
+    @conn = new SockJS "http://#{ settings.host }:#{ settings.port }/ws"
+    @socket = new Jandal @conn
 
   _callMethod: (method, args) =>
-    @socket.emit 'call', [method, args]
+    @socket.emit 'call', method, args
 
 for method in METHODS
   do (method) ->
-    module.exports::[method] = (args...) -> @_callMethod(method, args)
+    Client::[method] = (args...) -> @_callMethod(method, args)
+
+module.exports = Client

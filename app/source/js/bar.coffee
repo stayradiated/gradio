@@ -2,15 +2,15 @@ Base = require 'base'
 
 class Bar extends Base.View
 
-  elements:
-    '.now-playing .artist' : 'nowPlayingArtist'
-    '.now-playing .song'   : 'nowPlayingSong'
+  ui:
+    artist: '.now-playing .artist'
+    song: '.now-playing .song'
 
   constructor: ->
     super
 
   setSong: (song) ->
-    @nowPlayingArtist.text(song.ArtistName);
-    @nowPlayingSong.text(song.SongName)
+    @ui.artist.text(song.ArtistName)
+    @ui.song.text(song.SongName)
 
 module.exports = Bar

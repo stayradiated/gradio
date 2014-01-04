@@ -28,7 +28,7 @@ module.exports.init = ->
     ['Songs', 'SongName']
   ]
 
-  app.vent.on 'result', (method, item) ->
+  app.socket.on 'result', ([method, item]) ->
     switch method
       when 'broadcastStatusPoll'
         console.log item
@@ -59,7 +59,13 @@ module.exports.init = ->
         ranger.setPanes [
           ['Broadcasts', 'n']
         ]
-        app.getTopBroadcasts();
+        app.getTopBroadcasts()
+
+      when 'Best Of'
+        ranger.setPanes [
+          [query, 'SongName']
+        ]
+        app.getBestOf query
 
       else
         ranger.setPanes [
