@@ -628,7 +628,7 @@
       
         // Change a value
         Model.prototype.set = function (key, value, options) {
-          if (!this.defaults.hasOwnProperty(key)) {
+          if (! this.defaults.hasOwnProperty(key)) {
             this[key] = value;
             return value;
           }
@@ -675,16 +675,12 @@
         };
       
         // Convert the class instance into a simple object
-        Model.prototype.toJSON = function (strict) {
-          var key, json;
-          if (strict) {
-            for (key in this.defaults) {
-              if (this.defaults.hasOwnProperty(key)) {
-                json[key] = this._data[key];
-              }
+        Model.prototype.toJSON = function () {
+          var key, json = {};
+          for (key in this.defaults) {
+            if (this.defaults.hasOwnProperty(key)) {
+              json[key] = this._data[key];
             }
-          } else {
-            json = this._data;
           }
           return json;
         };
@@ -724,7 +720,7 @@
       
           // Set ID
           if (model.id !== null && model.id !== undefined) {
-            id = model.id;
+            id = model.id.toString();
             // Make sure we don't reuse an existing id
             number = parseInt(id.slice(1), 10);
             if (!isNaN(number) && number >= this._index) {
@@ -738,8 +734,8 @@
       
           // Add to collection
           model.collection = this;
-          index = this._models.push(model) - 1;
-          this._lookup[id] = index;
+          this._models.push(model);
+          this._lookup[id] = model;
           this.length += 1;
       
           // Bubble events
@@ -758,7 +754,10 @@
         // up to this collection
         Collection.prototype._bubble = function (model) {
       
-          var self = this;
+          var self, id;
+      
+          self = this;
+          id = model.id;
       
           this.listen(model, {
             '*': function (event, args) {
@@ -768,6 +767,11 @@
             },
             'before:destroy': function () {
               self.remove(model);
+            },
+            'change:id': function (newId) {
+              self._lookup[newId] = model;
+              delete self._lookup[id];
+              id = newId;
             }
           });
       
@@ -786,43 +790,29 @@
         };
       
         // Reorder the collection
-        Collection.prototype.move = function (model, pos, noindex) {
+        Collection.prototype.move = function (model, pos) {
           var index = this.indexOf(model);
           this._models.splice(index, 1);
           this._models.splice(pos, 0, model);
-      
-          if (! noindex) {
-            this.reindex();
-          }
-      
           this.trigger('change:order');
           this.trigger('change');
-        };
-      
-      
-        // Regenerate the lookup table
-        // Useful if you are moving lots of items around
-        Collection.prototype.reindex = function () {
-          var i, len;
-          len = this._models.length;
-          this._lookup = [];
-          for (i = 0; i < len; i++) {
-            this._lookup[this._models[i].id] = i;
-          }
         };
       
         // Append or replace the data in the collection
         // Doesn't trigger any events when updating the array apart from 'refresh'
         Collection.prototype.refresh = function (data, replace) {
           var i, len;
-          if (replace) {
-            this._models = [];
-            this._lookup = {};
-          }
+          if (replace) { this.deleteAll(); }
           for (i = 0, len = data.length; i < len; i += 1) {
             this.create(data[i], { silent: true });
           }
           return this.trigger('refresh');
+        };
+      
+        Collection.prototype.deleteAll = function () {
+          this._models = [];
+          this._lookup = {};
+          this.length = 0;
         };
       
         // Get a range from the collection
@@ -885,8 +875,7 @@
       
         // Return the record by the id
         Collection.prototype.get = function (id) {
-          var index = this._lookup[id];
-          return this.at(index);
+          return this._lookup[id];
         };
       
         // Return a specified record in the collection
@@ -1667,7 +1656,7 @@
       
         // Change a value
         Model.prototype.set = function (key, value, options) {
-          if (!this.defaults.hasOwnProperty(key)) {
+          if (! this.defaults.hasOwnProperty(key)) {
             this[key] = value;
             return value;
           }
@@ -1714,16 +1703,12 @@
         };
       
         // Convert the class instance into a simple object
-        Model.prototype.toJSON = function (strict) {
-          var key, json;
-          if (strict) {
-            for (key in this.defaults) {
-              if (this.defaults.hasOwnProperty(key)) {
-                json[key] = this._data[key];
-              }
+        Model.prototype.toJSON = function () {
+          var key, json = {};
+          for (key in this.defaults) {
+            if (this.defaults.hasOwnProperty(key)) {
+              json[key] = this._data[key];
             }
-          } else {
-            json = this._data;
           }
           return json;
         };
@@ -1763,7 +1748,7 @@
       
           // Set ID
           if (model.id !== null && model.id !== undefined) {
-            id = model.id;
+            id = model.id.toString();
             // Make sure we don't reuse an existing id
             number = parseInt(id.slice(1), 10);
             if (!isNaN(number) && number >= this._index) {
@@ -1777,8 +1762,8 @@
       
           // Add to collection
           model.collection = this;
-          index = this._models.push(model) - 1;
-          this._lookup[id] = index;
+          this._models.push(model);
+          this._lookup[id] = model;
           this.length += 1;
       
           // Bubble events
@@ -1797,7 +1782,10 @@
         // up to this collection
         Collection.prototype._bubble = function (model) {
       
-          var self = this;
+          var self, id;
+      
+          self = this;
+          id = model.id;
       
           this.listen(model, {
             '*': function (event, args) {
@@ -1807,6 +1795,11 @@
             },
             'before:destroy': function () {
               self.remove(model);
+            },
+            'change:id': function (newId) {
+              self._lookup[newId] = model;
+              delete self._lookup[id];
+              id = newId;
             }
           });
       
@@ -1825,43 +1818,29 @@
         };
       
         // Reorder the collection
-        Collection.prototype.move = function (model, pos, noindex) {
+        Collection.prototype.move = function (model, pos) {
           var index = this.indexOf(model);
           this._models.splice(index, 1);
           this._models.splice(pos, 0, model);
-      
-          if (! noindex) {
-            this.reindex();
-          }
-      
           this.trigger('change:order');
           this.trigger('change');
-        };
-      
-      
-        // Regenerate the lookup table
-        // Useful if you are moving lots of items around
-        Collection.prototype.reindex = function () {
-          var i, len;
-          len = this._models.length;
-          this._lookup = [];
-          for (i = 0; i < len; i++) {
-            this._lookup[this._models[i].id] = i;
-          }
         };
       
         // Append or replace the data in the collection
         // Doesn't trigger any events when updating the array apart from 'refresh'
         Collection.prototype.refresh = function (data, replace) {
           var i, len;
-          if (replace) {
-            this._models = [];
-            this._lookup = {};
-          }
+          if (replace) { this.deleteAll(); }
           for (i = 0, len = data.length; i < len; i += 1) {
             this.create(data[i], { silent: true });
           }
           return this.trigger('refresh');
+        };
+      
+        Collection.prototype.deleteAll = function () {
+          this._models = [];
+          this._lookup = {};
+          this.length = 0;
         };
       
         // Get a range from the collection
@@ -1924,8 +1903,7 @@
       
         // Return the record by the id
         Collection.prototype.get = function (id) {
-          var index = this._lookup[id];
-          return this.at(index);
+          return this._lookup[id];
         };
       
         // Return a specified record in the collection
@@ -15312,7 +15290,7 @@
           }
 
           Settings.prototype.defaults = {
-            'port': 8080,
+            'port': 7070,
             'host': '192.168.0.100'
           };
 

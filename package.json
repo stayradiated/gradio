@@ -13,7 +13,8 @@
     "oboe": "~1.2.0",
     "jandal": "0.0.3",
     "sockjs": "~0.3.8",
-    "kew": "~0.3.0"
+    "kew": "~0.3.0",
+    "coffee-script": "~1.7.0"
   },
   "author": "George Czabania",
   "license": "BSD"

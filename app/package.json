@@ -4,8 +4,10 @@
   "description" : "Web app for the Groovy lib",
   "devDependencies": {
     "coffee-scrunch" : "*",
-    "jqueryify"      : "*",
-    "base"           : "git://github.com/stayradiated/Base.git#master",
-    "ranger"         : "git://github.com/stayradiated/Ranger.git#master"
+    "jqueryify"      : "*"
+  },
+  "dependencies": {
+    "base"           : "git://github.com/stayradiated/base.git#master",
+    "ranger"         : "git://github.com/stayradiated/ranger.git#master"
   }
 }
