@@ -2,6 +2,8 @@
 
 task 'server', 'Start server', ->
 
+  require 'coffee-script/register'
+
   Core   = require './source/core'
   Server = require './source/server'
   Socket = require './source/socket'
@@ -10,8 +12,8 @@ task 'server', 'Start server', ->
   server = new Server(core)
 
   core.init()
-  server.listen(8080)
+  server.listen(7070)
   Socket.init(server.server, server.app)
 
-  exec('open http://localhost:8080')
+  exec('open http://localhost:7070')
 
