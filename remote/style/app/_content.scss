@@ -1,0 +1,61 @@
+
+.app .content {
+
+  position: absolute;
+  top: $header_height;
+  bottom: $controls_height;
+  left: 0;
+  right: 0;
+
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+
+  ul {
+    padding: 0;
+    margin: 0;
+  }
+
+  li {
+    @extend %group;
+    list-style: none;
+    line-height: 45px;
+    padding: 0 20px;
+    border-top: 1px solid $light_grey;
+
+    &:last-child {
+      border-bottom: 1px solid $light_grey;
+      &.active {
+        border-bottom-color: $dark_red;
+      }
+    }
+
+    &.active + li {
+      border-top-color: $dark_red;
+    }
+
+    &.active {
+      background: $red;
+      font-weight: bold;
+      border-top-color: $dark_red;
+
+      .name {
+        color: $white;
+      }
+
+      .time {
+        color: $white;
+      }
+    }
+
+  }
+
+  .name {
+    float: left;
+  }
+
+  .time {
+    float: right;
+    color: $mid_grey;
+  }
+
+}

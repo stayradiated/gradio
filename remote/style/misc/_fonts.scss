@@ -1,0 +1,17 @@
+
+@font-face {
+  font-family: 'Alef';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Alef Regular'), local('Alef-Regular'), url(fonts/alef_regular.woff) format('woff');
+}
+@font-face {
+  font-family: 'Alef';
+  font-style: normal;
+  font-weight: 700;
+  src: local('Alef Bold'), local('Alef-Bold'), url(fonts/alef_bold.woff) format('woff');
+}
+
+body {
+  font-family: alef, sans-serif;
+}

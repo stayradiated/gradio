@@ -1,0 +1,42 @@
+
+.app .controls {
+
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+
+  div {
+    width: 33.33%;
+    float: left;
+    height: $controls_height;
+    background-color: $light_grey;
+    background-repeat: no-repeat;
+    background-position: center center;
+
+    &:active {
+      background-color: darken($light_grey, 10);
+    }
+  }
+
+  .prev {
+    background-size: 14px 18px;
+    background-image: url("img/icon/prev.png");
+  }
+
+  .play {
+    background-size: 16px 18px;
+    background-image: url("img/icon/play.png");
+  }
+
+  .pause {
+    background-size: 10px 16px;
+    background-image: url("img/icon/pause.png");
+  }
+
+  .next {
+    background-size: 14px 18px;
+    background-image: url("img/icon/next.png");
+  }
+
+}

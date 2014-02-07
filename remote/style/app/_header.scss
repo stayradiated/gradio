@@ -1,0 +1,36 @@
+
+.app header {
+
+  background: $light_grey;
+  height: $header_height;
+
+  .back {
+    width: 70px;
+    height: $header_height;
+    position: absolute;
+    left: 0;
+    top: 0;
+
+    background-image: url("img/icon/left.png");
+    background-repeat: no-repeat;
+    background-size: 15px 22px;
+    background-position: center center;
+  }
+
+  .title {
+
+    text-align: center;
+    padding-top: 4px;
+
+    .song {
+      font-weight: bold;
+      line-height: 30px;
+    }
+
+    .artist {
+
+    }
+
+  }
+
+}

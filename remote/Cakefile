@@ -1,0 +1,65 @@
+Scrunch = require 'coffee-scrunch'
+watch   = require 'node-watch'
+uglify  = require 'uglify-js'
+server  = require 'node-static'
+http    = require 'http'
+fs      = require 'fs'
+
+# Configuration
+config =
+  port: 8000
+  public: 'app'
+  js:
+    folder: 'source/'
+    input:  'source/init.coffee'
+    output: 'app/app.js'
+    min:    'app/app.min.js'
+
+# Options
+option '-p', '--port [port]', 'Set port for cake server'
+option '-w', '--watch', 'Watch the folder for changes'
+
+compile =
+
+  watch_coffee: ->
+    watch config.js.folder, ->
+      date = new Date()
+      h = date.getHours()
+      m = date.getMinutes()
+      s = date.getSeconds()
+      console.log("#{h}:#{m}:#{s} - compiling")
+      compile.coffee()
+
+  coffee: (options={}) ->
+
+    if options.watch then compile.watch_coffee()
+
+    Scrunch(config.js)
+      .then -> console.log '... compiled'
+      .end()
+
+  minify: ->
+    js = uglify.minify(config.js.output).code
+    fs.writeFile config.js.min, js
+
+# Tasks
+task 'server', 'Start server', (options) ->
+
+  # Compile files
+  compile.coffee(options)
+
+  # Start Server
+  port = options.port or config.port
+  file= new(server.Server)(config.public)
+  server = http.createServer (req, res) ->
+    req.addListener( 'end', ->
+      file.serve(req, res)
+    ).resume()
+  server.listen(port)
+
+  console.log 'Server started on ' + port
+
+task 'build', 'Compile CoffeeScript ', (options) ->
+  compile.coffee(options)
+
+task 'minify', 'Minify application.js', compile.minify
