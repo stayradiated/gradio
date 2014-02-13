@@ -107,12 +107,13 @@ class Core
     else
       url = "#{ protocol }://#{ @methodurl }?#{ method }"
 
-    # Transform parameters and method into a JsonPost object
-    json = jsonPost(this, parameters, method)
-
     log "[#{ method }] Starting request via", protocol
 
     @getTokenKey(method).then (token) =>
+
+      # Transform parameters and method into a JsonPost object
+      json = jsonPost(this, parameters, method)
+
       json.header.token = token
       @makeRequest(url, json, pattern, deferred)
 
