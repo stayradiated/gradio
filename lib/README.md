@@ -6,7 +6,7 @@
 
 
 ```javascript
-var Gradio = require('gradio);
+var Gradio = require('gradio');
 
 client = new Gradio()
 

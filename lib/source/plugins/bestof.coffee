@@ -4,9 +4,10 @@ request = require('request')
 home = 'http://tothebestof.com/'
 regex = /songIDs\=(\d*\,)*\d*/
 
-# Attach to methods obj
-module.exports = (obj) ->
-  obj.getBestOf = (artist) ->
+BestOf = (methods, createMethod) ->
+
+  methods.getBestOf = (artist) ->
+
     deferred = Promise.defer()
 
     options =
@@ -18,3 +19,6 @@ module.exports = (obj) ->
       deferred.resolve(obj.getSongInfo(ids))
 
     return deferred.promise
+
+
+module.exports = BestOf
