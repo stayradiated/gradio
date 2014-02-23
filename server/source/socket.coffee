@@ -18,22 +18,15 @@ class Socket
 
   constructor: (@socket, @methods) ->
     for event, fn of @events
-      @on event, @[fn]
-
-  on: (event, fn) =>
-    @socket.on event, fn
-
-  emit: (event, data) =>
-    if data.toJSON? then data = data.toJSON()
-    @socket.emit event, data
+      @socket.on(event, @[fn])
 
   callMethod: (method, args) =>
-
     [partA, partB] = method.split('.')
     fn = @methods[partA]
     if partB then fn = fn[partB]
 
     fn.apply(null, args).progressed (result) =>
+      if result.toJSON? then result = result.toJSON()
       @socket.emit('result', method, result)
 
 module.exports = Socket

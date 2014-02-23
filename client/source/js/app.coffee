@@ -45,7 +45,7 @@ module.exports.init = ->
   search.on 'playlist', (id) ->
     currentBroadcast = false
     ranger.clear()
-    client.getPlaylistByID(id)
+    client.emit('call', 'playlist.read', id)
 
   search.on 'search', (query, type) ->
     currentBroadcast  = false
@@ -55,22 +55,22 @@ module.exports.init = ->
         ranger.setPanes [
           ['Songs', 'SongName']
         ]
-        client.userGetSongsInLibrary(20910233)
+        client.emit('call', 'user.library', 20910233)
 
       when 'Albums'
-        client.getAlbumSongs query
+        client.emit('call', 'songs.inAlbum', query)
 
       when 'Broadcast'
         ranger.setPanes [
           ['Broadcasts', 'n']
         ]
-        client.getTopBroadcasts()
+        client.emit('call', 'broadcast.top')
 
       when 'Best Of'
         ranger.setPanes [
           [query, 'SongName']
         ]
-        client.getBestOf query
+        client.emit('call', 'getBestOf', query)
 
       else
         ranger.setPanes [
@@ -87,7 +87,7 @@ module.exports.init = ->
       for file in files
         id = file.match(/(\d+)\.mp3/)
         if id? then songIDs.push(id[1])
-      client.getSongInfo(songIDs).then (results) ->
+      client.emit('call', 'songs.info', songIDs).then (results) ->
         ranger.load results, [
           ['Artist', 'ArtistName']
           ['Songs', 'Name']
@@ -99,11 +99,11 @@ module.exports.init = ->
   startBroadcast = (broadcast) ->
     console.log 'opening broadcast', broadcast
     currentBroadcast = broadcast.sub[6..]
-    client.broadcastStatusPoll currentBroadcast
+    client.emit('call', 'broadcast.poll', currentBroadcast)
 
   player.on 'finished', ->
     return unless currentBroadcast
-    client.broadcastStatusPoll currentBroadcast
+    client.emit('call', 'broadcast.poll', currentBroadcast)
 
 
   openItem = ->

@@ -6,7 +6,7 @@ THIRTY_SECONDS = 30  * 60 * 1000
 delay = (time, fn) -> setTimeout(fn, time)
 
 
-Download = (core, createMethod) ->
+Download = (methods, createMethod) ->
 
 
   markStreamKeyOver30Seconds = createMethod
@@ -17,7 +17,7 @@ Download = (core, createMethod) ->
       streamServerID: ip
 
   markSongAsDownloaded = createMethod
-    name: 'markSongAsDownloaded'
+    name: 'markSongDownloadedEx'
     parameters: (ip, streamKey, songId) ->
       songID: songId
       streamKey: streamKey
@@ -32,7 +32,7 @@ Download = (core, createMethod) ->
 
 
   # Make sure the namespace exists
-  core.song ?= {}
+  methods.song ?= {}
 
 
   ###
@@ -44,10 +44,10 @@ Download = (core, createMethod) ->
    * > promise > object
   ###
 
-  core.song.getUrl = createMethod
+  methods.song.getUrl = createMethod
     name: 'getStreamKeyFromSongIDEx'
     parameters: (songId) ->
-      country: core.country
+      country: methods.core.session.country
       songID: songId
       prefetch: false
       mobile: false
@@ -64,14 +64,14 @@ Download = (core, createMethod) ->
    * > promise > stream
   ###
 
-  core.song.download = (songId) ->
+  methods.song.download = (songId) ->
 
     ip = null
     streamKey = null
     timer = null
     past30seconds = false
 
-    core.song.getUrl(songId)
+    methods.song.getUrl(songId)
     .then (response) ->
 
       {ip, streamKey} = response.result
@@ -84,7 +84,7 @@ Download = (core, createMethod) ->
         markStreamKeyOver30Seconds(ip, streamKey, songId)
 
       markSongAsDownloaded(ip, streamKey, songId)
-      core.getSongStream(ip, streamKey)
+      methods.core.getSongStream(ip, streamKey)
 
     .then (stream) ->
 
