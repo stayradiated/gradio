@@ -1,32 +1,19 @@
-# Groovy
+# Gradio
 
-## Browser
+> A grooveshark library, server and client
 
-Install NPM dependencies
+## Gradio Library
 
-    npm install
-    
-Then compile the client side code
+Talks to the grooveshark internal api.
 
-    cd ~/Projects/Groovy/app
-    cake build
-    
-Then run the server
+## Gradio Server
 
-    cd ~/Projects/Groovy
-    cake server
-    
-This will open a browser window with the client loaded
+A websocket server for the client and remote.
 
-## Node-Webkit
+## Gradio Client 
 
-For this to work, you need to patch Node-Webkit with ffmpeg. So follow these [Node-Webkit Instructions](https://github.com/rogerwang/node-webkit/wiki/Support-mp3-and-h264-in-video-and-audio-tag).
+A web interface for playing music.
 
-Then install the dependencies using NPM
+## Gradio Remote
 
-    cd groovy
-    npm install .
-
-You should now be able to run the app
-
-    ~/Applications/node-webkit.app/Contents/MacOS/node-webkit .
+A web app for smartphones to control the client.

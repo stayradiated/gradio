@@ -10,10 +10,10 @@
   "author": "George Czabania",
   "license": "ISC",
   "dependencies": {
-    "jquery": "~2.1.0",
+    "jquery": "2.1.x",
     "base": "git://github.com/stayradiated/base.git#master",
-    "infinity": "0.0.4",
-    "fastclick": "~0.6.11"
+    "fastclick": "0.6.x",
+    "jandal": "0.0.x"
   },
   "devDependencies": {
     "coffee-scrunch": "0.2.x",

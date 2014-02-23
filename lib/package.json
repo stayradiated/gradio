@@ -1,0 +1,25 @@
+{
+  "name": "gradio",
+  "version": "0.1.0",
+  "description": "An unofficial grooveshark library",
+  "main": "index.js",
+  "author": "George Czabania",
+  "license": "MIT",
+  "scripts": {
+    "test": "make test"
+  },
+  "dependencies": {
+    "bluebird": "1.0.x",
+    "coffee-script": "1.7.x",
+    "jandal": "0.0.x",
+    "log_": "0.0.x",
+    "oboe": "1.12.x",
+    "request": "2.34.x",
+    "sockjs": "0.3.x",
+    "uuid": "1.4.x"
+  },
+  "devDependencies": {
+    "mocha": "1.17.x",
+    "should": "3.1.x"
+  }
+}

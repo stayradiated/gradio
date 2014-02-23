@@ -1,6 +1,5 @@
-Song = require './models/song'
-request = require 'request'
-Promise = require 'when'
+Promise = require('bluebird')
+Song = require('./models/song')
 
 # Plugins
 bestOf = require './plugins/bestof'
@@ -43,7 +42,7 @@ class Methods
   ###
   getSearchResults: (query, type) =>
 
-    pattern = '!.result.result.*'
+    pattern = '!.result.result.Songs.*'
 
     parameters =
       query: query
@@ -68,7 +67,7 @@ class Methods
       .callMethod(parameters, 'getQueueSongListFromSongIDs', pattern)
       .then null, null, (result) ->
         new Song result
-        
+
 
   ###*
    * Returns the songs of the artist given its ID
@@ -124,16 +123,6 @@ class Methods
       .callMethod(parameters, 'getPlaylistByID', pattern)
       .then null, null, (song) ->
         new Song song
-
-  ###*
-   * Returns all the songs in an album
-  ###
-  albumGetAllSongs: (albumID) =>
-
-    parameters =
-      albumID: albumID
-
-    @core.callMethod(parameters, 'albumGetAllSongs')
 
 
   ###*

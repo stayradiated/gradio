@@ -1,0 +1,25 @@
+.app .search {
+
+  position: absolute;
+  top: $header_height;
+  height: $search_height;
+  left: 0;
+  right: 0;
+
+  input {
+    display: block;
+    width: calc(100% - 40px);
+    height: $search_height;
+    padding: 0 20px;
+    margin: 0;
+    border-radius: 0;
+    -webkit-appearance: none;
+    border: 0;
+    outline: 0;
+  }
+
+  input:focus {
+    
+  }
+
+}

@@ -1,4 +1,4 @@
 node_modules
 .sass-cache
-cache/*.mp3
-grooveshark/*.*
+server/cache/*
+lib/token.json

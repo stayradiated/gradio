@@ -3,8 +3,8 @@
  * songs.
 ###
 
-Promise = require 'when'
-Methods = require './methods'
+Promise = require('bluebird')
+Methods = require('./methods')
 
 ###*
  * @class Queue

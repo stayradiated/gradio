@@ -399,7 +399,7 @@ body {
 
 .app .content {
   position: absolute;
-  top: 60px;
+  top: 105px;
   bottom: 60px;
   left: 0;
   right: 0;
@@ -459,3 +459,20 @@ body {
   .app .controls .next {
     background-size: 14px 18px;
     background-image: url("img/icon/next.png"); }
+
+.app .search {
+  position: absolute;
+  top: 60px;
+  height: 45px;
+  left: 0;
+  right: 0; }
+  .app .search input {
+    display: block;
+    width: calc(100% - 40px);
+    height: 45px;
+    padding: 0 20px;
+    margin: 0;
+    border-radius: 0;
+    -webkit-appearance: none;
+    border: 0;
+    outline: 0; }

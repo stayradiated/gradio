@@ -2,7 +2,7 @@
 .app .content {
 
   position: absolute;
-  top: $header_height;
+  top: $header_height + $search_height;
   bottom: $controls_height;
   left: 0;
   right: 0;
