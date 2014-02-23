@@ -52,9 +52,8 @@
           el: $('section.columns')
         });
         ranger.setPanes([['Artist', 'ArtistName'], ['Songs', 'SongName']]);
-        client.on('result', function(_arg) {
-          var item, method;
-          method = _arg[0], item = _arg[1];
+        client.on('result', function(method, item) {
+          console.log(method, item);
           switch (method) {
             case 'broadcastStatusPoll':
               console.log(item);
@@ -9305,6 +9304,7 @@
 
         function Client() {
           var conn;
+          Client.__super__.constructor.apply(this, arguments);
           conn = new SockJS("http://" + settings.host + ":" + settings.port + "/ws");
           this.connect(conn);
         }
@@ -13314,6 +13314,7 @@
         Item = Base.Model.extend({
     
             defaults: {
+                id: null,
                 title: '',
                 child: false,
                 data: false

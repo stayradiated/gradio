@@ -27,7 +27,10 @@ module.exports.init = ->
     ['Songs', 'SongName']
   ]
 
-  client.on 'result', ([method, item]) ->
+  client.on 'result', (method, item) ->
+
+    console.log method, item
+
     switch method
       when 'broadcastStatusPoll'
         console.log item

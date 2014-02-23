@@ -8,7 +8,9 @@ Jandal.handle('websockets')
 class Client extends Jandal
 
   constructor: ->
-    conn = new SockJS "http://#{ settings.host }:#{ settings.port }/ws"
+    super
+
+    conn = new SockJS("http://#{ settings.host }:#{ settings.port }/ws")
     @connect(conn)
 
 module.exports = Client
