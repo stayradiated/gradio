@@ -5,6 +5,17 @@
   "main": "index.js",
   "author": "George Czabania",
   "license": "MIT",
+  "homepage": "https://github.com/stayradiated/gradio",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stayradiated/gradio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/stayradiated/gradio/issues"
+  },
+  "keywords": [
+    "grooveshark"
+  ],
   "scripts": {
     "test": "make test"
   },
