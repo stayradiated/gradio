@@ -1,8 +1,8 @@
-sockjs = require 'sockjs'
-Jandal = require 'jandal'
-log = require('./log')('Socket', 'blue')
+sockjs = require('sockjs')
+Jandal = require('jandal')
+log = require('log_')('Socket', 'blue')
 
-Jandal.handle 'node'
+Jandal.handle('node')
 
 class Socket
 
@@ -28,7 +28,12 @@ class Socket
     @socket.emit event, data
 
   callMethod: (method, args) =>
-    @methods[method].apply(@methods[method], args).then null, null, (result) =>
-      @emit 'result', [method, result]
+
+    [partA, partB] = method.split('.')
+    fn = @methods[partA]
+    if partB then fn = fn[partB]
+
+    fn.apply(null, args).progressed (result) =>
+      @socket.emit('result', method, result)
 
 module.exports = Socket

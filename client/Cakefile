@@ -1,19 +1,12 @@
-scrunch = require 'coffee-scrunch'
+scrunch = require('coffee-scrunch')
 
 options =
   input:  './source/js/init.coffee'
   output: './app/assets/js/scripts.js'
 
-task 'watch', ->
-  init new Scrunch
-    path: input
-    compile: true
-    watch: true
-
 task 'build', ->
   scrunch(options)
-    .then ->
-      console.log 'finished'
-    .end()
+  .then -> console.log 'finished'
+  .end()
 
 

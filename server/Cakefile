@@ -1,0 +1,17 @@
+{exec} = require 'child_process'
+
+task 'server', 'Start server', ->
+
+  require('coffee-script/register')
+
+  Server = require('./source/server')
+  Socket = require('./source/socket')
+
+  server = new Server()
+
+  server.app.core.init()
+  server.listen(7070)
+  Socket.init(server.server, server.app)
+
+  exec('open http://localhost:7070')
+

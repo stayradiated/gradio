@@ -4,36 +4,40 @@
  * It's primary purpose is to stream audio data to the client
 ###
 
-http       = require 'http'
-url        = require 'url'
-fs         = require 'fs'
-formatPath = require 'path'
-Methods    = require './methods'
-log        = require('./log')('Server', 'blue')
+http       = require('http')
+url        = require('url')
+fs         = require('fs')
+formatPath = require('path')
+Gradio     = require('../../lib/index')
+log        = require('log_')('Server', 'blue')
 
-APP_FOLDER = __dirname + '/../app/app'
+# TODO: USE EXPRESS
+
+APP_FOLDER = __dirname + '/../../client/app'
 MIME_TYPES =
   'html': 'text/html'
   'css': 'text/css'
   'js': 'text/javascript'
+
 
 notFound = (res) ->
   res.writeHead(404, 'Content-Type': 'text/plain')
   res.write('404. Page not found.')
   res.end()
 
+
 class Server
 
   events:
     'fetchSong': /\/song\/([\w\W]+)\.mp3$/
 
-  constructor: (@core) ->
+  constructor: ->
 
-    @app = new Methods @core
+    @app = new Gradio()
     @server = http.createServer (req, res) =>
 
-      res.setHeader 'Access-Control-Allow-Origin', '*'
-      res.setHeader 'Access-Control-Allow-Headers', 'X-Requested-With'
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With')
 
       uri = url.parse(req.url).pathname
 
@@ -47,7 +51,8 @@ class Server
         filename = APP_FOLDER + unescape(uri)
         fs.exists filename, (exists) ->
           if not exists then return notFound(res)
-          res.writeHead 200, 'Content-Type': MIME_TYPES[formatPath.extname(filename).split('.')[1]]
+          extension = formatPath.extname(filename).split('.')[1]
+          res.writeHead 200, 'Content-Type': MIME_TYPES[extension]
           fs.createReadStream(filename).pipe(res)
         return
 
@@ -147,7 +152,7 @@ class Server
       else
 
         # Else download the song from GrooveShark ...
-        @app.getSongStream(songID).then (stream) ->
+        @app.song.download(songID).then (stream) ->
 
           # Stream to write to disk
           file = fs.createWriteStream(path)
@@ -159,7 +164,7 @@ class Server
 
           # Forward the grooveshark headers
           delete stream.headers['cache-control']
-          res.writeHead(200, stream.headers);
+          res.writeHead(200, stream.headers)
 
           stream.on 'data', (chunk) ->
             file.write(chunk)

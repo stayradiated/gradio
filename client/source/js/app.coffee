@@ -1,15 +1,14 @@
-Base   = require 'base'
-Ranger = require 'ranger'
-$      = require 'jqueryify'
+Base   = require('base')
+Ranger = require('ranger')
 
-Client = require './client'
-Player = require './player'
-Search = require './search'
-Bar    = require './bar'
+Client = require('./client')
+Player = require('./player')
+Search = require('./search')
+Bar    = require('./bar')
 
 module.exports.init = ->
 
-  app = new Client()
+  client = new Client()
 
   bar = new Bar
     el: $('.bar')
@@ -28,7 +27,7 @@ module.exports.init = ->
     ['Songs', 'SongName']
   ]
 
-  app.socket.on 'result', ([method, item]) ->
+  client.on 'result', ([method, item]) ->
     switch method
       when 'broadcastStatusPoll'
         console.log item
@@ -43,7 +42,7 @@ module.exports.init = ->
   search.on 'playlist', (id) ->
     currentBroadcast = false
     ranger.clear()
-    app.getPlaylistByID(id)
+    client.getPlaylistByID(id)
 
   search.on 'search', (query, type) ->
     currentBroadcast  = false
@@ -53,29 +52,29 @@ module.exports.init = ->
         ranger.setPanes [
           ['Songs', 'SongName']
         ]
-        app.userGetSongsInLibrary(20910233)
+        client.userGetSongsInLibrary(20910233)
 
       when 'Albums'
-        app.getAlbumSongs query
+        client.getAlbumSongs query
 
       when 'Broadcast'
         ranger.setPanes [
           ['Broadcasts', 'n']
         ]
-        app.getTopBroadcasts()
+        client.getTopBroadcasts()
 
       when 'Best Of'
         ranger.setPanes [
           [query, 'SongName']
         ]
-        app.getBestOf query
+        client.getBestOf query
 
       else
         ranger.setPanes [
           ['Artist', 'ArtistName']
           ['Songs', 'SongName']
         ]
-        app.getSearchResults(query, type)
+        client.emit('call', 'search', [query, type])
 
   # Load offline files
   parseOffline = ->
@@ -85,7 +84,7 @@ module.exports.init = ->
       for file in files
         id = file.match(/(\d+)\.mp3/)
         if id? then songIDs.push(id[1])
-      app.getSongInfo(songIDs).then (results) ->
+      client.getSongInfo(songIDs).then (results) ->
         ranger.load results, [
           ['Artist', 'ArtistName']
           ['Songs', 'Name']
@@ -97,11 +96,11 @@ module.exports.init = ->
   startBroadcast = (broadcast) ->
     console.log 'opening broadcast', broadcast
     currentBroadcast = broadcast.sub[6..]
-    app.broadcastStatusPoll currentBroadcast
+    client.broadcastStatusPoll currentBroadcast
 
   player.on 'finished', ->
     return unless currentBroadcast
-    app.broadcastStatusPoll currentBroadcast
+    client.broadcastStatusPoll currentBroadcast
 
 
   openItem = ->

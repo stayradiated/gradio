@@ -1,13 +1,14 @@
 {
-  "name"        : "GroovyApp",
-  "version"     : "0.0.1",
-  "description" : "Web app for the Groovy lib",
-  "devDependencies": {
-    "coffee-scrunch" : "*",
-    "jqueryify"      : "*"
-  },
+  "name": "gradio-client",
+  "version": "0.0.1",
+  "description": "Web app for the Groovy lib",
   "dependencies": {
-    "base"           : "git://github.com/stayradiated/base.git#master",
-    "ranger"         : "git://github.com/stayradiated/ranger.git#master"
+    "base": "git://github.com/stayradiated/base.git#master",
+    "ranger": "git://github.com/stayradiated/ranger.git#master",
+    "jquery": "2.1.x",
+    "jandal": "0.0.14"
+  },
+  "devDependencies": {
+    "coffee-scrunch": "0.2.x"
   }
 }

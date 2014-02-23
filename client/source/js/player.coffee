@@ -1,7 +1,6 @@
-$        = require 'jqueryify'
-Base     = require 'base'
-Track    = require './track'
-settings = require './settings'
+Base     = require('base')
+Track    = require('./track')
+settings = require('./settings')
 
 class Player extends Base.View
 
