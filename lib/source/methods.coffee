@@ -24,6 +24,7 @@ class Methods
     @loadPlugin('search')
     @loadPlugin('playlist')
     @loadPlugin('song')
+    @loadPlugin('bestof')
 
 
   ###

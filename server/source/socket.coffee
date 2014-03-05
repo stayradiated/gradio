@@ -22,6 +22,7 @@ class Socket
 
   callMethod: (method, args) =>
     [partA, partB] = method.split('.')
+
     fn = @methods[partA]
     if partB then fn = fn[partB]
 

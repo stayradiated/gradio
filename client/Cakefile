@@ -3,10 +3,13 @@ scrunch = require('coffee-scrunch')
 options =
   input:  './source/js/init.coffee'
   output: './app/assets/js/scripts.js'
+  log: true
 
 task 'build', ->
   scrunch(options)
   .then -> console.log 'finished'
-  .end()
+  .catch (err) ->
+    console.log err
+  .done()
 
 

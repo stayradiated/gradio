@@ -16,9 +16,8 @@ BestOf = (methods, createMethod) ->
     request options, (err, res, body) ->
       if err then return deferred.reject err
       ids = body.match(regex)[0][8..].split ','
-      deferred.resolve(obj.getSongInfo(ids))
+      deferred.resolve methods.songs.info(ids)
 
     return deferred.promise
-
 
 module.exports = BestOf

@@ -55,10 +55,10 @@ module.exports.init = ->
         ranger.setPanes [
           ['Songs', 'SongName']
         ]
-        client.emit('call', 'user.library', 20910233)
+        client.emit('call', 'user.library', [20910233])
 
       when 'Albums'
-        client.emit('call', 'songs.inAlbum', query)
+        client.emit('call', 'songs.inAlbum', [query])
 
       when 'Broadcast'
         ranger.setPanes [
@@ -68,9 +68,9 @@ module.exports.init = ->
 
       when 'Best Of'
         ranger.setPanes [
-          [query, 'SongName']
+          [query, 'Name']
         ]
-        client.emit('call', 'getBestOf', query)
+        client.emit('call', 'getBestOf', [query])
 
       else
         ranger.setPanes [

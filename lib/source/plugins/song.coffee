@@ -6,7 +6,7 @@ Song = (methods, createMethod) ->
     name: 'getQueueSongListFromSongIDs'
     pattern: '!.result.*'
     parameters: (ids) ->
-      songIDs: songIDs
+      songIDs: ids
 
   methods.songs.popular = createMethod
     name: 'popularGetSongs'
