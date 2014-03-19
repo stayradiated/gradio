@@ -1,0 +1,19 @@
+{
+  "name": "gradio-server",
+  "version": "0.1.0",
+  "description": "The gradio web server",
+  "main": "source",
+  "dependencies": {
+    "jandal": "0.0.x",
+    "log_": "0.0.x",
+    "sockjs": "0.3.x"
+  },
+  "devDependencies": {
+    "coffee-script": "1.7.x"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "George Czabania",
+  "license": "MIT"
+}
