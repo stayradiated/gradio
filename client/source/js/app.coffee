@@ -45,7 +45,11 @@ module.exports.init = ->
   search.on 'playlist', (id) ->
     currentBroadcast = false
     ranger.clear()
-    client.emit('call', 'playlist.read', id)
+    ranger.setPanes [
+      ['Artist', 'ArtistName']
+      ['Songs', 'Name']
+    ]
+    client.emit('call', 'playlist.read', [id])
 
   search.on 'search', (query, type) ->
     currentBroadcast  = false
