@@ -1,7 +1,7 @@
 Promise = require('bluebird')
 request = require('request')
 
-home = 'http://tothebestof.com/'
+home = 'http://tothebestof.com/band/'
 regex = /songIDs\=(\d*\,)*\d*/
 
 BestOf = (methods, createMethod) ->
