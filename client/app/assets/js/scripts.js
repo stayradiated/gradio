@@ -182,7 +182,7 @@
       };
     }, function(module, exports) {
       /*!
-     * jQuery JavaScript Library v2.1.0
+     * jQuery JavaScript Library v2.1.1
      * http://jquery.com/
      *
      * Includes Sizzle.js
@@ -192,7 +192,7 @@
      * Released under the MIT license
      * http://jquery.org/license
      *
-     * Date: 2014-01-23T21:10Z
+     * Date: 2014-05-01T17:11Z
      */
     
     (function( global, factory ) {
@@ -242,8 +242,6 @@
     
     var hasOwn = class2type.hasOwnProperty;
     
-    var trim = "".trim;
-    
     var support = {};
     
     
@@ -252,7 +250,7 @@
     	// Use the correct document accordingly with window argument (sandbox)
     	document = window.document,
     
-    	version = "2.1.0",
+    	version = "2.1.1",
     
     	// Define a local copy of jQuery
     	jQuery = function( selector, context ) {
@@ -260,6 +258,10 @@
     		// Need init if jQuery is called (just allow error to be thrown if not included)
     		return new jQuery.fn.init( selector, context );
     	},
+    
+    	// Support: Android<4.1
+    	// Make sure we trim BOM and NBSP
+    	rtrim = /^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g,
     
     	// Matches dashed string for camelizing
     	rmsPrefix = /^-ms-/,
@@ -291,10 +293,10 @@
     	get: function( num ) {
     		return num != null ?
     
-    			// Return a 'clean' array
+    			// Return just the one element from the set
     			( num < 0 ? this[ num + this.length ] : this[ num ] ) :
     
-    			// Return just the object
+    			// Return all the elements in a clean array
     			slice.call( this );
     	},
     
@@ -450,7 +452,7 @@
     		// parseFloat NaNs numeric-cast false positives (null|true|false|"")
     		// ...but misinterprets leading-number strings, particularly hex literals ("0x...")
     		// subtraction forces infinities to NaN
-    		return obj - parseFloat( obj ) >= 0;
+    		return !jQuery.isArray( obj ) && obj - parseFloat( obj ) >= 0;
     	},
     
     	isPlainObject: function( obj ) {
@@ -462,16 +464,8 @@
     			return false;
     		}
     
-    		// Support: Firefox <20
-    		// The try/catch suppresses exceptions thrown when attempting to access
-    		// the "constructor" property of certain host objects, ie. |window.location|
-    		// https://bugzilla.mozilla.org/show_bug.cgi?id=814622
-    		try {
-    			if ( obj.constructor &&
-    					!hasOwn.call( obj.constructor.prototype, "isPrototypeOf" ) ) {
-    				return false;
-    			}
-    		} catch ( e ) {
+    		if ( obj.constructor &&
+    				!hasOwn.call( obj.constructor.prototype, "isPrototypeOf" ) ) {
     			return false;
     		}
     
@@ -581,8 +575,11 @@
     		return obj;
     	},
     
+    	// Support: Android<4.1
     	trim: function( text ) {
-    		return text == null ? "" : trim.call( text );
+    		return text == null ?
+    			"" :
+    			( text + "" ).replace( rtrim, "" );
     	},
     
     	// results is for internal usage only
@@ -734,14 +731,14 @@
     }
     var Sizzle =
     /*!
-     * Sizzle CSS Selector Engine v1.10.16
+     * Sizzle CSS Selector Engine v1.10.19
      * http://sizzlejs.com/
      *
      * Copyright 2013 jQuery Foundation, Inc. and other contributors
      * Released under the MIT license
      * http://jquery.org/license
      *
-     * Date: 2014-01-13
+     * Date: 2014-04-18
      */
     (function( window ) {
     
@@ -750,7 +747,9 @@
     	Expr,
     	getText,
     	isXML,
+    	tokenize,
     	compile,
+    	select,
     	outermostContext,
     	sortInput,
     	hasDuplicate,
@@ -817,17 +816,23 @@
     	// Proper syntax: http://www.w3.org/TR/CSS21/syndata.html#value-def-identifier
     	identifier = characterEncoding.replace( "w", "w#" ),
     
-    	// Acceptable operators http://www.w3.org/TR/selectors/#attribute-selectors
-    	attributes = "\\[" + whitespace + "*(" + characterEncoding + ")" + whitespace +
-    		"*(?:([*^$|!~]?=)" + whitespace + "*(?:(['\"])((?:\\\\.|[^\\\\])*?)\\3|(" + identifier + ")|)|)" + whitespace + "*\\]",
+    	// Attribute selectors: http://www.w3.org/TR/selectors/#attribute-selectors
+    	attributes = "\\[" + whitespace + "*(" + characterEncoding + ")(?:" + whitespace +
+    		// Operator (capture 2)
+    		"*([*^$|!~]?=)" + whitespace +
+    		// "Attribute values must be CSS identifiers [capture 5] or strings [capture 3 or capture 4]"
+    		"*(?:'((?:\\\\.|[^\\\\'])*)'|\"((?:\\\\.|[^\\\\\"])*)\"|(" + identifier + "))|)" + whitespace +
+    		"*\\]",
     
-    	// Prefer arguments quoted,
-    	//   then not containing pseudos/brackets,
-    	//   then attribute selectors/non-parenthetical expressions,
-    	//   then anything else
-    	// These preferences are here to reduce the number of selectors
-    	//   needing tokenize in the PSEUDO preFilter
-    	pseudos = ":(" + characterEncoding + ")(?:\\(((['\"])((?:\\\\.|[^\\\\])*?)\\3|((?:\\\\.|[^\\\\()[\\]]|" + attributes.replace( 3, 8 ) + ")*)|.*)\\)|)",
+    	pseudos = ":(" + characterEncoding + ")(?:\\((" +
+    		// To reduce the number of selectors needing tokenize in the preFilter, prefer arguments:
+    		// 1. quoted (capture 3; capture 4 or capture 5)
+    		"('((?:\\\\.|[^\\\\'])*)'|\"((?:\\\\.|[^\\\\\"])*)\")|" +
+    		// 2. simple (capture 6)
+    		"((?:\\\\.|[^\\\\()[\\]]|" + attributes + ")*)|" +
+    		// 3. anything else (capture 2)
+    		".*" +
+    		")\\)|)",
     
     	// Leading and non-escaped trailing whitespace, capturing some non-whitespace characters preceding the latter
     	rtrim = new RegExp( "^" + whitespace + "+|((?:^|[^\\\\])(?:\\\\.)*)" + whitespace + "+$", "g" ),
@@ -872,7 +877,7 @@
     	funescape = function( _, escaped, escapedWhitespace ) {
     		var high = "0x" + escaped - 0x10000;
     		// NaN means non-codepoint
-    		// Support: Firefox
+    		// Support: Firefox<24
     		// Workaround erroneous numeric interpretation of +"0x"
     		return high !== high || escapedWhitespace ?
     			escaped :
@@ -1268,7 +1273,7 @@
     				var m = context.getElementById( id );
     				// Check parentNode to catch when Blackberry 4.6 returns
     				// nodes that are no longer in the document #6963
-    				return m && m.parentNode ? [m] : [];
+    				return m && m.parentNode ? [ m ] : [];
     			}
     		};
     		Expr.filter["ID"] = function( id ) {
@@ -1348,11 +1353,13 @@
     			// setting a boolean content attribute,
     			// since its presence should be enough
     			// http://bugs.jquery.com/ticket/12359
-    			div.innerHTML = "<select t=''><option selected=''></option></select>";
+    			div.innerHTML = "<select msallowclip=''><option selected=''></option></select>";
     
-    			// Support: IE8, Opera 10-12
+    			// Support: IE8, Opera 11-12.16
     			// Nothing should be selected when empty strings follow ^= or $= or *=
-    			if ( div.querySelectorAll("[t^='']").length ) {
+    			// The test attribute must be unknown in Opera but "safe" for WinRT
+    			// http://msdn.microsoft.com/en-us/library/ie/hh465388.aspx#attribute_section
+    			if ( div.querySelectorAll("[msallowclip^='']").length ) {
     				rbuggyQSA.push( "[*^$]=" + whitespace + "*(?:''|\"\")" );
     			}
     
@@ -1395,7 +1402,8 @@
     		});
     	}
     
-    	if ( (support.matchesSelector = rnative.test( (matches = docElem.webkitMatchesSelector ||
+    	if ( (support.matchesSelector = rnative.test( (matches = docElem.matches ||
+    		docElem.webkitMatchesSelector ||
     		docElem.mozMatchesSelector ||
     		docElem.oMatchesSelector ||
     		docElem.msMatchesSelector) )) ) {
@@ -1576,7 +1584,7 @@
     		} catch(e) {}
     	}
     
-    	return Sizzle( expr, document, null, [elem] ).length > 0;
+    	return Sizzle( expr, document, null, [ elem ] ).length > 0;
     };
     
     Sizzle.contains = function( context, elem ) {
@@ -1705,7 +1713,7 @@
     			match[1] = match[1].replace( runescape, funescape );
     
     			// Move the given value to match[3] whether quoted or unquoted
-    			match[3] = ( match[4] || match[5] || "" ).replace( runescape, funescape );
+    			match[3] = ( match[3] || match[4] || match[5] || "" ).replace( runescape, funescape );
     
     			if ( match[2] === "~=" ) {
     				match[3] = " " + match[3] + " ";
@@ -1748,15 +1756,15 @@
     
     		"PSEUDO": function( match ) {
     			var excess,
-    				unquoted = !match[5] && match[2];
+    				unquoted = !match[6] && match[2];
     
     			if ( matchExpr["CHILD"].test( match[0] ) ) {
     				return null;
     			}
     
     			// Accept quoted arguments as-is
-    			if ( match[3] && match[4] !== undefined ) {
-    				match[2] = match[4];
+    			if ( match[3] ) {
+    				match[2] = match[4] || match[5] || "";
     
     			// Strip excess characters from unquoted arguments
     			} else if ( unquoted && rpseudo.test( unquoted ) &&
@@ -2161,7 +2169,7 @@
     setFilters.prototype = Expr.filters = Expr.pseudos;
     Expr.setFilters = new setFilters();
     
-    function tokenize( selector, parseOnly ) {
+    tokenize = Sizzle.tokenize = function( selector, parseOnly ) {
     	var matched, match, tokens, type,
     		soFar, groups, preFilters,
     		cached = tokenCache[ selector + " " ];
@@ -2226,7 +2234,7 @@
     			Sizzle.error( selector ) :
     			// Cache the tokens
     			tokenCache( selector, groups ).slice( 0 );
-    }
+    };
     
     function toSelector( tokens ) {
     	var i = 0,
@@ -2303,6 +2311,15 @@
     			return true;
     		} :
     		matchers[0];
+    }
+    
+    function multipleContexts( selector, contexts, results ) {
+    	var i = 0,
+    		len = contexts.length;
+    	for ( ; i < len; i++ ) {
+    		Sizzle( selector, contexts[i], results );
+    	}
+    	return results;
     }
     
     function condense( unmatched, map, filter, context, xml ) {
@@ -2573,7 +2590,7 @@
     		superMatcher;
     }
     
-    compile = Sizzle.compile = function( selector, group /* Internal Use Only */ ) {
+    compile = Sizzle.compile = function( selector, match /* Internal Use Only */ ) {
     	var i,
     		setMatchers = [],
     		elementMatchers = [],
@@ -2581,12 +2598,12 @@
     
     	if ( !cached ) {
     		// Generate a function of recursive functions that can be used to check each element
-    		if ( !group ) {
-    			group = tokenize( selector );
+    		if ( !match ) {
+    			match = tokenize( selector );
     		}
-    		i = group.length;
+    		i = match.length;
     		while ( i-- ) {
-    			cached = matcherFromTokens( group[i] );
+    			cached = matcherFromTokens( match[i] );
     			if ( cached[ expando ] ) {
     				setMatchers.push( cached );
     			} else {
@@ -2596,74 +2613,83 @@
     
     		// Cache the compiled function
     		cached = compilerCache( selector, matcherFromGroupMatchers( elementMatchers, setMatchers ) );
+    
+    		// Save selector and tokenization
+    		cached.selector = selector;
     	}
     	return cached;
     };
     
-    function multipleContexts( selector, contexts, results ) {
-    	var i = 0,
-    		len = contexts.length;
-    	for ( ; i < len; i++ ) {
-    		Sizzle( selector, contexts[i], results );
-    	}
-    	return results;
-    }
-    
-    function select( selector, context, results, seed ) {
+    /**
+     * A low-level selection function that works with Sizzle's compiled
+     *  selector functions
+     * @param {String|Function} selector A selector or a pre-compiled
+     *  selector function built with Sizzle.compile
+     * @param {Element} context
+     * @param {Array} [results]
+     * @param {Array} [seed] A set of elements to match against
+     */
+    select = Sizzle.select = function( selector, context, results, seed ) {
     	var i, tokens, token, type, find,
-    		match = tokenize( selector );
+    		compiled = typeof selector === "function" && selector,
+    		match = !seed && tokenize( (selector = compiled.selector || selector) );
     
-    	if ( !seed ) {
-    		// Try to minimize operations if there is only one group
-    		if ( match.length === 1 ) {
+    	results = results || [];
     
-    			// Take a shortcut and set the context if the root selector is an ID
-    			tokens = match[0] = match[0].slice( 0 );
-    			if ( tokens.length > 2 && (token = tokens[0]).type === "ID" &&
-    					support.getById && context.nodeType === 9 && documentIsHTML &&
-    					Expr.relative[ tokens[1].type ] ) {
+    	// Try to minimize operations if there is no seed and only one group
+    	if ( match.length === 1 ) {
     
-    				context = ( Expr.find["ID"]( token.matches[0].replace(runescape, funescape), context ) || [] )[0];
-    				if ( !context ) {
-    					return results;
-    				}
-    				selector = selector.slice( tokens.shift().value.length );
+    		// Take a shortcut and set the context if the root selector is an ID
+    		tokens = match[0] = match[0].slice( 0 );
+    		if ( tokens.length > 2 && (token = tokens[0]).type === "ID" &&
+    				support.getById && context.nodeType === 9 && documentIsHTML &&
+    				Expr.relative[ tokens[1].type ] ) {
+    
+    			context = ( Expr.find["ID"]( token.matches[0].replace(runescape, funescape), context ) || [] )[0];
+    			if ( !context ) {
+    				return results;
+    
+    			// Precompiled matchers will still verify ancestry, so step up a level
+    			} else if ( compiled ) {
+    				context = context.parentNode;
     			}
     
-    			// Fetch a seed set for right-to-left matching
-    			i = matchExpr["needsContext"].test( selector ) ? 0 : tokens.length;
-    			while ( i-- ) {
-    				token = tokens[i];
+    			selector = selector.slice( tokens.shift().value.length );
+    		}
     
-    				// Abort if we hit a combinator
-    				if ( Expr.relative[ (type = token.type) ] ) {
-    					break;
-    				}
-    				if ( (find = Expr.find[ type ]) ) {
-    					// Search, expanding context for leading sibling combinators
-    					if ( (seed = find(
-    						token.matches[0].replace( runescape, funescape ),
-    						rsibling.test( tokens[0].type ) && testContext( context.parentNode ) || context
-    					)) ) {
+    		// Fetch a seed set for right-to-left matching
+    		i = matchExpr["needsContext"].test( selector ) ? 0 : tokens.length;
+    		while ( i-- ) {
+    			token = tokens[i];
     
-    						// If seed is empty or no tokens remain, we can return early
-    						tokens.splice( i, 1 );
-    						selector = seed.length && toSelector( tokens );
-    						if ( !selector ) {
-    							push.apply( results, seed );
-    							return results;
-    						}
+    			// Abort if we hit a combinator
+    			if ( Expr.relative[ (type = token.type) ] ) {
+    				break;
+    			}
+    			if ( (find = Expr.find[ type ]) ) {
+    				// Search, expanding context for leading sibling combinators
+    				if ( (seed = find(
+    					token.matches[0].replace( runescape, funescape ),
+    					rsibling.test( tokens[0].type ) && testContext( context.parentNode ) || context
+    				)) ) {
     
-    						break;
+    					// If seed is empty or no tokens remain, we can return early
+    					tokens.splice( i, 1 );
+    					selector = seed.length && toSelector( tokens );
+    					if ( !selector ) {
+    						push.apply( results, seed );
+    						return results;
     					}
+    
+    					break;
     				}
     			}
     		}
     	}
     
-    	// Compile and execute a filtering function
+    	// Compile and execute a filtering function if one is not provided
     	// Provide `match` to avoid retokenization if we modified the selector above
-    	compile( selector, match )(
+    	( compiled || compile( selector, match ) )(
     		seed,
     		context,
     		!documentIsHTML,
@@ -2671,7 +2697,7 @@
     		rsibling.test( selector ) && testContext( context.parentNode ) || context
     	);
     	return results;
-    }
+    };
     
     // One-time assignments
     
@@ -3548,8 +3574,9 @@
     		readyList.resolveWith( document, [ jQuery ] );
     
     		// Trigger any bound ready events
-    		if ( jQuery.fn.trigger ) {
-    			jQuery( document ).trigger("ready").off("ready");
+    		if ( jQuery.fn.triggerHandler ) {
+    			jQuery( document ).triggerHandler( "ready" );
+    			jQuery( document ).off( "ready" );
     		}
     	}
     });
@@ -3921,11 +3948,15 @@
     				if ( elem.nodeType === 1 && !data_priv.get( elem, "hasDataAttrs" ) ) {
     					i = attrs.length;
     					while ( i-- ) {
-    						name = attrs[ i ].name;
     
-    						if ( name.indexOf( "data-" ) === 0 ) {
-    							name = jQuery.camelCase( name.slice(5) );
-    							dataAttr( elem, name, data[ name ] );
+    						// Support: IE11+
+    						// The attrs elements can be null (#14894)
+    						if ( attrs[ i ] ) {
+    							name = attrs[ i ].name;
+    							if ( name.indexOf( "data-" ) === 0 ) {
+    								name = jQuery.camelCase( name.slice(5) );
+    								dataAttr( elem, name, data[ name ] );
+    							}
     						}
     					}
     					data_priv.set( elem, "hasDataAttrs", true );
@@ -4155,10 +4186,17 @@
     
     (function() {
     	var fragment = document.createDocumentFragment(),
-    		div = fragment.appendChild( document.createElement( "div" ) );
+    		div = fragment.appendChild( document.createElement( "div" ) ),
+    		input = document.createElement( "input" );
     
     	// #11217 - WebKit loses check when the name is after the checked attribute
-    	div.innerHTML = "<input type='radio' checked='checked' name='t'/>";
+    	// Support: Windows Web Apps (WWA)
+    	// `name` and `type` need .setAttribute for WWA
+    	input.setAttribute( "type", "radio" );
+    	input.setAttribute( "checked", "checked" );
+    	input.setAttribute( "name", "t" );
+    
+    	div.appendChild( input );
     
     	// Support: Safari 5.1, iOS 5.1, Android 4.x, Android 2.3
     	// old WebKit doesn't clone checked state correctly in fragments
@@ -4178,7 +4216,7 @@
     
     var
     	rkeyEvent = /^key/,
-    	rmouseEvent = /^(?:mouse|contextmenu)|click/,
+    	rmouseEvent = /^(?:mouse|pointer|contextmenu)|click/,
     	rfocusMorph = /^(?:focusinfocus|focusoutblur)$/,
     	rtypenamespace = /^([^.]*)(?:\.(.+)|)$/;
     
@@ -4747,7 +4785,7 @@
     
     				// Support: Firefox 20+
     				// Firefox doesn't alert if the returnValue field is not set.
-    				if ( event.result !== undefined ) {
+    				if ( event.result !== undefined && event.originalEvent ) {
     					event.originalEvent.returnValue = event.result;
     				}
     			}
@@ -4798,9 +4836,9 @@
     		// Events bubbling up the document may have been marked as prevented
     		// by a handler lower down the tree; reflect the correct value.
     		this.isDefaultPrevented = src.defaultPrevented ||
-    				// Support: Android < 4.0
     				src.defaultPrevented === undefined &&
-    				src.getPreventDefault && src.getPreventDefault() ?
+    				// Support: Android < 4.0
+    				src.returnValue === false ?
     			returnTrue :
     			returnFalse;
     
@@ -4847,7 +4885,14 @@
     		}
     	},
     	stopImmediatePropagation: function() {
+    		var e = this.originalEvent;
+    
     		this.isImmediatePropagationStopped = returnTrue;
+    
+    		if ( e && e.stopImmediatePropagation ) {
+    			e.stopImmediatePropagation();
+    		}
+    
     		this.stopPropagation();
     	}
     };
@@ -4856,7 +4901,9 @@
     // Support: Chrome 15+
     jQuery.each({
     	mouseenter: "mouseover",
-    	mouseleave: "mouseout"
+    	mouseleave: "mouseout",
+    	pointerenter: "pointerover",
+    	pointerleave: "pointerout"
     }, function( orig, fix ) {
     	jQuery.event.special[ orig ] = {
     		delegateType: fix,
@@ -5281,7 +5328,7 @@
     	},
     
     	cleanData: function( elems ) {
-    		var data, elem, events, type, key, j,
+    		var data, elem, type, key,
     			special = jQuery.event.special,
     			i = 0;
     
@@ -5290,9 +5337,8 @@
     				key = elem[ data_priv.expando ];
     
     				if ( key && (data = data_priv.cache[ key ]) ) {
-    					events = Object.keys( data.events || {} );
-    					if ( events.length ) {
-    						for ( j = 0; (type = events[j]) !== undefined; j++ ) {
+    					if ( data.events ) {
+    						for ( type in data.events ) {
     							if ( special[ type ] ) {
     								jQuery.event.remove( elem, type );
     
@@ -5595,14 +5641,15 @@
      */
     // Called only from within defaultDisplay
     function actualDisplay( name, doc ) {
-    	var elem = jQuery( doc.createElement( name ) ).appendTo( doc.body ),
+    	var style,
+    		elem = jQuery( doc.createElement( name ) ).appendTo( doc.body ),
     
     		// getDefaultComputedStyle might be reliably used only on attached element
-    		display = window.getDefaultComputedStyle ?
+    		display = window.getDefaultComputedStyle && ( style = window.getDefaultComputedStyle( elem[ 0 ] ) ) ?
     
     			// Use of this method is a temporary fix (more like optmization) until something better comes along,
     			// since it was removed from specification and supported only in FF
-    			window.getDefaultComputedStyle( elem[ 0 ] ).display : jQuery.css( elem[ 0 ], "display" );
+    			style.display : jQuery.css( elem[ 0 ], "display" );
     
     	// We don't have any data stored on the element,
     	// so use "detach" method as fast way to get rid of the element
@@ -5725,28 +5772,32 @@
     
     (function() {
     	var pixelPositionVal, boxSizingReliableVal,
-    		// Support: Firefox, Android 2.3 (Prefixed box-sizing versions).
-    		divReset = "padding:0;margin:0;border:0;display:block;-webkit-box-sizing:content-box;" +
-    			"-moz-box-sizing:content-box;box-sizing:content-box",
     		docElem = document.documentElement,
     		container = document.createElement( "div" ),
     		div = document.createElement( "div" );
+    
+    	if ( !div.style ) {
+    		return;
+    	}
     
     	div.style.backgroundClip = "content-box";
     	div.cloneNode( true ).style.backgroundClip = "";
     	support.clearCloneStyle = div.style.backgroundClip === "content-box";
     
-    	container.style.cssText = "border:0;width:0;height:0;position:absolute;top:0;left:-9999px;" +
-    		"margin-top:1px";
+    	container.style.cssText = "border:0;width:0;height:0;top:0;left:-9999px;margin-top:1px;" +
+    		"position:absolute";
     	container.appendChild( div );
     
     	// Executing both pixelPosition & boxSizingReliable tests require only one layout
     	// so they're executed at the same time to save the second computation.
     	function computePixelPositionAndBoxSizingReliable() {
-    		// Support: Firefox, Android 2.3 (Prefixed box-sizing versions).
-    		div.style.cssText = "-webkit-box-sizing:border-box;-moz-box-sizing:border-box;" +
-    			"box-sizing:border-box;padding:1px;border:1px;display:block;width:4px;margin-top:1%;" +
-    			"position:absolute;top:1%";
+    		div.style.cssText =
+    			// Support: Firefox<29, Android 2.3
+    			// Vendor-prefix box-sizing
+    			"-webkit-box-sizing:border-box;-moz-box-sizing:border-box;" +
+    			"box-sizing:border-box;display:block;margin-top:1%;top:1%;" +
+    			"border:1px;padding:1px;width:4px;position:absolute";
+    		div.innerHTML = "";
     		docElem.appendChild( container );
     
     		var divStyle = window.getComputedStyle( div, null );
@@ -5756,9 +5807,10 @@
     		docElem.removeChild( container );
     	}
     
-    	// Use window.getComputedStyle because jsdom on node.js will break without it.
+    	// Support: node.js jsdom
+    	// Don't assume that getComputedStyle is a property of the global object
     	if ( window.getComputedStyle ) {
-    		jQuery.extend(support, {
+    		jQuery.extend( support, {
     			pixelPosition: function() {
     				// This test is executed only once but we still do memoizing
     				// since we can use the boxSizingReliable pre-computing.
@@ -5780,7 +5832,13 @@
     				// This support function is only executed once so no memoizing is needed.
     				var ret,
     					marginDiv = div.appendChild( document.createElement( "div" ) );
-    				marginDiv.style.cssText = div.style.cssText = divReset;
+    
+    				// Reset CSS: box-sizing; display; margin; border; padding
+    				marginDiv.style.cssText = div.style.cssText =
+    					// Support: Firefox<29, Android 2.3
+    					// Vendor-prefix box-sizing
+    					"-webkit-box-sizing:content-box;-moz-box-sizing:content-box;" +
+    					"box-sizing:content-box;display:block;margin:0;border:0;padding:0";
     				marginDiv.style.marginRight = marginDiv.style.width = "0";
     				div.style.width = "1px";
     				docElem.appendChild( container );
@@ -5788,9 +5846,6 @@
     				ret = !parseFloat( window.getComputedStyle( marginDiv, null ).marginRight );
     
     				docElem.removeChild( container );
-    
-    				// Clean up the div for other support tests.
-    				div.innerHTML = "";
     
     				return ret;
     			}
@@ -5830,8 +5885,8 @@
     
     	cssShow = { position: "absolute", visibility: "hidden", display: "block" },
     	cssNormalTransform = {
-    		letterSpacing: 0,
-    		fontWeight: 400
+    		letterSpacing: "0",
+    		fontWeight: "400"
     	},
     
     	cssPrefixes = [ "Webkit", "O", "Moz", "ms" ];
@@ -5978,13 +6033,10 @@
     				values[ index ] = data_priv.access( elem, "olddisplay", defaultDisplay(elem.nodeName) );
     			}
     		} else {
+    			hidden = isHidden( elem );
     
-    			if ( !values[ index ] ) {
-    				hidden = isHidden( elem );
-    
-    				if ( display && display !== "none" || !hidden ) {
-    					data_priv.set( elem, "olddisplay", hidden ? display : jQuery.css(elem, "display") );
-    				}
+    			if ( display !== "none" || !hidden ) {
+    				data_priv.set( elem, "olddisplay", hidden ? display : jQuery.css( elem, "display" ) );
     			}
     		}
     	}
@@ -6023,6 +6075,8 @@
     	cssNumber: {
     		"columnCount": true,
     		"fillOpacity": true,
+    		"flexGrow": true,
+    		"flexShrink": true,
     		"fontWeight": true,
     		"lineHeight": true,
     		"opacity": true,
@@ -6087,9 +6141,6 @@
     
     			// If a hook was provided, use that value, otherwise just set the specified value
     			if ( !hooks || !("set" in hooks) || (value = hooks.set( elem, value, extra )) !== undefined ) {
-    				// Support: Chrome, Safari
-    				// Setting style to blank string required to delete "style: x !important;"
-    				style[ name ] = "";
     				style[ name ] = value;
     			}
     
@@ -6145,7 +6196,7 @@
     			if ( computed ) {
     				// certain elements can have dimension info if we invisibly show them
     				// however, it must have a current display style that would benefit from this
-    				return elem.offsetWidth === 0 && rdisplayswap.test( jQuery.css( elem, "display" ) ) ?
+    				return rdisplayswap.test( jQuery.css( elem, "display" ) ) && elem.offsetWidth === 0 ?
     					jQuery.swap( elem, cssShow, function() {
     						return getWidthOrHeight( elem, name, extra );
     					}) :
@@ -6466,7 +6517,7 @@
     
     function defaultPrefilter( elem, props, opts ) {
     	/* jshint validthis: true */
-    	var prop, value, toggle, tween, hooks, oldfire, display,
+    	var prop, value, toggle, tween, hooks, oldfire, display, checkDisplay,
     		anim = this,
     		orig = {},
     		style = elem.style,
@@ -6510,13 +6561,12 @@
     		// Set display property to inline-block for height/width
     		// animations on inline elements that are having width/height animated
     		display = jQuery.css( elem, "display" );
-    		// Get default display if display is currently "none"
-    		if ( display === "none" ) {
-    			display = defaultDisplay( elem.nodeName );
-    		}
-    		if ( display === "inline" &&
-    				jQuery.css( elem, "float" ) === "none" ) {
     
+    		// Test default display if display is currently "none"
+    		checkDisplay = display === "none" ?
+    			data_priv.get( elem, "olddisplay" ) || defaultDisplay( elem.nodeName ) : display;
+    
+    		if ( checkDisplay === "inline" && jQuery.css( elem, "float" ) === "none" ) {
     			style.display = "inline-block";
     		}
     	}
@@ -6546,6 +6596,10 @@
     				}
     			}
     			orig[ prop ] = dataShow && dataShow[ prop ] || jQuery.style( elem, prop );
+    
+    		// Any non-fx value stops us from restoring the original display value
+    		} else {
+    			display = undefined;
     		}
     	}
     
@@ -6588,6 +6642,10 @@
     				}
     			}
     		}
+    
+    	// If this is a noop like .hide().hide(), restore an overwritten display value
+    	} else if ( (display === "none" ? defaultDisplay( elem.nodeName ) : display) === "inline" ) {
+    		style.display = display;
     	}
     }
     
@@ -7480,6 +7538,16 @@
     
     jQuery.extend({
     	valHooks: {
+    		option: {
+    			get: function( elem ) {
+    				var val = jQuery.find.attr( elem, "value" );
+    				return val != null ?
+    					val :
+    					// Support: IE10-11+
+    					// option.text throws exceptions (#14686, #14858)
+    					jQuery.trim( jQuery.text( elem ) );
+    			}
+    		},
     		select: {
     			get: function( elem ) {
     				var value, option,
@@ -7526,7 +7594,7 @@
     
     				while ( i-- ) {
     					option = options[ i ];
-    					if ( (option.selected = jQuery.inArray( jQuery(option).val(), values ) >= 0) ) {
+    					if ( (option.selected = jQuery.inArray( option.value, values ) >= 0) ) {
     						optionSet = true;
     					}
     				}
@@ -8733,10 +8801,15 @@
     				// Create the abort callback
     				callback = xhrCallbacks[ id ] = callback("abort");
     
-    				// Do send the request
-    				// This may raise an exception which is actually
-    				// handled in jQuery.ajax (so no try/catch here)
-    				xhr.send( options.hasContent && options.data || null );
+    				try {
+    					// Do send the request (this may raise an exception)
+    					xhr.send( options.hasContent && options.data || null );
+    				} catch ( e ) {
+    					// #14683: Only rethrow if this hasn't been notified as an error yet
+    					if ( callback ) {
+    						throw e;
+    					}
+    				}
     			},
     
     			abort: function() {
@@ -8943,7 +9016,7 @@
     		off = url.indexOf(" ");
     
     	if ( off >= 0 ) {
-    		selector = url.slice( off );
+    		selector = jQuery.trim( url.slice( off ) );
     		url = url.slice( 0, off );
     	}
     
@@ -9251,6 +9324,12 @@
     // derived from file names, and jQuery is normally delivered in a lowercase
     // file name. Do this after creating the global so that if an AMD module wants
     // to call noConflict to hide this version of jQuery, it will work.
+    
+    // Note that for maximum portability, libraries that are not jQuery should
+    // declare themselves as anonymous modules, and avoid setting a global if an
+    // AMD loader is present. jQuery is a special case. For more information, see
+    // https://github.com/jrburke/requirejs/wiki/Updating-existing-libraries#wiki-anon
+    
     if ( typeof define === "function" && define.amd ) {
     	define( "jquery", [], function() {
     		return jQuery;
@@ -10259,355 +10338,339 @@
     }());
     ;
     }, function(module, exports) {
-      (function () {
-    
       'use strict';
     
-      var View, Ranger, Pane;
+    var View, Ranger, Pane;
     
-      View = _require(9);
-      Pane = _require(10);
+    View = _require(9);
+    Pane = _require(10);
     
-      Ranger = (function () {
+    Ranger = function (attrs) {
+      this._view = new View(attrs);
     
-        function Ranger (attrs) {
-          this.view = new View(attrs);
+      this.up = this._view.up.bind(this._view);
+      this.down = this._view.down.bind(this._view);
+      this.left = this._view.left.bind(this._view);
+      this.right = this._view.right.bind(this._view);
+      this.open = this._view.open.bind(this._view);
+    };
     
-          this.up = this.view.up;
-          this.down = this.view.down;
-          this.left = this.view.left;
-          this.right = this.view.right;
-          this.open = this.view.open;
+    Ranger.prototype.setPanes = function(panes) {
+      this._panes = panes;
+      this.clear();
+    };
     
-        };
+    Ranger.prototype.findPane = function(name) {
+      for (var i = this._panes.length - 1; i >= 0; i--) {
+        if (this._panes[i][1] == name) {
+          return i;
+        }
+      }
+      return -1;
+    };
     
-        Ranger.prototype.setPanes = function(panes) {
-          this.panes = panes;
-          this.clear();
-        };
+    // Remove all the current items
+    Ranger.prototype.clear = function() {
+      this._view.pane.destroy();
+      this._view.pane.refresh({
+        title: this._panes[0][0],
+        key: this._panes[0][1]
+      }, true);
+    };
     
-        Ranger.prototype.findPane = function(name) {
-          for (var i = this.panes.length - 1; i >= 0; i--) {
-            if (this.panes[i][1] == name) {
-              return i;
-            }
-          };
-          return -1;
-        };
+    Ranger.prototype.load = function(array)  {
+      var i, id, item, key, length, main, map, out, title, x, j, alen, plen;
     
-        // Remove all the current items
-        Ranger.prototype.clear = function() {
-          this.view.pane.destroy();
-          this.view.pane.refresh({
-            title: this.panes[0][0],
-            key: this.panes[0][1]
-          }, true);
-        };
+      // You can only have one top level pane at a time
+      this._view.pane.destroy();
     
-        Ranger.prototype.load = function(array)  {
-          var i, id, item, key, length, main, map, out, title, x, j, alen, plen;
+      map    = {};
+      main   = {};
+      length = this._panes.length - 1;
     
-          // You can only have one top level pane at a time
-          this.view.pane.destroy();
+      // Loop through each item in the array - { object }
+      for (i = 0, alen = array.length; i < alen; i += 1) {
     
-          map    = {};
-          main   = {};
-          length = this.panes.length - 1;
+          item = array[i];
+          out  = main;
+          x    = '';
     
-          // Loop through each item in the array - { object }
-          for (i = 0, alen = array.length; i < alen; i += 1) {
+          // Loop through each panel - [name, title]
+          for (j = 0, plen = this._panes.length; j < plen; j += 1) {
     
-              item = array[i];
-              out  = main;
-              x    = '';
+              title = this._panes[j][0];
+              key   = this._panes[j][1];
     
-              // Loop through each panel - [name, title]
-              for (j = 0, plen = this.panes.length; j < plen; j += 1) {
+              out.key = key;
+              out.title = title;
+              if (out.contents === undefined) {
+                  out.contents = [];
+              }
     
-                  title = this.panes[j][0];
-                  key   = this.panes[j][1];
+              x += title + ':' + item[key] + ':';
     
-                  out.key = key;
-                  out.title = title;
-                  if (out.contents === undefined) {
-                      out.contents = [];
-                  }
+              if (map[x] === undefined) {
+                  id = out.contents.push({
+                      title: item[key]
+                  }) - 1;
+                  map[x] = out.contents[id];
+              }
     
-                  x += title + ':' + item[key] + ':';
+              if (j !== length) {
     
-                  if (map[x] === undefined) {
-                      id = out.contents.push({
-                          title: item[key]
-                      }) - 1;
-                      map[x] = out.contents[id];
-                  }
-    
-                  if (j !== length) {
-    
-                      if (map[x].child !== undefined) {
-                          out = map[x].child;
-                      } else {
-                          out = map[x].child = {};
-                      }
-    
+                  if (map[x].child !== undefined) {
+                      out = map[x].child;
                   } else {
-                      map[x].data = item;
+                      out = map[x].child = {};
                   }
+    
+              } else {
+                  map[x].data = item;
               }
           }
-          this.view.pane = new Pane(main)
-        };
+      }
+      this._view.pane = new Pane(main);
+    };
     
-        Ranger.prototype.add = function(object) {
-          var first, itemData, self = this;
+    Ranger.prototype.add = function(object) {
+      var first, itemData, self = this;
     
-          // Add the item to the first pane
-          itemData = this._addItem(object, this.view.pane);
+      // Add the item to the first pane
+      itemData = this._addItem(object, this._view.pane);
     
-          // Recursive function
-          var addPane = function (itemData) {
-            var item, pane, index;
+      // Recursive function
+      var addPane = function (itemData) {
+        var item, pane, index;
     
-            item = itemData[0];
-            pane = itemData[1];
-            index = self.findPane(pane.key)
+        item = itemData[0];
+        pane = itemData[1];
+        index = self.findPane(pane.key);
     
-            if (index > -1 && ++index < self.panes.length) {
-              pane = self.panes[index];
-              item.child = new Pane({
-                title: pane[0],
-                key: pane[1]
-              });
-              item.child.parent = item;
-              addPane(self._addItem(object, item.child));
-            }
+        if (index > -1 && ++index < self._panes.length) {
+          pane = self._panes[index];
+          item.child = new Pane({
+            title: pane[0],
+            key: pane[1]
+          });
+          item.child.parent = item;
+          addPane(self._addItem(object, item.child));
+        }
+      };
+    
+      addPane(itemData);
+    
+    };
+    
+    Ranger.prototype._addItem = function(object, pane) {
+      var key, value, item, data, exists, force, self = this;
+      key = pane.key;
+      value = object[key];
+    
+      force = this.findPane(pane.key) >= this._panes.length - 1;
+    
+      if (! force) {
+        pane.contents.forEach(function (el) {
+          if (! exists && el.title === value && el.child) {
+            exists = true;
+            data = self._addItem(object, el.child);
           }
-    
-          addPane(itemData);
-    
-        };
-    
-        Ranger.prototype._addItem = function(object, pane) {
-          var key, value, item, data, exists, force, self = this;
-          key = pane.key;
-          value = object[key];
-    
-          force = this.findPane(pane.key) >= this.panes.length - 1;
-    
-          if (! force) {
-            pane.contents.forEach(function (el) {
-              if (! exists && el.title === value && el.child) {
-                exists = true;
-                data = self._addItem(object, el.child);
-              }
-            });
-          }
-    
-          if (! exists || force) {
-            item = pane.contents.create({
-              title: value
-            });
-            if (force) item.data = object;
-          }
-    
-          return data || [item, pane];
-    
-        };
-    
-        return Ranger;
-    
-      }());
-    
-      // Export global if we are running in a browser
-      if (typeof global === 'undefined') {
-          window.Ranger = Ranger;
+        });
       }
     
-      module.exports = Ranger;
-    
-    }());;
-    }, function(module, exports) {
-      /*jslint browser: true, node: true, nomen: true*/
-    /*global $*/
-    
-    (function () {
-    
-        'use strict';
-    
-        var Base, Item, ItemView, Pane, PaneView, Ranger, template, vent, bindAll;
-    
-        Base = _require(21);
-        bindAll = _require(15)
-    
-        // Global event passer
-        vent = new Base.Event();
-    
-        // Templates
-        template = {
-            pane: _require(16),
-            item: _require(17)
-        };
-    
-        // Intialise views
-        PaneView = _require(18)(vent, template.pane);
-        ItemView = _require(19)(vent, template.item);
-    
-        // Models
-        Pane  = _require(10);
-        Item  = _require(20);
-    
-        Ranger = Base.View.extend({
-    
-            constructor: function () {
-                Ranger.__super__.constructor.apply(this, arguments);
-                bindAll(this);
-    
-                this.current = {
-                    pane: null,
-                    item: null
-                };
-    
-                this.pane = new Pane();
-                this.pane.on('refresh', this.addOne);
-                this.pane.on('before:destroy', this.remove);
-    
-                vent.on('select:item', this.selectItem);
-                vent.on('select:pane', this.selectPane);
-                vent.on('show:pane', this.addOne);
-    
-            },
-    
-            // Select a pane
-            selectPane: function (pane) {
-                this.current.pane = pane;
-                this.el.find('.active.pane').removeClass('active');
-            },
-    
-            // Select an item
-            selectItem: function (item, pane) {
-                this.current.item = item;
-                this.recheck(pane);
-                if (!item.child) {
-                    return;
-                }
-                vent.trigger('show:pane', item.child);
-            },
-    
-            // Remove panes that aren't displayed
-            recheck: function (pane) {
-                var _this = this;
-                return pane.contents.forEach(function (item) {
-                    if (!item.child) {
-                        return;
-                    }
-                    item.child.trigger('remove');
-                    _this.recheck(item.child);
-                });
-            },
-    
-            // Render a pane
-            addOne: function (pane) {
-                var view = new PaneView({
-                    pane: pane
-                });
-                this.el.append(view.render().el);
-            },
-    
-            // Destroying the view of a pane when the model is destroyed
-            // Also destroy all child views
-            remove: function (pane) {
-                console.log('removing a pane', pane);
-                pane.trigger('remove');
-                this.recheck(pane);
-            },
-    
-            // Select the first item in the first pane
-            selectFirst: function () {
-                var item = this.pane.contents.first();
-                pane.contents.trigger('click:item', item);
-            },
-    
-            // Move up
-            up: function () {
-                if (!this.current.pane) {
-                    return this.selectFirst();
-                }
-                this.current.pane.trigger('move:up');
-            },
-    
-            // Move down
-            down: function () {
-                if (!this.current.pane) {
-                    return this.selectFirst();
-                }
-                this.current.pane.trigger('move:down');
-            },
-    
-            // Move right
-            right: function () {
-                if (!this.current.pane) {
-                    return;
-                }
-                this.current.pane.trigger('move:right');
-            },
-    
-            // Move left
-            left: function () {
-                var item, pane, _ref;
-                if (!((_ref = this.current.pane) !== undefined ? _ref.parent : undefined)) {
-                    return;
-                }
-                item = this.current.pane.parent;
-                pane = item.collection;
-                pane.trigger('click:item', item);
-            },
-    
-            // Return the selcted item
-            open: function () {
-                return this.current.item.data;
-            }
-    
+      if (! exists || force) {
+        item = pane.contents.create({
+          title: value
         });
+        if (force) item.data = object;
+      }
     
-        module.exports = Ranger;
+      return data || [item, pane];
     
-    }());
+    };
+    
+    module.exports = Ranger;
     ;
     }, function(module, exports) {
-      /*jslint browser: true, node: true, nomen: true*/
-    (function () {
-        'use strict';
+      'use strict';
     
-        var Pane, Base = _require(21);
+    var Base, Item, ItemView, Pane, PaneView, Ranger, template, vent;
     
-        Pane = Base.Model.extend({
+    Base = _require(16);
     
-            defaults: {
-                key: '',
-                title: '',
-                contents: null
-            },
+    // Global event passer
+    vent = new Base.Event();
     
-            constructor: function (attrs) {
-                Pane.__super__.constructor.apply(this, arguments);
+    // Templates
+    template = {
+      pane: _require(17),
+      item: _require(18)
+    };
     
-                var ItemCollection = _require(20);
-                this.contents = new ItemCollection();
+    // Intialise views
+    PaneView = _require(19)(vent, template.pane);
+    ItemView = _require(20)(vent, template.item);
     
-                if (attrs && attrs.contents) {
-                    this.contents.refresh(attrs.contents, true);
-                }
+    // Models
+    Pane  = _require(10);
+    Item  = _require(15);
     
-                this.on('refresh', function(self) {
-                    self.contents = new ItemCollection();
-                });
-            }
+    Ranger = Base.View.extend({
     
+      constructor: function () {
+        Ranger.__super__.constructor.apply(this, arguments);
+    
+        this.current = {
+          pane: null,
+           item: null
+        };
+    
+        this.pane = new Pane();
+    
+        this.listen([
+          this.pane, {
+            'refresh': this.addOne.bind(this),
+            'before:destroy': this.remove.bind(this)
+          },
+          vent, {
+            'select:item': this.selectItem.bind(this),
+            'select:pane': this.selectPane.bind(this),
+            'show:pane': this.addOne.bind(this)
+          }
+        ]);
+    
+      },
+    
+      // Select a pane
+      selectPane: function (pane) {
+        this.current.pane = pane;
+        this.el.find('.active.pane').removeClass('active');
+      },
+    
+      // Select an item
+      selectItem: function (item, pane) {
+        this.current.item = item;
+        this.recheck(pane);
+        if (!item.child) {
+          return;
+        }
+        vent.trigger('show:pane', item.child);
+      },
+    
+      // Remove panes that aren't displayed
+      recheck: function (pane) {
+        var self = this;
+        return pane.contents.forEach(function (item) {
+          if (!item.child) {
+            return;
+          }
+          item.child.trigger('remove');
+          self.recheck(item.child);
         });
+      },
     
-        module.exports = Pane;
+      // Render a pane
+      addOne: function (pane) {
+        var view = new PaneView({
+          pane: pane
+        });
+        this.el.append(view.render().el);
+      },
     
-    }());
+      // Destroying the view of a pane when the model is destroyed
+      // Also destroy all child views
+      remove: function (pane) {
+        pane.trigger('remove');
+        this.recheck(pane);
+      },
+    
+      // Select the first item in the first pane
+      selectFirst: function () {
+        var item = this.pane.contents.first();
+        this.pane.contents.trigger('click:item', item);
+      },
+    
+      // Move up
+      up: function () {
+        if (! this.current.pane) return this.selectFirst();
+        this.current.pane.trigger('move:up');
+      },
+    
+      // Move down
+      down: function () {
+        if (! this.current.pane) return this.selectFirst();
+        this.current.pane.trigger('move:down');
+      },
+    
+      // Move right
+      right: function () {
+        if (! this.current.pane) return;
+        this.current.pane.trigger('move:right');
+      },
+    
+      // Move left
+      left: function () {
+        var current, item, pane, _ref;
+        current = this.current.pane;
+        if (current === undefined || current.parent === undefined) return;
+        item = this.current.pane.parent;
+        pane = item.collection;
+        pane.trigger('click:item', item);
+      },
+    
+      // Return the selcted item
+      open: function () {
+        return this.current.item.data;
+      }
+    
+    });
+    
+    module.exports = Ranger;
+    ;
+    }, function(module, exports) {
+      'use strict';
+    
+    var Base, Pane;
+    
+    Base = _require(16);
+    
+    /*
+     * Pane
+     *
+     * Represents a column
+     *
+     * - key (string) : item property name to display
+     * - title (string) : the name of the column
+     * - contents (item collection) : a collection of items
+     */
+    
+    Pane = Base.Model.extend({
+    
+      defaults: {
+        key: '',
+        title: '',
+        contents: null
+      },
+    
+      constructor: function (attrs) {
+        var ItemCollection;
+    
+        Pane.__super__.constructor.apply(this, arguments);
+    
+        ItemCollection = _require(15);
+        this.contents = new ItemCollection();
+    
+        if (attrs && attrs.contents) {
+          this.contents.refresh(attrs.contents, true);
+        }
+    
+        this.on('refresh', function (self) {
+          self.contents = new ItemCollection();
+        });
+      }
+    
+    });
+    
+    module.exports = Pane;
     ;
     }, function(module, exports) {
       /* SockJS client, version 0.3.4, http://sockjs.org, MIT License
@@ -13002,7 +13065,7 @@
 
         Settings.prototype.defaults = {
           'port': 7070,
-          'host': 'localhost'
+          'host': '192.168.1.25'
         };
 
         return Settings;
@@ -13039,315 +13102,43 @@
       })(Base.View);
       return module.exports = Track;
     }, function(module, exports) {
-      (function () {
+      'use strict';
     
-        'use strict';
+    var Base, Item, Items, Pane;
     
-        module.exports = function (me) {
-            var key, proto = me.__proto__;
-            for (key in proto) {
-                if (proto.hasOwnProperty(key) &&
-                    key !== 'constructor' &&
-                    typeof proto[key] === 'function') {
-                    (function(key) {
-                        me[key] = function () {
-                            return proto[key].apply(me, arguments);
-                        }
-                    }(key));
-                }
-            }
-        };
+    Base = _require(16);
+    Pane = _require(10);
     
-    }());
-    ;
-    }, function(module, exports) {
-      (function () {
+    // Item Model
+    Item = Base.Model.extend({
     
-        'use strict';
+      defaults: {
+        id: null,
+        title: '',
+        child: false,
+        data: false
+      },
     
-        module.exports = function (obj) {
-            return '<div class=\"title\">' + obj.title + '</div><div class="items"></div>';
-        };
+      constructor: function (attrs) {
+        Item.__super__.constructor.apply(this, arguments);
+        if (typeof attrs.child !== 'undefined') {
+          this.child = new Pane(attrs.child);
+          this.child.parent = this;
+        }
+      }
     
-    }());
-    ;
-    }, function(module, exports) {
-      (function () {
+    });
     
-        'use strict';
     
-        module.exports = function (obj) {
-            return obj.title;
-        };
+    // Item Collection
+    Items = Base.Collection.extend({
     
-    }());
-    ;
-    }, function(module, exports) {
-      /*jslint browser: true, node: true, nomen: true*/
-    /*global $*/
+      model: Item
     
-    (function () {
+    });
     
-        'use strict';
+    module.exports = Items;
     
-        var Base, Items, bindAll, Panes, template, vent, SCROLL_OFFSET, SCROLL_HEIGHT;
-    
-        Base  = _require(21);
-        Items = _require(19)();
-        bindAll = _require(15);
-    
-        // Constants
-        // TODO: Let the user set these
-        SCROLL_OFFSET = 20;
-        SCROLL_HEIGHT = 50;
-    
-        // Set globals
-        module.exports = function (vnt, tmpl) {
-            if (vent === undefined) { vent = vnt; }
-            if (template === undefined) { template = tmpl; }
-            return Panes;
-        };
-    
-        Panes = Base.View.extend({
-    
-            tagName: 'section',
-    
-            className: 'pane',
-    
-            constructor: function () {
-                Panes.__super__.constructor.apply(this, arguments);
-                bindAll(this);
-    
-                this.el = $("<" + this.tagName + " class=\"" + this.className + "\">");
-                this.active = null;
-    
-                this.listen([
-                    this.pane, {
-                        'remove':     this.remove,
-                        'move:up':    this.up,
-                        'move:down':  this.down,
-                        'move:right': this.right
-                    },
-                    this.pane.contents, {
-                        'click:item': this.select,
-                        'create:model': this.addOne
-                    }
-                ]);
-    
-            },
-    
-            remove: function () {
-                this.pane.contents.trigger('remove');
-                this.unbind();
-                this.el.remove();
-                delete this.el;
-                delete this.items;
-                this.stopListening();
-            },
-    
-            updateScrollbar: function () {
-                var item, parent, height, pos, scroll;
-                item   = this.el.find('.active').get(0);
-                parent = this.items.get(0);
-                height = parent.offsetHeight;
-                pos    = item.offsetTop;
-                scroll = parent.scrollTop;
-                if (pos - scroll < SCROLL_OFFSET) {
-                    parent.scrollTop = pos - SCROLL_OFFSET;
-                } else if (pos + SCROLL_HEIGHT > scroll + height - SCROLL_OFFSET) {
-                    parent.scrollTop = pos - height + SCROLL_HEIGHT + SCROLL_OFFSET;
-                }
-            },
-    
-            select: function (item) {
-                vent.trigger('select:pane', this.pane);
-                this.active = this.pane.contents.indexOf(item);
-                this.el.addClass('active');
-                this.el.find('.active').removeClass('active');
-                item.trigger('select');
-                vent.trigger('select:item', item, this.pane);
-                this.updateScrollbar();
-            },
-    
-            render: function () {
-                this.el.html(template(this.pane.toJSON()));
-                this.items = this.el.find('.items');
-                this.pane.contents.forEach(this.addOne);
-                return this;
-            },
-    
-            addOne: function (item) {
-                var itemView;
-                itemView = new Items({
-                    item: item
-                });
-                this.items.append(itemView.render().el);
-            },
-    
-            move: function (direction) {
-                var active, contents, item, max;
-                active = this.active;
-                contents = this.pane.contents;
-                active += direction;
-                max = contents.length - 1;
-    
-                if (active < 0) {
-                    active = 0;
-                } else if (active > max) {
-                    active = max;
-                }
-    
-                if (active === this.active) { return; }
-    
-                this.active = active;
-                item = contents.at(this.active);
-                this.select(item);
-            },
-    
-            up: function () {
-                this.move(-1);
-            },
-    
-            down: function () {
-                this.move(1);
-            },
-    
-            right: function () {
-                var child, current, item;
-                current = this.pane.contents.at(this.active);
-                if (!current.child) { return; }
-                child = current.child.contents;
-                item = child.first();
-                child.trigger('click:item', item);
-            }
-    
-        });
-    
-    }());
-    ;
-    }, function(module, exports) {
-      /*jslint browser: true, node: true, nomen: true*/
-    /*global $*/
-    
-    (function () {
-    
-        'use strict';
-    
-        var Base, Items, template, vent, bindAll;
-    
-        Base = _require(21);
-        bindAll = _require(15);
-    
-        // Set globals
-        module.exports = function (vnt, tmpl) {
-            if (vent === undefined) { vent = vnt; }
-            if (template === undefined) { template = tmpl; }
-            return Items;
-        };
-    
-        Items = Base.View.extend({
-    
-            tagName: 'div',
-            className: 'item',
-    
-            events: {
-                'mousedown': 'click'
-            },
-    
-            constructor: function () {
-                Items.__super__.constructor.apply(this, arguments);
-                bindAll(this);
-    
-                this.el = $("<" + this.tagName + " class=\"" + this.className + "\">");
-                this.bind();
-    
-                this.listen([
-                    this.item, {
-                        'select': this.select,
-                        'change:child': this.render
-                    },
-                    this.item.collection, {
-                        'remove': this.remove
-                    }
-                ]);
-            },
-    
-            render: function () {
-                this.el.html(template(this.item.toJSON()));
-                this.el.toggleClass('hasChild', !! this.item.child);
-                return this;
-            },
-    
-            remove: function () {
-                this.unbind();
-                this.el.remove();
-                delete this.el;
-                this.stopListening();
-            },
-    
-            // Sending message to pane view
-            click: function () {
-                this.item.collection.trigger('click:item', this.item);
-            },
-    
-            // Receiving message from pane view
-            select: function () {
-                this.el.addClass('active');
-            }
-    
-        });
-    
-    }());
-    ;
-    }, function(module, exports) {
-      /*jslint browser: true, node: true, nomen: true*/
-    
-    (function () {
-    
-        'use strict';
-    
-        var Base, Item, Items, Pane;
-    
-        Base = _require(21);
-        Pane = _require(10);
-    
-        // Item Model
-        Item = Base.Model.extend({
-    
-            defaults: {
-                id: null,
-                title: '',
-                child: false,
-                data: false
-            },
-    
-            constructor: function (attrs) {
-                var Pane;
-                Item.__super__.constructor.apply(this, arguments);
-                if (attrs.child === undefined) {
-                    return;
-                }
-                this.child = new Pane(attrs.child);
-                this.child.parent = this;
-            }
-    
-        });
-    
-    
-        // Item Collection
-        Items = Base.Collection.extend({
-    
-            constructor: function () {
-                return Items.__super__.constructor.apply(this, arguments);
-            },
-    
-            model: Item
-    
-        });
-    
-        module.exports = Items;
-    
-    }());
     ;
     }, function(module, exports) {
       /*jslint node: true, nomen: true*/
@@ -14065,6 +13856,219 @@
       };
     
     }());
+    ;
+    }, function(module, exports) {
+      (function () {
+    
+        'use strict';
+    
+        module.exports = function (obj) {
+            return '<div class=\"title\">' + obj.title + '</div><div class="items"></div>';
+        };
+    
+    }());
+    ;
+    }, function(module, exports) {
+      (function () {
+    
+        'use strict';
+    
+        module.exports = function (obj) {
+            return obj.title;
+        };
+    
+    }());
+    ;
+    }, function(module, exports) {
+      'use strict';
+    
+    var Base, Items, Panes, template, vent, SCROLL_OFFSET, SCROLL_HEIGHT;
+    
+    Base  = _require(16);
+    Items = _require(20)();
+    
+    // Constants
+    // TODO: Let the user set these
+    SCROLL_OFFSET = 20;
+    SCROLL_HEIGHT = 50;
+    
+    // Set globals
+    module.exports = function (vnt, tmpl) {
+      if (vent === undefined) { vent = vnt; }
+      if (template === undefined) { template = tmpl; }
+      return Panes;
+    };
+    
+    Panes = Base.View.extend({
+    
+      tagName: 'section',
+      className: 'pane',
+    
+      constructor: function () {
+        Panes.__super__.constructor.apply(this, arguments);
+    
+        this.bind($('<' + this.tagName + ' class="' + this.className + '">'));
+    
+        this.active = null;
+    
+        this.listen([
+          this.pane, {
+            'remove':     this.remove.bind(this),
+            'move:up':    this.up.bind(this),
+            'move:down':  this.down.bind(this),
+            'move:right': this.right.bind(this)
+          },
+          this.pane.contents, {
+            'click:item': this.select.bind(this),
+            'create:model': this.addOne.bind(this)
+          }
+        ]);
+    
+      },
+    
+      remove: function () {
+        this.pane.contents.trigger('remove');
+        this.release();
+        delete this.items;
+      },
+    
+      updateScrollbar: function () {
+        var item, parent, height, pos, scroll;
+        item   = this.el.find('.active').get(0);
+        parent = this.items.get(0);
+        height = parent.offsetHeight;
+        pos    = item.offsetTop;
+        scroll = parent.scrollTop;
+        if (pos - scroll < SCROLL_OFFSET) {
+          parent.scrollTop = pos - SCROLL_OFFSET;
+        } else if (pos + SCROLL_HEIGHT > scroll + height - SCROLL_OFFSET) {
+          parent.scrollTop = pos - height + SCROLL_HEIGHT + SCROLL_OFFSET;
+        }
+      },
+    
+      select: function (item) {
+        vent.trigger('select:pane', this.pane);
+        this.active = this.pane.contents.indexOf(item);
+        this.el.addClass('active');
+        this.el.find('.active').removeClass('active');
+        item.trigger('select');
+        vent.trigger('select:item', item, this.pane);
+        this.updateScrollbar();
+      },
+    
+      render: function () {
+        this.el.html(template(this.pane.toJSON()));
+        this.items = this.el.find('.items');
+        this.pane.contents.forEach(this.addOne, this);
+        return this;
+      },
+    
+      addOne: function (item) {
+        var itemView;
+        itemView = new Items({
+          item: item
+        });
+        this.items.append(itemView.render().el);
+      },
+    
+      move: function (direction) {
+        var active, contents, item, max;
+        active = this.active;
+        contents = this.pane.contents;
+        active += direction;
+        max = contents.length - 1;
+    
+        if (active < 0) {
+          active = 0;
+        } else if (active > max) {
+          active = max;
+        }
+    
+        if (active === this.active) { return; }
+    
+        this.active = active;
+        item = contents.at(this.active);
+        this.select(item);
+      },
+    
+      up: function () {
+        this.move(-1);
+      },
+    
+      down: function () {
+        this.move(1);
+      },
+    
+      right: function () {
+        var child, current, item;
+        current = this.pane.contents.at(this.active);
+        if (!current.child) { return; }
+        child = current.child.contents;
+        item = child.first();
+        child.trigger('click:item', item);
+      }
+    
+    });
+    ;
+    }, function(module, exports) {
+      'use strict';
+    
+    var Base, Items, template, vent;
+    
+    Base = _require(16);
+    
+    // Set globals
+    module.exports = function (_vent, _template) {
+      if (vent === undefined) vent = _vent;
+      if (template === undefined) template = _template;
+      return Items;
+    };
+    
+    Items = Base.View.extend({
+    
+      tagName: 'div',
+      className: 'item',
+    
+      events: {
+        'mousedown': 'click'
+      },
+    
+      constructor: function () {
+        this.click = this.click.bind(this);
+    
+        Items.__super__.constructor.apply(this, arguments);
+    
+        this.bind($('<' + this.tagName + ' class="' + this.className + '">'));
+    
+        this.listen([
+          this.item, {
+            'select': this.select.bind(this),
+            'change:child': this.render.bind(this)
+          },
+          this.item.collection, {
+            'remove': this.release.bind(this)
+          }
+        ]);
+      },
+    
+      render: function () {
+        this.el.html(template(this.item.toJSON()));
+        this.el.toggleClass('hasChild', !! this.item.child);
+        return this;
+      },
+    
+      // Sending message to pane view
+      click: function () {
+        this.item.collection.trigger('click:item', this.item);
+      },
+    
+      // Receiving message from pane view
+      select: function () {
+        this.el.addClass('active');
+      }
+    
+    });
+    
     ;
     }
   ];

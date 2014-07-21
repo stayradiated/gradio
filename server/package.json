@@ -4,7 +4,8 @@
   "description": "The gradio web server",
   "main": "source",
   "dependencies": {
-    "jandal": "0.0.x",
+    "coffee-script": "^1.7.1",
+    "jandal": "0.0.14",
     "log_": "0.0.x",
     "sockjs": "0.3.x"
   },

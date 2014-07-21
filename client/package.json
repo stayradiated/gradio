@@ -4,7 +4,7 @@
   "description": "Web app for the Groovy lib",
   "dependencies": {
     "base": "git://github.com/stayradiated/base.git#master",
-    "ranger": "git://github.com/stayradiated/ranger.git#master",
+    "ranger": "git://github.com/stayradiated/ranger.git#0.2.0",
     "jquery": "2.1.x",
     "jandal": "0.0.14"
   },
